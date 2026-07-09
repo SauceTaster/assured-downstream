@@ -1,0 +1,66 @@
+# SauceTotal
+
+SauceTotal is an early-stage idea/dev project for an agent-driven assured
+downstream for open source software.
+
+Status: design prototype. Not production-ready. Expect names, schemas, command
+interfaces, and trust boundaries to change while the core automation takes
+shape.
+
+The goal is to maintain an organization of hardened forks that continuously
+track upstream projects, rebuild and release them under stronger security
+controls, and publish verifiable evidence for every meaningful claim.
+
+This is not a scorecard farm. The system should fix, rebuild, attest, sign,
+trace, compare, publish, and keep following upstream.
+
+## Core Idea
+
+For important open source projects, especially security tools, libraries,
+packages, and applications, the org provides a trusted downstream lane:
+
+- upstream remains the source of truth when it is active
+- forks track upstream automatically
+- security overlays are applied in small, reviewable deltas
+- hardened releases are built from known source commits
+- artifacts are signed and attested
+- SBOMs, SLSA provenance, in-toto statements, runtime evidence, and validation
+  reports are published
+- maintainers can fetch branches or opt into deeper support
+- inactive projects can eventually move into custodian maintenance
+
+## Key Documents
+
+- [INTENT.md](./INTENT.md): mission, social contract, stewardship modes, and
+  boundaries.
+- [ARCHITECTURE.md](./ARCHITECTURE.md): trust domains, lifecycle, agents,
+  assurance levels, evidence model, and policy gates.
+- [ROADMAP.md](./ROADMAP.md): staged implementation plan from catalog and fork
+  sync to behavior-reproducible releases.
+
+## North Star
+
+The highest assurance target is not only reproducible builds. It is
+behavior-reproducible builds.
+
+Two independent hosts should produce matching artifacts and matching normalized
+build behavior evidence: dependency materials, process graph, file boundaries,
+network behavior classes, privileged syscall profile, provenance, SBOMs, and
+policy outcome.
+
+Raw traces will vary. Normalized behavioral digests should make meaningful
+divergence visible.
+
+## Public Promise
+
+For every supported release, the system should be able to answer:
+
+- Which upstream commit or release is this based on?
+- What security overlay was applied?
+- What artifacts were produced?
+- Were artifacts signed?
+- What SBOM, SLSA, and in-toto evidence exists?
+- What did the build do at runtime?
+- Did independent rebuilds match?
+- What risks remain?
+- How can upstream fetch or adopt the hardening work?
