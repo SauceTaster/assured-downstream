@@ -32,6 +32,7 @@ from assured_downstream.scoring import score_catalog
 from assured_downstream.seed import parse_seed_source
 from assured_downstream.sync_apply import apply_sync_plan
 from assured_downstream.sync_plan import create_sync_plan
+from assured_downstream.verification_guide import create_verification_guide
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -284,6 +285,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_evidence.add_argument("--manifest", required=True, type=Path)
     verify_evidence.set_defaults(func=command_verify_evidence)
+
+    verification_guide = subparsers.add_parser(
+        "write-verification-guide",
+        help="Write a Markdown verification guide from an evidence manifest.",
+    )
+    verification_guide.add_argument("--evidence", required=True, type=Path)
+    verification_guide.add_argument("--output", required=True, type=Path)
+    verification_guide.set_defaults(func=command_write_verification_guide)
 
     compare_evidence = subparsers.add_parser(
         "compare-evidence",
@@ -651,6 +660,16 @@ def command_verify_evidence(args: argparse.Namespace) -> int:
     for failure in result["failures"]:
         print(f"  {failure}")
     return 1
+
+
+def command_write_verification_guide(args: argparse.Namespace) -> int:
+    with args.evidence.open("r", encoding="utf-8") as handle:
+        evidence = json.load(handle)
+    guide = create_verification_guide(evidence)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(guide, encoding="utf-8")
+    print(f"wrote verification guide: {args.output}")
+    return 0
 
 
 def command_compare_evidence(args: argparse.Namespace) -> int:

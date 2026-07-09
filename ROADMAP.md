@@ -179,6 +179,7 @@ Current prototype status:
 - generic in-toto statement generation exists
 - release policy gate evaluation exists for attested, reproducible,
   behavior-reproducible, and validated targets
+- Markdown verification guide generation exists for release evidence manifests
 - draft release profile planning exists for first-lane Go, Rust, and Python
   checkouts
 - pinned attested-release workflow rendering exists using `actions/attest`
