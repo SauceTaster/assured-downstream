@@ -32,6 +32,7 @@ from assured_downstream.release_render import render_release_workflow
 from assured_downstream.scoring import score_catalog
 from assured_downstream.seed import parse_seed_source
 from assured_downstream.selection import load_candidate_policy
+from assured_downstream.selftest import DEFAULT_SELF_TEST_ECOSYSTEMS, run_self_test
 from assured_downstream.sync_apply import apply_sync_plan
 from assured_downstream.sync_plan import create_sync_plan
 from assured_downstream.verification_guide import create_verification_guide
@@ -171,6 +172,20 @@ def build_parser() -> argparse.ArgumentParser:
     liaison.add_argument("--output", required=True, type=Path)
     liaison.add_argument("--markdown-output", type=Path)
     liaison.set_defaults(func=command_create_liaison_packet)
+
+    self_test = subparsers.add_parser(
+        "self-test",
+        help="Run local no-network validation checks against built-in fixtures.",
+    )
+    self_test.add_argument("--output-dir", required=True, type=Path)
+    self_test.add_argument("--fixtures-root", type=Path)
+    self_test.add_argument(
+        "--ecosystem",
+        action="append",
+        choices=DEFAULT_SELF_TEST_ECOSYSTEMS,
+        help="Fixture ecosystem to run. May be repeated. Defaults to all first-lane ecosystems.",
+    )
+    self_test.set_defaults(func=command_self_test)
 
     enrich = subparsers.add_parser(
         "enrich",
@@ -552,6 +567,21 @@ def command_create_liaison_packet(args: argparse.Namespace) -> int:
         args.markdown_output.write_text(liaison_packet_markdown(packet), encoding="utf-8")
         print(f"wrote liaison markdown: {args.markdown_output}")
     return 0
+
+
+def command_self_test(args: argparse.Namespace) -> int:
+    result = run_self_test(
+        output_dir=args.output_dir,
+        fixtures_root=args.fixtures_root,
+        ecosystems=args.ecosystem,
+    )
+    print(f"self-test {result['status']}: {args.output_dir}")
+    print(f"summary: {args.output_dir / 'SELF_TEST_SUMMARY.md'}")
+    print(
+        f"checks: {result['summary']['passed']} passed, "
+        f"{result['summary']['failed']} failed"
+    )
+    return 0 if result["ok"] else 1
 
 
 def command_enrich(args: argparse.Namespace) -> int:

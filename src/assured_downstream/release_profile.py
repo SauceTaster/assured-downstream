@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import tomllib
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
@@ -108,6 +109,52 @@ def choose_build(
                 "Review whether the Python project needs extra build dependencies or isolated build settings.",
             ],
         }
+    if "maven" in package_managers or ("Java" in languages and (root / "pom.xml").exists()):
+        return {
+            "language_family": "java",
+            "commands": [
+                "mvn -B -DskipTests package",
+                "mkdir -p dist",
+                "find target -maxdepth 2 -type f \\( -name '*.jar' -o -name '*.war' \\) -exec cp {} dist/ \\;",
+            ],
+            "artifact_paths": ["dist/*.jar", "dist/*.war"],
+            "review_notes": [
+                "Review whether tests should run before packaging and whether release artifacts include sources or javadocs.",
+                "Confirm Maven repository publishing remains disabled until credentials and provenance policy are reviewed.",
+            ],
+        }
+    if "gradle" in package_managers or (root / "build.gradle").exists() or (root / "build.gradle.kts").exists():
+        gradle_command = "./gradlew --no-daemon build" if (root / "gradlew").exists() else "gradle --no-daemon build"
+        return {
+            "language_family": "java",
+            "commands": [
+                gradle_command,
+                "mkdir -p dist",
+                "find build/libs -maxdepth 1 -type f \\( -name '*.jar' -o -name '*.war' \\) -exec cp {} dist/ \\;",
+            ],
+            "artifact_paths": ["dist/*.jar", "dist/*.war"],
+            "review_notes": [
+                "Review whether this Gradle project is single-module or needs module-specific artifact collection.",
+                "Confirm dependency locking and publishing credentials before enabling release publication.",
+            ],
+        }
+    if "dotnet" in package_managers or any(language in languages for language in ["C#", "F#", "Visual Basic"]):
+        project_arg = dotnet_project_arg(root)
+        publish_command = "dotnet publish"
+        if project_arg:
+            publish_command = f"{publish_command} {project_arg}"
+        return {
+            "language_family": "dotnet",
+            "commands": [
+                "dotnet restore",
+                f"{publish_command} --configuration Release --output dist /p:ContinuousIntegrationBuild=true",
+            ],
+            "artifact_paths": ["dist/**/*"],
+            "review_notes": [
+                "Review target frameworks, runtime identifiers, and whether NuGet package output is expected.",
+                "Confirm package signing and NuGet publishing remain disabled until credentials and provenance policy are reviewed.",
+            ],
+        }
     return {
         "language_family": "unknown",
         "commands": [
@@ -170,6 +217,17 @@ def detect_project_name(root: Path, package_managers: set[str]) -> str:
         module_name = read_go_module(root / "go.mod")
         if module_name:
             return module_name.rsplit("/", 1)[-1]
+    if "maven" in package_managers and (root / "pom.xml").exists():
+        name = read_xml_direct_child(root / "pom.xml", "artifactId")
+        if name:
+            return name
+    if "dotnet" in package_managers:
+        project = first_dotnet_project(root)
+        if project:
+            name = read_dotnet_project_name(project)
+            if name:
+                return name
+            return project.stem
     return root.name
 
 
@@ -188,6 +246,60 @@ def read_go_module(path: Path) -> str | None:
         if stripped.startswith("module "):
             return stripped.split(None, 1)[1]
     return None
+
+
+def first_dotnet_project(root: Path) -> Path | None:
+    for suffix in ("*.csproj", "*.fsproj", "*.vbproj", "*.sln"):
+        matches = sorted(root.glob(suffix))
+        if matches:
+            return matches[0]
+    return None
+
+
+def dotnet_project_arg(root: Path) -> str | None:
+    project = first_dotnet_project(root)
+    return project.name if project and project.suffix.lower() != ".sln" else None
+
+
+def read_dotnet_project_name(path: Path) -> str | None:
+    package_id = read_xml_descendant(path, "PackageId")
+    if package_id:
+        return package_id
+    assembly_name = read_xml_descendant(path, "AssemblyName")
+    if assembly_name:
+        return assembly_name
+    return None
+
+
+def read_xml_direct_child(path: Path, tag_name: str) -> str | None:
+    root = read_xml_root(path)
+    if root is None:
+        return None
+    for child in root:
+        if local_name(child.tag) == tag_name and child.text:
+            return child.text.strip()
+    return None
+
+
+def read_xml_descendant(path: Path, tag_name: str) -> str | None:
+    root = read_xml_root(path)
+    if root is None:
+        return None
+    for child in root.iter():
+        if local_name(child.tag) == tag_name and child.text:
+            return child.text.strip()
+    return None
+
+
+def read_xml_root(path: Path) -> ET.Element | None:
+    try:
+        return ET.fromstring(path.read_text(encoding="utf-8"))
+    except (ET.ParseError, UnicodeDecodeError):
+        return None
+
+
+def local_name(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
 
 
 def shell_name(value: str) -> str:

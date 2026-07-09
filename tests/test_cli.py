@@ -39,6 +39,18 @@ class CliTests(unittest.TestCase):
         self.assertEqual(args.run_index, Path("runs/index.json"))
         self.assertEqual(args.run_id, "pilot-001")
 
+    def test_self_test_parser_defaults_to_all_ecosystems(self) -> None:
+        args = build_parser().parse_args(
+            [
+                "self-test",
+                "--output-dir",
+                "runs/self-test",
+            ]
+        )
+
+        self.assertIsNone(args.ecosystem)
+        self.assertEqual(args.output_dir, Path("runs/self-test"))
+
     def test_select_fork_plan_entry_requires_selector_for_multiple_forks(self) -> None:
         fork_plan = {
             "forks": [

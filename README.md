@@ -42,6 +42,8 @@ packages, and applications, the org provides a trusted downstream lane:
 - [docs/WBS_EXECUTION_PLAN.md](./docs/WBS_EXECUTION_PLAN.md): agent-sized work
   packages, dependencies, acceptance criteria, and implementation order.
 - [docs/RESEARCH.md](./docs/RESEARCH.md): implementation-shaping research notes.
+- [docs/VALIDATION_PLAN.md](./docs/VALIDATION_PLAN.md): self-test, case-study
+  tiers, and proof required before making stronger assurance claims.
 
 ## Current Prototype Commands
 
@@ -55,6 +57,7 @@ assured-downstream pilot --seed https://example.com/awesome-security.md --org <o
   --run-dir ./runs/pilot-remote
 assured-downstream pilot --seed awesome-security.md --org <org> --run-dir ./runs/pilot-001 \
   --allowlist first-lane.json --suppress do-not-touch.json --run-index ./runs/index.json
+assured-downstream self-test --output-dir ./runs/self-test
 assured-downstream analyze-checkout --path /path/to/checkout --run-dir ./runs/checkout-001 \
   --target Attested
 assured-downstream plan-release --recon recon.json --output release-profile.json
@@ -101,6 +104,9 @@ Seeds can be local files or URLs. `pilot` is the current observe-first
 entrypoint. It writes a run directory with `catalog.json`, `fork-plan.json`,
 `selection-reasons.json`, `state.json`, `sync-plan.json`, and `RUN_SUMMARY.md`,
 and appends to a machine-readable run index.
+
+`self-test` runs local no-network validation against first-lane Go, Rust,
+Python, Java, and .NET fixtures, then verifies an Attested evidence smoke test.
 
 `analyze-checkout` is the local Patch Agent cockpit. It writes `recon.json`,
 `overlay-plan.json`, `render-result.json`, `release-profile.json`,

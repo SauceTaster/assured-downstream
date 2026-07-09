@@ -45,6 +45,7 @@ EXTENSION_LANGUAGES = {
     ".sh": "Shell",
     ".swift": "Swift",
     ".ts": "TypeScript",
+    ".vb": "Visual Basic",
 }
 
 PACKAGE_MANAGER_FILES = {
@@ -52,9 +53,13 @@ PACKAGE_MANAGER_FILES = {
     "Cargo.toml": "cargo",
     "Gemfile": "bundler",
     "Gemfile.lock": "bundler",
+    "build.gradle": "gradle",
+    "build.gradle.kts": "gradle",
+    "Directory.Packages.props": "dotnet",
     "go.mod": "go",
     "go.sum": "go",
     "gradle.properties": "gradle",
+    "gradle.lockfile": "gradle",
     "package-lock.json": "npm",
     "package.json": "npm",
     "pnpm-lock.yaml": "pnpm",
@@ -64,12 +69,17 @@ PACKAGE_MANAGER_FILES = {
     "requirements.txt": "pip",
     "setup.cfg": "python",
     "setup.py": "python",
+    "settings.gradle": "gradle",
+    "settings.gradle.kts": "gradle",
+    "packages.lock.json": "dotnet",
     "yarn.lock": "yarn",
 }
 
 BUILD_SYSTEM_FILES = {
     "CMakeLists.txt": "cmake",
     "Dockerfile": "docker",
+    "build.gradle": "gradle",
+    "build.gradle.kts": "gradle",
     "Justfile": "just",
     "Makefile": "make",
     "Taskfile.yml": "task",
@@ -78,6 +88,9 @@ BUILD_SYSTEM_FILES = {
     "docker-compose.yaml": "docker-compose",
     "goreleaser.yml": "goreleaser",
     "goreleaser.yaml": "goreleaser",
+    "pom.xml": "maven",
+    "settings.gradle": "gradle",
+    "settings.gradle.kts": "gradle",
 }
 
 ACTION_USES_PATTERN = re.compile(
@@ -122,7 +135,7 @@ def inspect_repository(path: Path) -> dict[str, Any]:
         "path": str(root),
         "file_count": len(files),
         "languages": detect_languages(files),
-        "package_managers": detect_named_files(files, PACKAGE_MANAGER_FILES),
+        "package_managers": detect_package_managers(files),
         "build_systems": detect_build_systems(files),
         "ci": ci,
         "security_controls": detect_security_controls(files, workflow_files),
@@ -161,10 +174,18 @@ def detect_named_files(files: list[Path], mapping: dict[str, str]) -> list[dict[
     return sorted(matches, key=lambda entry: (entry["name"], entry["path"]))
 
 
+def detect_package_managers(files: list[Path]) -> list[dict[str, str]]:
+    matches = detect_named_files(files, PACKAGE_MANAGER_FILES)
+    for file in files:
+        if file.suffix.lower() in {".csproj", ".fsproj", ".vbproj", ".sln"}:
+            matches.append({"name": "dotnet", "path": file.name})
+    return sorted(matches, key=lambda entry: (entry["name"], entry["path"]))
+
+
 def detect_build_systems(files: list[Path]) -> list[dict[str, str]]:
     matches = detect_named_files(files, BUILD_SYSTEM_FILES)
     for file in files:
-        if file.suffix.lower() in {".csproj", ".fsproj", ".sln"}:
+        if file.suffix.lower() in {".csproj", ".fsproj", ".vbproj", ".sln"}:
             matches.append({"name": "dotnet", "path": file.name})
     return sorted(matches, key=lambda entry: (entry["name"], entry["path"]))
 
@@ -538,7 +559,24 @@ def detect_release_signals(
         or "twine upload" in run_text
         or "twine upload" in combined_text,
         "publishes_crate": "cargo publish" in run_text or "cargo publish" in combined_text,
+        "publishes_maven": command_mentions_words(run_text, ["mvn", "deploy"])
+        or command_mentions_words(run_text, ["gradle", "publish"])
+        or "gradle publish" in combined_text,
+        "publishes_nuget": "dotnet nuget push" in run_text
+        or "nuget push" in run_text
+        or "dotnet nuget push" in combined_text
+        or "nuget push" in combined_text,
     }
+
+
+def command_mentions_words(text: str, words: list[str]) -> bool:
+    index = 0
+    for word in words:
+        match = re.search(rf"\b{re.escape(word)}\b", text[index:])
+        if not match:
+            return False
+        index += match.end()
+    return True
 
 
 def detect_risk_signals(ci: dict[str, Any]) -> list[dict[str, str]]:

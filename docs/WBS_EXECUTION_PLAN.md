@@ -18,7 +18,7 @@ As of the 2026-07-09 prototype pass:
 - WP0 core is implemented: pilot runs write a run index, selection reasons, and
   allow/suppress policy decisions.
 - WP3 is implemented: recon parses GitHub Actions workflows structurally without
-  a runtime YAML dependency and has Go/Rust/Python fixture coverage.
+  a runtime YAML dependency and has Go/Rust/Python/Java/.NET fixture coverage.
 - WP4/WP5 are partially implemented: pin locks carry freshness metadata, stale
   lock entries block rendering, and draft release workflows remain manual-only
   until review fields confirm workflow and artifact paths.
@@ -26,6 +26,8 @@ As of the 2026-07-09 prototype pass:
   verification plus artifact, SBOM, and attestation evidence.
 - WP8/WP9 are implemented locally: liaison packets, fetch instructions,
   suppression-aware outreach drafts, and custodian governance fields exist.
+- A local `self-test` command now exercises first-lane fixtures plus Attested
+  evidence verification without network access.
 
 Current critical path:
 
@@ -54,7 +56,7 @@ Current critical path:
 | --- | --- | --- |
 | Governor/Safety Agent | Policy gates, approved tooling, suppression state, run index | A blocked release or mutation exits nonzero with clear reasons |
 | Control-Plane Agent | Candidate intake, fork lifecycle, sync lifecycle, run management | Repeated sandbox runs are idempotent and auditable |
-| Patch/Release Agent | Structural recon, overlays, release profiles, workflow rendering | Go/Rust/Python fixtures render pinned draft workflows safely |
+| Patch/Release Agent | Structural recon, overlays, release profiles, workflow rendering | Go/Rust/Python/Java/.NET fixtures render pinned draft workflows safely |
 | Evidence/Repro Agent | Evidence manifests, verification, artifact comparison, trace normalization | Attested gate passes only after local manifest verification |
 | Stewardship/Liaison Agent | Custodian packets, maintainer fetch instructions, proposal summaries | Maintainers get respectful optional adoption packets |
 
@@ -518,7 +520,7 @@ Acceptance:
 - Chooses a small first-lane candidate set.
 - Forks or detects forks idempotently.
 - Syncs without clobbering secure branches.
-- Analyzes Go/Rust/Python checkouts.
+- Analyzes Go/Rust/Python/Java/.NET checkouts.
 - Renders pinned hardened CI and draft attested-release workflows.
 - Runs at least one attested release workflow successfully.
 - Collects evidence manifests and verification guides.
@@ -642,8 +644,8 @@ primary files should overlap only at CLI registration and docs.
 2. Finish WP6: release workflow evidence bundle and attestation metadata
    capture.
 3. Finish WP7: add tooling/workflow risk inputs to release gate evaluation.
-4. Run WP10: full sandbox MVP over one first-lane seed and three fixture-like
-   real candidates.
+4. Run WP10: full sandbox MVP over one first-lane seed and fixture-like real
+   candidates across the supported language set.
 5. Start WP11 only after WP10 produces a green Attested run.
 
 WP12 should still wait until artifact reproducibility is stable.
@@ -663,9 +665,9 @@ Patch/Release Agent:
 
 ```text
 You are working in Assured Downstream. Implement WP3 from docs/WBS_EXECUTION_PLAN.md:
-structural GitHub Actions recon and first-lane Go/Rust/Python fixtures. Preserve
-existing recon behavior where practical, add parser tests, and do not implement
-workflow editing.
+structural GitHub Actions recon and first-lane Go/Rust/Python/Java/.NET
+fixtures. Preserve existing recon behavior where practical, add parser tests,
+and do not implement workflow editing.
 ```
 
 Governor/Safety Agent:

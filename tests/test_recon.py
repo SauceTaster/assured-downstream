@@ -99,6 +99,22 @@ class ReconTests(unittest.TestCase):
                 "release_event": "release",
                 "release_signal": "publishes_pypi",
             },
+            "java": {
+                "language": "Java",
+                "package_manager": "maven",
+                "action": "actions/setup-java",
+                "artifact_path": "target/*.jar",
+                "release_event": "push",
+                "release_signal": "publishes_maven",
+            },
+            "dotnet": {
+                "language": "C#",
+                "package_manager": "dotnet",
+                "action": "actions/setup-dotnet",
+                "artifact_path": "dist/*",
+                "release_event": "push",
+                "release_signal": "publishes_nuget",
+            },
         }
 
         for fixture, expected in cases.items():
@@ -143,6 +159,16 @@ class ReconTests(unittest.TestCase):
         self.assertEqual(job["steps"][1]["uses"]["name"], "actions/setup-go")
         self.assertEqual(workflow["artifact_steps"][0]["kind"], "upload-artifact")
         self.assertEqual(report["artifact_candidates"][0]["paths"], ["dist/go-tool"])
+
+    def test_dotnet_fixture_records_project_and_build_system(self) -> None:
+        report = inspect_repository(FIXTURES / "dotnet")
+        package_managers = {entry["name"] for entry in report["package_managers"]}
+        build_systems = {entry["name"] for entry in report["build_systems"]}
+
+        self.assertIn("C#", report["languages"])
+        self.assertIn("dotnet", package_managers)
+        self.assertIn("dotnet", build_systems)
+        self.assertTrue(report["release_signals"]["publishes_nuget"])
 
     def test_malformed_workflow_reports_parse_error_and_fallback_signals(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

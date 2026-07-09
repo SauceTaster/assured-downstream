@@ -57,7 +57,7 @@ Status: structural first pass built with first-lane fixtures.
 - 2.1.4 Detect common workflow risks
 - 2.1.5 Parse workflow YAML structurally instead of regex-only
 - 2.1.6 Detect artifact outputs more accurately
-- 2.1.7 Add Go/Rust/Python repo fixtures from real projects
+- 2.1.7 Add Go/Rust/Python/Java/.NET repo fixtures from real projects
 
 ### 2.2 Overlay Planning
 
@@ -212,7 +212,7 @@ The MVP is done when Assured Downstream can, against a sandbox GitHub org:
 - choose a small set of first-lane candidate repos
 - fork or detect forks idempotently
 - sync upstream without clobbering secure branches
-- analyze one Go, one Rust, and one Python checkout
+- analyze one Go, one Rust, one Python, one Java, and one .NET checkout
 - render pinned hardened CI and draft attested-release workflows
 - run at least one attested release workflow successfully
 - collect evidence manifests and verification guides

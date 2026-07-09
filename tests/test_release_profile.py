@@ -42,6 +42,55 @@ class ReleaseProfileTests(unittest.TestCase):
         self.assertEqual(profile["project"]["language_family"], "go")
         self.assertIn("go build", "\n".join(profile["release"]["build_commands"]))
 
+    def test_plans_java_release_profile(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "pom.xml").write_text(
+                """
+                <project>
+                  <modelVersion>4.0.0</modelVersion>
+                  <groupId>dev.assured</groupId>
+                  <artifactId>java-tool</artifactId>
+                  <version>0.1.0</version>
+                </project>
+                """,
+                encoding="utf-8",
+            )
+            (root / "App.java").write_text("class App {}\n", encoding="utf-8")
+            report = inspect_repository(root)
+            profile = plan_release_profile(report)
+
+        self.assertEqual(profile["project"]["name"], "java-tool")
+        self.assertEqual(profile["project"]["language_family"], "java")
+        self.assertIn("mvn -B -DskipTests package", profile["release"]["build_commands"])
+        self.assertIn("dist/*.jar", profile["release"]["artifact_paths"])
+
+    def test_plans_dotnet_release_profile(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "DotnetTool.csproj").write_text(
+                """
+                <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                    <TargetFramework>net8.0</TargetFramework>
+                    <PackageId>DotnetTool.Package</PackageId>
+                  </PropertyGroup>
+                </Project>
+                """,
+                encoding="utf-8",
+            )
+            (root / "Program.cs").write_text("Console.WriteLine(\"hi\");\n", encoding="utf-8")
+            report = inspect_repository(root)
+            profile = plan_release_profile(report)
+
+        self.assertEqual(profile["project"]["name"], "DotnetTool.Package")
+        self.assertEqual(profile["project"]["language_family"], "dotnet")
+        self.assertIn("dotnet restore", profile["release"]["build_commands"])
+        self.assertTrue(
+            any(command.startswith("dotnet publish DotnetTool.csproj") for command in profile["release"]["build_commands"])
+        )
+        self.assertIn("dist/**/*", profile["release"]["artifact_paths"])
+
     def test_carries_recon_artifact_candidates_for_review(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

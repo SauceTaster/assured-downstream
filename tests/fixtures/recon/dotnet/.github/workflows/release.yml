@@ -1,0 +1,31 @@
+name: .NET Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Publish app
+        run: |
+          dotnet restore
+          dotnet publish DotnetTool.csproj --configuration Release --output dist /p:ContinuousIntegrationBuild=true
+      - name: Upload publish directory
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-dist
+          path: dist/*
+      - name: Publish NuGet package
+        run: dotnet nuget push dist/*.nupkg --source https://api.nuget.org/v3/index.json
