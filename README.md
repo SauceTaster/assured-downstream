@@ -68,6 +68,8 @@ saucetotal create-evidence --project owner/repo --target-repo org/repo \
 saucetotal create-attestation --predicate-type https://saucetotal.dev/attestation/build/v1 \
   --subject ./dist/tool --predicate build-predicate.json --output build.intoto.json
 saucetotal verify-evidence --manifest evidence.json
+saucetotal evaluate-release --evidence evidence.json --target Attested \
+  --output release-evaluation.json
 saucetotal compare-evidence --left host-a-evidence.json --right host-b-evidence.json
 saucetotal normalize-trace --trace raw-trace.json --workspace-root /workspace \
   --output behavior.json

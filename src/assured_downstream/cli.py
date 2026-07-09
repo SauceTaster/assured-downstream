@@ -23,6 +23,7 @@ from assured_downstream.lifecycle import StateStore
 from assured_downstream.overlay import plan_overlay
 from assured_downstream.overlay_render import render_overlay
 from assured_downstream.pin_resolver import resolve_tooling_pins
+from assured_downstream.policy_eval import evaluate_release
 from assured_downstream.pipeline import run_pilot_pipeline
 from assured_downstream.recon import inspect_repository
 from assured_downstream.scoring import score_catalog
@@ -293,6 +294,23 @@ def build_parser() -> argparse.ArgumentParser:
     compare_behavior.add_argument("--right", required=True, type=Path)
     compare_behavior.add_argument("--output", type=Path)
     compare_behavior.set_defaults(func=command_compare_behavior)
+
+    evaluate = subparsers.add_parser(
+        "evaluate-release",
+        help="Evaluate release evidence against an assurance target.",
+    )
+    evaluate.add_argument("--evidence", required=True, type=Path)
+    evaluate.add_argument("--target", required=True, choices=[
+        "Hardened",
+        "Attested",
+        "Reproducible",
+        "Behavior-Reproducible",
+        "Validated",
+    ])
+    evaluate.add_argument("--evidence-comparison", type=Path)
+    evaluate.add_argument("--behavior-comparison", type=Path)
+    evaluate.add_argument("--output", type=Path)
+    evaluate.set_defaults(func=command_evaluate_release)
 
     plan_forks = subparsers.add_parser(
         "plan-forks",
@@ -626,6 +644,35 @@ def command_compare_behavior(args: argparse.Namespace) -> int:
     else:
         print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result["ok"] else 1
+
+
+def command_evaluate_release(args: argparse.Namespace) -> int:
+    with args.evidence.open("r", encoding="utf-8") as handle:
+        evidence = json.load(handle)
+    evidence_comparison = None
+    behavior_comparison = None
+    if args.evidence_comparison:
+        with args.evidence_comparison.open("r", encoding="utf-8") as handle:
+            evidence_comparison = json.load(handle)
+    if args.behavior_comparison:
+        with args.behavior_comparison.open("r", encoding="utf-8") as handle:
+            behavior_comparison = json.load(handle)
+
+    result = evaluate_release(
+        evidence=evidence,
+        target=args.target,
+        evidence_comparison=evidence_comparison,
+        behavior_comparison=behavior_comparison,
+    )
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        with args.output.open("w", encoding="utf-8") as handle:
+            json.dump(result, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+        print(f"wrote release evaluation: {args.output}")
+    else:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if result["decision"] == "pass" else 1
 
 
 def command_plan_forks(args: argparse.Namespace) -> int:

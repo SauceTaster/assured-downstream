@@ -176,6 +176,8 @@ Current prototype status:
 - evidence manifest verification exists
 - file roles include artifacts, SBOMs, attestations, traces, and reports
 - generic in-toto statement generation exists
+- release policy gate evaluation exists for attested, reproducible,
+  behavior-reproducible, and validated targets
 - actual SBOM/provenance/signature generation is still pending
 
 ## Phase 6: Reproducible Release
