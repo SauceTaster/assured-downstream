@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from assured_downstream.attestations import create_intoto_statement
 from assured_downstream.behavior import compare_behavior_reports, normalize_trace
 from assured_downstream.catalog import load_catalog, save_catalog, upsert_findings
 from assured_downstream.checkout_pipeline import run_checkout_analysis
@@ -240,6 +241,20 @@ def build_parser() -> argparse.ArgumentParser:
     create_evidence.add_argument("--report", action="append", type=Path, default=[])
     create_evidence.add_argument("--output", required=True, type=Path)
     create_evidence.set_defaults(func=command_create_evidence)
+
+    create_attestation = subparsers.add_parser(
+        "create-attestation",
+        help="Create an in-toto statement for one or more subject files.",
+    )
+    create_attestation.add_argument("--predicate-type", required=True)
+    create_attestation.add_argument("--subject", action="append", required=True, type=Path)
+    create_attestation.add_argument(
+        "--predicate",
+        type=Path,
+        help="Optional JSON predicate file. Defaults to an empty predicate.",
+    )
+    create_attestation.add_argument("--output", required=True, type=Path)
+    create_attestation.set_defaults(func=command_create_attestation)
 
     verify_evidence = subparsers.add_parser(
         "verify-evidence",
@@ -531,6 +546,24 @@ def command_create_evidence(args: argparse.Namespace) -> int:
         json.dump(manifest, handle, indent=2, sort_keys=True)
         handle.write("\n")
     print(f"wrote evidence manifest: {args.output}")
+    return 0
+
+
+def command_create_attestation(args: argparse.Namespace) -> int:
+    predicate = {}
+    if args.predicate:
+        with args.predicate.open("r", encoding="utf-8") as handle:
+            predicate = json.load(handle)
+    statement = create_intoto_statement(
+        subjects=args.subject,
+        predicate_type=args.predicate_type,
+        predicate=predicate,
+    )
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with args.output.open("w", encoding="utf-8") as handle:
+        json.dump(statement, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    print(f"wrote in-toto statement: {args.output}")
     return 0
 
 

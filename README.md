@@ -65,6 +65,8 @@ saucetotal apply-sync-plan --plan sync-plan.json --state state.json
 saucetotal create-evidence --project owner/repo --target-repo org/repo \
   --upstream-ref <sha> --overlay-ref <sha> --release-tag secure-v1.0.0+org.1 \
   --artifact ./dist/tool --sbom ./dist/sbom.json --output evidence.json
+saucetotal create-attestation --predicate-type https://saucetotal.dev/attestation/build/v1 \
+  --subject ./dist/tool --predicate build-predicate.json --output build.intoto.json
 saucetotal verify-evidence --manifest evidence.json
 saucetotal compare-evidence --left host-a-evidence.json --right host-b-evidence.json
 saucetotal normalize-trace --trace raw-trace.json --workspace-root /workspace \

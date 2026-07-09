@@ -175,6 +175,7 @@ Current prototype status:
 - evidence manifest creation exists
 - evidence manifest verification exists
 - file roles include artifacts, SBOMs, attestations, traces, and reports
+- generic in-toto statement generation exists
 - actual SBOM/provenance/signature generation is still pending
 
 ## Phase 6: Reproducible Release
