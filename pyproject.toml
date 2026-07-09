@@ -3,7 +3,7 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "saucetotal"
+name = "assured-downstream"
 version = "0.1.0"
 description = "Early-stage agent-driven assured downstream automation for hardened open source forks."
 readme = "README.md"
@@ -15,7 +15,6 @@ authors = [
 dependencies = []
 
 [project.scripts]
-saucetotal = "assured_downstream.cli:main"
 assured-downstream = "assured_downstream.cli:main"
 
 [tool.setuptools.packages.find]

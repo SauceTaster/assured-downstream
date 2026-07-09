@@ -15,7 +15,7 @@ class AttestationTests(unittest.TestCase):
 
             statement = create_intoto_statement(
                 subjects=[artifact],
-                predicate_type="https://saucetotal.dev/attestation/trace/v1",
+                predicate_type="https://assured-downstream.dev/attestation/trace/v1",
                 predicate={"builder": "test"},
             )
 

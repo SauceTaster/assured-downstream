@@ -10,7 +10,7 @@ def create_verification_guide(evidence: dict[str, Any]) -> str:
     project = evidence.get("project") or {}
     target_repo = project.get("target_full_name", "OWNER/REPOSITORY")
     lines = [
-        "# SauceTotal Verification Guide",
+        "# Assured Downstream Verification Guide",
         "",
         "Status: dev/idea-stage generated verification guide.",
         "",
@@ -52,10 +52,10 @@ def create_verification_guide(evidence: dict[str, Any]) -> str:
         [
             "```",
             "",
-            "## SauceTotal Manifest Verification",
+            "## Assured Downstream Manifest Verification",
             "",
             "```bash",
-            "saucetotal verify-evidence --manifest evidence.json",
+            "assured-downstream verify-evidence --manifest evidence.json",
             "```",
             "",
         ]

@@ -62,7 +62,7 @@ class CheckoutPipelineTests(unittest.TestCase):
 
             self.assertTrue((checkout / ".github" / "dependabot.yml").exists())
             self.assertTrue(
-                (checkout / ".github" / "workflows" / "saucetotal-attested-release.yml").exists()
+                (checkout / ".github" / "workflows" / "assured-downstream-attested-release.yml").exists()
             )
             self.assertGreater(summary["rendered_files"], 0)
             self.assertEqual(summary["planned_writable_files"], summary["rendered_files"])

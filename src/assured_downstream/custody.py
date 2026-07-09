@@ -82,7 +82,7 @@ def suggested_language(repo: dict[str, Any]) -> str:
     return (
         f"{repo['owner']}/{repo['name']} appears {archived} based on public repository "
         f"metadata checked on {checked_at}. Last pushed at: {pushed_at}. "
-        "SauceTotal should not claim official ownership without maintainer opt-in; "
+        "Assured Downstream should not claim official ownership without maintainer opt-in; "
         "this packet supports human review for a clearly labeled custodian fork."
     )
 

@@ -48,8 +48,8 @@ def main(argv: list[str] | None = None) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="saucetotal",
-        description="SauceTotal assured downstream automation control-plane CLI.",
+        prog="assured-downstream",
+        description="Assured Downstream automation control-plane CLI.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -68,7 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     pilot = subparsers.add_parser(
         "pilot",
-        help="Run an observe-first SauceTotal pilot pipeline from seed files.",
+        help="Run an observe-first Assured Downstream pilot pipeline from seed files.",
     )
     pilot.add_argument("--seed", action="append", required=True)
     pilot.add_argument("--org", required=True)

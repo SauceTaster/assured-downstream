@@ -34,7 +34,7 @@ class VerificationGuideTests(unittest.TestCase):
 
         self.assertIn("gh attestation verify /tmp/tool -R assured-oss/project", guide)
         self.assertIn("shasum -a 256 -c -", guide)
-        self.assertIn("saucetotal verify-evidence", guide)
+        self.assertIn("assured-downstream verify-evidence", guide)
 
 
 if __name__ == "__main__":

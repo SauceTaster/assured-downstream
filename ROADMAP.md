@@ -1,4 +1,4 @@
-# SauceTotal Roadmap
+# Assured Downstream Roadmap
 
 Status: early idea/dev stage. The roadmap tracks the path from design prototype
 to useful automation.
@@ -287,9 +287,9 @@ The first code should implement:
 Suggested first command shape:
 
 ```text
-saucetotal ingest --seed awesome-security.md --catalog catalog.json
-saucetotal score --catalog catalog.json
-saucetotal plan-forks --catalog catalog.json --org <org>
+assured-downstream ingest --seed awesome-security.md --catalog catalog.json
+assured-downstream score --catalog catalog.json
+assured-downstream plan-forks --catalog catalog.json --org <org>
 ```
 
 No repository mutation should happen until dry-run planning is useful.

@@ -83,7 +83,7 @@ class GitHubClient:
     def headers(self) -> dict[str, str]:
         headers = {
             "Accept": "application/vnd.github+json",
-            "User-Agent": "saucetotal-dev-prototype",
+            "User-Agent": "assured-downstream-dev-prototype",
             "X-GitHub-Api-Version": GITHUB_API_VERSION,
         }
         if self.token:

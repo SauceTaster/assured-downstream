@@ -1,4 +1,4 @@
-# SauceTotal Architecture
+# Assured Downstream Architecture
 
 Status: early idea/dev stage. This architecture is the working blueprint for the
 automation system, not a claim that every control already exists.

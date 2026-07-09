@@ -32,12 +32,12 @@ class ReleaseRenderTests(unittest.TestCase):
                 },
                 execute=True,
             )
-            workflow = root / ".github" / "workflows" / "saucetotal-attested-release.yml"
+            workflow = root / ".github" / "workflows" / "assured-downstream-attested-release.yml"
 
             self.assertEqual(len(result.written), 1)
             text = workflow.read_text(encoding="utf-8")
             self.assertIn("actions/attest@", text)
-            self.assertIn("sbom-path: dist/saucetotal-sbom.spdx.json", text)
+            self.assertIn("sbom-path: dist/assured-downstream-sbom.spdx.json", text)
             self.assertIn(FULL_SHA, text)
 
 
@@ -45,11 +45,11 @@ def profile() -> dict:
     return {
         "status": "draft-human-review-required",
         "release": {
-            "workflow_path": ".github/workflows/saucetotal-attested-release.yml",
+            "workflow_path": ".github/workflows/assured-downstream-attested-release.yml",
             "runs_on": "ubuntu-latest",
             "build_commands": ["mkdir -p dist", "echo hi > dist/tool"],
             "artifact_paths": ["dist/*"],
-            "sbom_path": "dist/saucetotal-sbom.spdx.json",
+            "sbom_path": "dist/assured-downstream-sbom.spdx.json",
             "sbom_format": "spdx-json",
             "required_actions": [
                 "actions/checkout",

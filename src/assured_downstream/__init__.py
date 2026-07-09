@@ -1,4 +1,4 @@
-"""SauceTotal assured downstream automation control-plane primitives."""
+"""Assured Downstream automation control-plane primitives."""
 
 __all__ = ["__version__"]
 

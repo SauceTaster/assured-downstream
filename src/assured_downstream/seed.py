@@ -67,7 +67,7 @@ def fetch_seed_url(url: str) -> str:
         url,
         headers={
             "Accept": "text/plain, text/markdown, */*",
-            "User-Agent": "saucetotal-dev-prototype",
+            "User-Agent": "assured-downstream-dev-prototype",
         },
     )
     with urlopen(request, timeout=30) as response:

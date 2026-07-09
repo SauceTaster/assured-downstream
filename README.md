@@ -1,6 +1,6 @@
-# SauceTotal
+# Assured Downstream
 
-SauceTotal is an early-stage idea/dev project for an agent-driven assured
+Assured Downstream is an early-stage idea/dev project for an agent-driven assured
 downstream for open source software.
 
 Status: design prototype. Not production-ready. Expect names, schemas, command
@@ -37,6 +37,9 @@ packages, and applications, the org provides a trusted downstream lane:
   assurance levels, evidence model, and policy gates.
 - [ROADMAP.md](./ROADMAP.md): staged implementation plan from catalog and fork
   sync to behavior-reproducible releases.
+- [docs/WBS.md](./docs/WBS.md): work breakdown for what remains before and
+  after the MVP.
+- [docs/RESEARCH.md](./docs/RESEARCH.md): implementation-shaping research notes.
 
 ## Current Prototype Commands
 
@@ -45,39 +48,39 @@ candidate metadata, inspect local checkouts, score candidates, and generate
 dry-run fork plans.
 
 ```text
-saucetotal pilot --seed awesome-security.md --org <org> --run-dir ./runs/pilot-001
-saucetotal pilot --seed https://example.com/awesome-security.md --org <org> \
+assured-downstream pilot --seed awesome-security.md --org <org> --run-dir ./runs/pilot-001
+assured-downstream pilot --seed https://example.com/awesome-security.md --org <org> \
   --run-dir ./runs/pilot-remote
-saucetotal analyze-checkout --path /path/to/checkout --run-dir ./runs/checkout-001 \
+assured-downstream analyze-checkout --path /path/to/checkout --run-dir ./runs/checkout-001 \
   --target Attested
-saucetotal plan-release --recon recon.json --output release-profile.json
-saucetotal render-release-workflow --profile release-profile.json \
+assured-downstream plan-release --recon recon.json --output release-profile.json
+assured-downstream render-release-workflow --profile release-profile.json \
   --path /path/to/checkout --pins pins.json
-saucetotal ingest --seed awesome-security.md --catalog catalog.json
-saucetotal enrich --catalog catalog.json
-saucetotal score --catalog catalog.json
-saucetotal custodian-review --catalog catalog.json --output custody-review.json
-saucetotal recon --path /path/to/checkout --output recon.json
-saucetotal plan-overlay --recon recon.json --target Attested --output overlay-plan.json
-saucetotal resolve-pins --tooling policies/approved-tooling.json --output pins.json
-saucetotal render-overlay --plan overlay-plan.json --path /path/to/checkout --pins pins.json
-saucetotal plan-forks --catalog catalog.json --org <org>
-saucetotal apply-fork-plan --plan fork-plan.json --state state.json
-saucetotal plan-sync --fork-plan fork-plan.json --workspace ./worktrees
-saucetotal apply-sync-plan --plan sync-plan.json --state state.json
-saucetotal create-evidence --project owner/repo --target-repo org/repo \
+assured-downstream ingest --seed awesome-security.md --catalog catalog.json
+assured-downstream enrich --catalog catalog.json
+assured-downstream score --catalog catalog.json
+assured-downstream custodian-review --catalog catalog.json --output custody-review.json
+assured-downstream recon --path /path/to/checkout --output recon.json
+assured-downstream plan-overlay --recon recon.json --target Attested --output overlay-plan.json
+assured-downstream resolve-pins --tooling policies/approved-tooling.json --output pins.json
+assured-downstream render-overlay --plan overlay-plan.json --path /path/to/checkout --pins pins.json
+assured-downstream plan-forks --catalog catalog.json --org <org>
+assured-downstream apply-fork-plan --plan fork-plan.json --state state.json
+assured-downstream plan-sync --fork-plan fork-plan.json --workspace ./worktrees
+assured-downstream apply-sync-plan --plan sync-plan.json --state state.json
+assured-downstream create-evidence --project owner/repo --target-repo org/repo \
   --upstream-ref <sha> --overlay-ref <sha> --release-tag secure-v1.0.0+org.1 \
   --artifact ./dist/tool --sbom ./dist/sbom.json --output evidence.json
-saucetotal create-attestation --predicate-type https://saucetotal.dev/attestation/build/v1 \
+assured-downstream create-attestation --predicate-type https://assured-downstream.dev/attestation/build/v1 \
   --subject ./dist/tool --predicate build-predicate.json --output build.intoto.json
-saucetotal verify-evidence --manifest evidence.json
-saucetotal write-verification-guide --evidence evidence.json --output VERIFY.md
-saucetotal evaluate-release --evidence evidence.json --target Attested \
+assured-downstream verify-evidence --manifest evidence.json
+assured-downstream write-verification-guide --evidence evidence.json --output VERIFY.md
+assured-downstream evaluate-release --evidence evidence.json --target Attested \
   --output release-evaluation.json
-saucetotal compare-evidence --left host-a-evidence.json --right host-b-evidence.json
-saucetotal normalize-trace --trace raw-trace.json --workspace-root /workspace \
+assured-downstream compare-evidence --left host-a-evidence.json --right host-b-evidence.json
+assured-downstream normalize-trace --trace raw-trace.json --workspace-root /workspace \
   --output behavior.json
-saucetotal compare-behavior --left host-a-behavior.json --right host-b-behavior.json
+assured-downstream compare-behavior --left host-a-behavior.json --right host-b-behavior.json
 ```
 
 `enrich` uses public GitHub API access by default and reads `GITHUB_TOKEN` when

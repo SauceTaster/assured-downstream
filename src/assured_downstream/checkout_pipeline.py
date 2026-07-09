@@ -106,7 +106,7 @@ def write_checkout_summary(
     release_render_result: RenderResult,
 ) -> None:
     lines = [
-        "# SauceTotal Checkout Analysis",
+        "# Assured Downstream Checkout Analysis",
         "",
         "Status: dev/idea-stage local checkout analysis.",
         "",

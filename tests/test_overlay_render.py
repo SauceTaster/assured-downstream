@@ -30,7 +30,7 @@ class OverlayRenderTests(unittest.TestCase):
 
             self.assertEqual(len(result.written), 2)
             self.assertTrue((root / ".github" / "dependabot.yml").exists())
-            self.assertTrue((root / "evidence" / "saucetotal" / "README.md").exists())
+            self.assertTrue((root / "evidence" / "assured-downstream" / "README.md").exists())
 
     def test_skips_workflows_without_full_sha_pins(self) -> None:
         overlay = overlay_with_changes(["dependency-review"])
@@ -51,7 +51,7 @@ class OverlayRenderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             result = render_overlay(overlay, root=root, pins=pins, execute=True)
-            workflow = root / ".github" / "workflows" / "saucetotal-dependency-review.yml"
+            workflow = root / ".github" / "workflows" / "assured-downstream-dependency-review.yml"
 
             self.assertEqual(len(result.written), 1)
             self.assertIn(FULL_SHA, workflow.read_text(encoding="utf-8"))

@@ -28,7 +28,7 @@ def plan_overlay(recon_report: dict[str, Any], *, target: str = "Hardened") -> d
             "gha-bootstrap",
             "Hardened",
             "add",
-            [".github/workflows/saucetotal-ci.yml"],
+            [".github/workflows/assured-downstream-ci.yml"],
             "Add a minimal GitHub Actions hardening workflow for projects without existing workflows.",
         ))
     else:
@@ -71,7 +71,7 @@ def plan_overlay(recon_report: dict[str, Any], *, target: str = "Hardened") -> d
         "dependency-review",
         "Hardened",
         "add",
-        [".github/workflows/saucetotal-dependency-review.yml"],
+        [".github/workflows/assured-downstream-dependency-review.yml"],
         "Block risky dependency changes in pull requests where GitHub dependency review supports the ecosystem.",
     ))
 
@@ -80,7 +80,7 @@ def plan_overlay(recon_report: dict[str, Any], *, target: str = "Hardened") -> d
             "scorecard-evidence",
             "Hardened",
             "add",
-            [".github/workflows/saucetotal-scorecard.yml"],
+            [".github/workflows/assured-downstream-scorecard.yml"],
             "Generate OpenSSF Scorecard evidence as telemetry, not as a substitute for fixes.",
         ))
 
@@ -101,7 +101,7 @@ def plan_overlay(recon_report: dict[str, Any], *, target: str = "Hardened") -> d
             "independent-rebuild",
             "Reproducible",
             "add",
-            [".github/workflows/saucetotal-rebuild.yml"],
+            [".github/workflows/assured-downstream-rebuild.yml"],
             "Run an independent rebuild lane and compare artifact, SBOM, and provenance digests.",
         ))
 
@@ -110,7 +110,7 @@ def plan_overlay(recon_report: dict[str, Any], *, target: str = "Hardened") -> d
             "behavior-trace",
             "Behavior-Reproducible",
             "add",
-            [".github/workflows/saucetotal-trace.yml"],
+            [".github/workflows/assured-downstream-trace.yml"],
             "Capture process, file, network, and syscall/security-event evidence for normalized behavior comparison.",
             human_review_required=True,
         ))
@@ -134,7 +134,7 @@ def add_attestation_changes(
     release_signals: dict[str, Any],
 ) -> None:
     if any(release_signals.values()):
-        release_paths = [".github/workflows/saucetotal-release.yml"]
+        release_paths = [".github/workflows/assured-downstream-release.yml"]
     else:
         release_paths = ["release workflow to be discovered or created"]
 
@@ -166,7 +166,7 @@ def add_attestation_changes(
         "in-toto-evidence",
         "Attested",
         "add",
-        ["evidence/saucetotal/"],
+        ["evidence/assured-downstream/"],
         "Publish in-toto statements binding source, build, test, package, trace, and release evidence.",
     ))
 

@@ -1,4 +1,4 @@
-# SauceTotal Intent
+# Assured Downstream Intent
 
 Status: early idea/dev stage. This document defines the intended direction and
 social contract before the automation is mature enough for production use.

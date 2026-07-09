@@ -1,4 +1,4 @@
-# SauceTotal Research Notes
+# Assured Downstream Research Notes
 
 Status: dev/idea-stage notes. These notes record implementation-shaping
 research, not final security claims.
@@ -21,17 +21,17 @@ Why:
 - `actions/attest-sbom` is documented as being deprecated in favor of
   `actions/attest`.
 - GitHub's SLSA Level 3 guidance emphasizes reusable workflows plus artifact
-  attestations. SauceTotal should not jump straight to that for the first MVP;
+  attestations. Assured Downstream should not jump straight to that for the first MVP;
   the immediate lane should produce useful attested evidence and leave reusable
   workflow isolation as the next hardening step.
 - Syft remains a reasonable SBOM engine for the MVP, and Anchore's action exposes
-  `format` and `output-file` inputs that fit SauceTotal's evidence manifest
+  `format` and `output-file` inputs that fit Assured Downstream's evidence manifest
   model.
 
 MVP implication:
 
 - Add a draft release profile planner from recon evidence.
-- Render one pinned `saucetotal-attested-release.yml` workflow.
+- Render one pinned `assured-downstream-attested-release.yml` workflow.
 - Mark generated release workflows as human-review-required.
 - Require full SHA pins for `actions/checkout`, `actions/attest`,
   `actions/upload-artifact`, and `anchore/sbom-action`.

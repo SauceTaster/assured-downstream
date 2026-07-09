@@ -98,7 +98,7 @@ def write_summary(path: Path, summary: dict[str, Any], catalog: dict[str, Any]) 
         key=lambda repo: (-repo.get("score", 0), repo["owner"].lower(), repo["name"].lower()),
     )[:10]
     lines = [
-        "# SauceTotal Pilot Run",
+        "# Assured Downstream Pilot Run",
         "",
         "Status: observe-first dev/idea-stage run. No forks or clones are executed by this pipeline.",
         "",
