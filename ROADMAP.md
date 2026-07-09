@@ -258,6 +258,12 @@ Exit criteria:
 - human review is required before public custody claims
 - custodian releases preserve upstream lineage
 
+Current prototype status:
+
+- custodian review packet generation exists
+- archived and stale repositories can be routed to human review
+- packets include license, activity, popularity, and required review criteria
+
 ## First Implementation Slice
 
 The first code should implement:

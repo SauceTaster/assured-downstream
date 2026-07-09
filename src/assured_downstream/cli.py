@@ -7,6 +7,7 @@ from pathlib import Path
 
 from assured_downstream.behavior import compare_behavior_reports, normalize_trace
 from assured_downstream.catalog import load_catalog, save_catalog, upsert_findings
+from assured_downstream.custody import create_custodian_review
 from assured_downstream.enrichment import enrich_catalog
 from assured_downstream.evidence import (
     compare_evidence_manifests,
@@ -103,6 +104,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     score.add_argument("--limit", type=int, default=10)
     score.set_defaults(func=command_score)
+
+    custody = subparsers.add_parser(
+        "custodian-review",
+        help="Generate a human-review packet for possible custodian projects.",
+    )
+    custody.add_argument("--catalog", required=True, type=Path)
+    custody.add_argument("--output", required=True, type=Path)
+    custody.add_argument("--min-score", type=int, default=0)
+    custody.set_defaults(func=command_custodian_review)
 
     enrich = subparsers.add_parser(
         "enrich",
@@ -350,6 +360,18 @@ def command_score(args: argparse.Namespace) -> int:
     print(f"scored {scored} repositories")
     for repo in top_repositories(catalog, args.limit):
         print(f"{repo['score']:>4}  {repo['owner']}/{repo['name']}")
+    return 0
+
+
+def command_custodian_review(args: argparse.Namespace) -> int:
+    catalog = load_catalog(args.catalog)
+    packet = create_custodian_review(catalog, min_score=args.min_score)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with args.output.open("w", encoding="utf-8") as handle:
+        json.dump(packet, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    print(f"wrote custodian review packet: {args.output}")
+    print(f"candidates: {len(packet['candidates'])}")
     return 0
 
 

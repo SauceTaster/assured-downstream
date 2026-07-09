@@ -49,6 +49,7 @@ saucetotal pilot --seed awesome-security.md --org <org> --run-dir ./runs/pilot-0
 saucetotal ingest --seed awesome-security.md --catalog catalog.json
 saucetotal enrich --catalog catalog.json
 saucetotal score --catalog catalog.json
+saucetotal custodian-review --catalog catalog.json --output custody-review.json
 saucetotal recon --path /path/to/checkout --output recon.json
 saucetotal plan-overlay --recon recon.json --target Attested --output overlay-plan.json
 saucetotal resolve-pins --tooling policies/approved-tooling.json --output pins.json
