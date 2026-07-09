@@ -55,6 +55,10 @@ saucetotal render-overlay --plan overlay-plan.json --path /path/to/checkout --pi
 saucetotal plan-forks --catalog catalog.json --org <org>
 saucetotal apply-fork-plan --plan fork-plan.json --state state.json
 saucetotal plan-sync --fork-plan fork-plan.json --workspace ./worktrees
+saucetotal create-evidence --project owner/repo --target-repo org/repo \
+  --upstream-ref <sha> --overlay-ref <sha> --release-tag secure-v1.0.0+org.1 \
+  --artifact ./dist/tool --sbom ./dist/sbom.json --output evidence.json
+saucetotal verify-evidence --manifest evidence.json
 ```
 
 `enrich` uses public GitHub API access by default and reads `GITHUB_TOKEN` when

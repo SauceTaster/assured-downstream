@@ -7,6 +7,7 @@ from pathlib import Path
 
 from assured_downstream.catalog import load_catalog, save_catalog, upsert_findings
 from assured_downstream.enrichment import enrich_catalog
+from assured_downstream.evidence import create_evidence_manifest, verify_evidence_manifest
 from assured_downstream.fork_apply import apply_fork_plan
 from assured_downstream.fork_plan import create_fork_plan
 from assured_downstream.github_api import GitHubClient
@@ -149,6 +150,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="Environment variable containing a GitHub token.",
     )
     resolve_pins.set_defaults(func=command_resolve_pins)
+
+    create_evidence = subparsers.add_parser(
+        "create-evidence",
+        help="Create a release evidence manifest with file digests.",
+    )
+    create_evidence.add_argument("--project", required=True)
+    create_evidence.add_argument("--target-repo", required=True)
+    create_evidence.add_argument("--upstream-ref", required=True)
+    create_evidence.add_argument("--overlay-ref", required=True)
+    create_evidence.add_argument("--release-tag", required=True)
+    create_evidence.add_argument(
+        "--assurance",
+        choices=["Tracked", "Hardened", "Attested", "Reproducible", "Behavior-Reproducible", "Validated"],
+        default="Attested",
+    )
+    create_evidence.add_argument("--artifact", action="append", type=Path, default=[])
+    create_evidence.add_argument("--sbom", action="append", type=Path, default=[])
+    create_evidence.add_argument("--attestation", action="append", type=Path, default=[])
+    create_evidence.add_argument("--trace", action="append", type=Path, default=[])
+    create_evidence.add_argument("--report", action="append", type=Path, default=[])
+    create_evidence.add_argument("--output", required=True, type=Path)
+    create_evidence.set_defaults(func=command_create_evidence)
+
+    verify_evidence = subparsers.add_parser(
+        "verify-evidence",
+        help="Verify file digests recorded in an evidence manifest.",
+    )
+    verify_evidence.add_argument("--manifest", required=True, type=Path)
+    verify_evidence.set_defaults(func=command_verify_evidence)
 
     plan_forks = subparsers.add_parser(
         "plan-forks",
@@ -316,6 +346,43 @@ def command_resolve_pins(args: argparse.Namespace) -> int:
     print(f"resolved {len(lock['pins'])} action pins")
     print(f"pins: {args.output}")
     return 0
+
+
+def command_create_evidence(args: argparse.Namespace) -> int:
+    manifest = create_evidence_manifest(
+        project=args.project,
+        target_repo=args.target_repo,
+        upstream_ref=args.upstream_ref,
+        overlay_ref=args.overlay_ref,
+        release_tag=args.release_tag,
+        assurance=args.assurance,
+        files={
+            "artifacts": args.artifact,
+            "sboms": args.sbom,
+            "attestations": args.attestation,
+            "traces": args.trace,
+            "reports": args.report,
+        },
+    )
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with args.output.open("w", encoding="utf-8") as handle:
+        json.dump(manifest, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    print(f"wrote evidence manifest: {args.output}")
+    return 0
+
+
+def command_verify_evidence(args: argparse.Namespace) -> int:
+    with args.manifest.open("r", encoding="utf-8") as handle:
+        manifest = json.load(handle)
+    result = verify_evidence_manifest(manifest)
+    if result["ok"]:
+        print(f"verified evidence manifest: {args.manifest}")
+        return 0
+    print(f"evidence manifest verification failed: {args.manifest}")
+    for failure in result["failures"]:
+        print(f"  {failure}")
+    return 1
 
 
 def command_plan_forks(args: argparse.Namespace) -> int:
