@@ -141,7 +141,9 @@ Current prototype status:
 - hardened, attested, reproducible, and behavior-reproducible target levels are
   represented in plans
 - approved tooling policy scaffold exists at `policies/approved-tooling.json`
-- patch rendering is still pending
+- patch rendering exists for safe additive files
+- workflow rendering requires full commit SHA pins
+- repository-specific release patching is still pending
 
 ## Phase 5: Attested Release
 

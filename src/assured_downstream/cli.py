@@ -12,6 +12,7 @@ from assured_downstream.fork_plan import create_fork_plan
 from assured_downstream.github_api import GitHubClient
 from assured_downstream.lifecycle import StateStore
 from assured_downstream.overlay import plan_overlay
+from assured_downstream.overlay_render import render_overlay
 from assured_downstream.recon import inspect_repository
 from assured_downstream.scoring import score_catalog
 from assured_downstream.seed import parse_seed_file
@@ -106,6 +107,29 @@ def build_parser() -> argparse.ArgumentParser:
     )
     overlay.add_argument("--output", type=Path)
     overlay.set_defaults(func=command_plan_overlay)
+
+    render = subparsers.add_parser(
+        "render-overlay",
+        help="Render safe overlay files into a local checkout. Dry-run by default.",
+    )
+    render.add_argument("--plan", required=True, type=Path)
+    render.add_argument("--path", required=True, type=Path)
+    render.add_argument(
+        "--pins",
+        type=Path,
+        help="JSON file mapping approved action names to full commit SHAs.",
+    )
+    render.add_argument(
+        "--execute",
+        action="store_true",
+        help="Write files. Default is dry-run.",
+    )
+    render.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing generated files.",
+    )
+    render.set_defaults(func=command_render_overlay)
 
     plan_forks = subparsers.add_parser(
         "plan-forks",
@@ -227,6 +251,34 @@ def command_plan_overlay(args: argparse.Namespace) -> int:
         print(f"wrote overlay plan: {args.output}")
     else:
         print(json.dumps(overlay, indent=2, sort_keys=True))
+    return 0
+
+
+def command_render_overlay(args: argparse.Namespace) -> int:
+    with args.plan.open("r", encoding="utf-8") as handle:
+        overlay = json.load(handle)
+    pins = {}
+    if args.pins:
+        with args.pins.open("r", encoding="utf-8") as handle:
+            pins = json.load(handle)
+
+    result = render_overlay(
+        overlay,
+        root=args.path,
+        pins=pins,
+        execute=args.execute,
+        force=args.force,
+    )
+    mode = "wrote" if args.execute else "planned"
+    print(
+        f"{mode} overlay: "
+        f"{len(result.written)} writable, "
+        f"{len(result.skipped)} skipped"
+    )
+    for item in result.written:
+        print(f"  {item['path']}")
+    for item in result.skipped:
+        print(f"  skipped {item['id']}: {item['reason']}")
     return 0
 
 
