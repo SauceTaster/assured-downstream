@@ -47,6 +47,13 @@ class GitHubClient:
             releases=releases,
         )
 
+    def resolve_commit(self, owner: str, name: str, ref: str) -> str:
+        commit = self.get_json(f"/repos/{owner}/{name}/commits/{ref}")
+        sha = commit.get("sha")
+        if not sha:
+            raise GitHubApiError(f"GitHub API did not return a commit SHA for {owner}/{name}@{ref}")
+        return sha
+
     def get_json(self, path: str, query: dict[str, str] | None = None) -> Any:
         url = self.build_url(path, query)
         request = Request(url, headers=self.headers())
@@ -126,4 +133,3 @@ def normalize_repository_metadata(
         "has_releases": bool(normalized_releases),
         "latest_releases": normalized_releases,
     }
-

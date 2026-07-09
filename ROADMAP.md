@@ -143,6 +143,7 @@ Current prototype status:
 - approved tooling policy scaffold exists at `policies/approved-tooling.json`
 - patch rendering exists for safe additive files
 - workflow rendering requires full commit SHA pins
+- approved GitHub Action refs can be resolved into a pin lockfile
 - repository-specific release patching is still pending
 
 ## Phase 5: Attested Release

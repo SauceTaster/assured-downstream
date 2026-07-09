@@ -13,6 +13,7 @@ from assured_downstream.github_api import GitHubClient
 from assured_downstream.lifecycle import StateStore
 from assured_downstream.overlay import plan_overlay
 from assured_downstream.overlay_render import render_overlay
+from assured_downstream.pin_resolver import resolve_tooling_pins
 from assured_downstream.recon import inspect_repository
 from assured_downstream.scoring import score_catalog
 from assured_downstream.seed import parse_seed_file
@@ -130,6 +131,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Overwrite existing generated files.",
     )
     render.set_defaults(func=command_render_overlay)
+
+    resolve_pins = subparsers.add_parser(
+        "resolve-pins",
+        help="Resolve approved GitHub Action refs to full commit SHA pins.",
+    )
+    resolve_pins.add_argument(
+        "--tooling",
+        required=True,
+        type=Path,
+        help="Approved tooling policy JSON.",
+    )
+    resolve_pins.add_argument("--output", required=True, type=Path)
+    resolve_pins.add_argument(
+        "--token-env",
+        default="GITHUB_TOKEN",
+        help="Environment variable containing a GitHub token.",
+    )
+    resolve_pins.set_defaults(func=command_resolve_pins)
 
     plan_forks = subparsers.add_parser(
         "plan-forks",
@@ -260,7 +279,8 @@ def command_render_overlay(args: argparse.Namespace) -> int:
     pins = {}
     if args.pins:
         with args.pins.open("r", encoding="utf-8") as handle:
-            pins = json.load(handle)
+            pin_payload = json.load(handle)
+        pins = pin_payload.get("pins", pin_payload)
 
     result = render_overlay(
         overlay,
@@ -279,6 +299,22 @@ def command_render_overlay(args: argparse.Namespace) -> int:
         print(f"  {item['path']}")
     for item in result.skipped:
         print(f"  skipped {item['id']}: {item['reason']}")
+    return 0
+
+
+def command_resolve_pins(args: argparse.Namespace) -> int:
+    with args.tooling.open("r", encoding="utf-8") as handle:
+        tooling_policy = json.load(handle)
+
+    client = GitHubClient.from_environment(token_env=args.token_env)
+    lock = resolve_tooling_pins(tooling_policy, client=client)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with args.output.open("w", encoding="utf-8") as handle:
+        json.dump(lock, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+
+    print(f"resolved {len(lock['pins'])} action pins")
+    print(f"pins: {args.output}")
     return 0
 
 

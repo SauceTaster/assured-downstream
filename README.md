@@ -50,6 +50,7 @@ saucetotal enrich --catalog catalog.json
 saucetotal score --catalog catalog.json
 saucetotal recon --path /path/to/checkout --output recon.json
 saucetotal plan-overlay --recon recon.json --target Attested --output overlay-plan.json
+saucetotal resolve-pins --tooling policies/approved-tooling.json --output pins.json
 saucetotal render-overlay --plan overlay-plan.json --path /path/to/checkout --pins pins.json
 saucetotal plan-forks --catalog catalog.json --org <org>
 saucetotal apply-fork-plan --plan fork-plan.json --state state.json
