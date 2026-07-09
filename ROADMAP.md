@@ -61,6 +61,13 @@ Exit criteria:
 - a catalog of candidate repositories is produced
 - candidates are ranked with explainable scores
 
+Current prototype status:
+
+- local seed ingestion exists
+- local catalog writing exists
+- GitHub metadata enrichment exists
+- explainable heuristic scoring exists
+
 ## Phase 2: Fork and Sync Control Plane
 
 Build:
@@ -96,6 +103,12 @@ Exit criteria:
 - recon report exists for each selected repo
 - the system can identify build and release candidates
 - repos without enough signal are routed to review instead of guessed through
+
+Current prototype status:
+
+- local checkout recon exists
+- language, package manager, build system, workflow, release signal, security
+  control, and risk signal detection exists
 
 ## Phase 4: Hardened CI Overlay
 

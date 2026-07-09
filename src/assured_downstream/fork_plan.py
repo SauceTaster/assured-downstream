@@ -27,11 +27,13 @@ def create_fork_plan(
                 "target_full_name": target_full_name,
                 "target_repo_name": target_name,
                 "score": repo.get("score", 0),
+                "recommended_mode": repo.get("recommended_mode", "DownstreamAssured"),
                 "status": "dry_run",
                 "dry_run_command": (
                     f"gh repo fork {source_full_name} "
                     f"--org {org} --clone=false"
                 ),
+                "metadata": fork_metadata_summary(repo),
                 "branch_model": {
                     "upstream_default": "upstream/<default>",
                     "secure_default": "secure/<default>",
@@ -85,3 +87,14 @@ def choose_target_names(repositories: list[dict[str, Any]]) -> dict[str, str]:
 
     return target_names
 
+
+def fork_metadata_summary(repo: dict[str, Any]) -> dict[str, Any]:
+    github = repo.get("github") or {}
+    return {
+        "default_branch": github.get("default_branch"),
+        "archived": github.get("archived"),
+        "pushed_at": github.get("pushed_at"),
+        "license_spdx_id": github.get("license_spdx_id"),
+        "has_releases": github.get("has_releases"),
+        "languages": sorted((github.get("languages") or {}).keys()),
+    }

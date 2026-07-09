@@ -30,8 +30,8 @@ class CatalogWorkflowTests(unittest.TestCase):
         targets = {entry["target_full_name"] for entry in plan["forks"]}
         self.assertIn("assured-oss/VirusTotal-yara", targets)
         self.assertIn("assured-oss/example-yara", targets)
+        self.assertIn("recommended_mode", plan["forks"][0])
 
 
 if __name__ == "__main__":
     unittest.main()
-

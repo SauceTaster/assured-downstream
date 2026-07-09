@@ -6,7 +6,10 @@ import sys
 from pathlib import Path
 
 from assured_downstream.catalog import load_catalog, save_catalog, upsert_findings
+from assured_downstream.enrichment import enrich_catalog
 from assured_downstream.fork_plan import create_fork_plan
+from assured_downstream.github_api import GitHubClient
+from assured_downstream.recon import inspect_repository
 from assured_downstream.scoring import score_catalog
 from assured_downstream.seed import parse_seed_file
 
@@ -56,6 +59,37 @@ def build_parser() -> argparse.ArgumentParser:
     score.add_argument("--limit", type=int, default=10)
     score.set_defaults(func=command_score)
 
+    enrich = subparsers.add_parser(
+        "enrich",
+        help="Fetch GitHub metadata for catalog entries.",
+    )
+    enrich.add_argument("--catalog", required=True, type=Path)
+    enrich.add_argument(
+        "--output",
+        type=Path,
+        help="Optional output path. Defaults to updating --catalog in place.",
+    )
+    enrich.add_argument("--limit", type=int, default=None)
+    enrich.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Refresh repositories that already have GitHub metadata.",
+    )
+    enrich.add_argument(
+        "--token-env",
+        default="GITHUB_TOKEN",
+        help="Environment variable containing a GitHub token.",
+    )
+    enrich.set_defaults(func=command_enrich)
+
+    recon = subparsers.add_parser(
+        "recon",
+        help="Inspect a local repository checkout without executing project code.",
+    )
+    recon.add_argument("--path", required=True, type=Path)
+    recon.add_argument("--output", type=Path)
+    recon.set_defaults(func=command_recon)
+
     plan_forks = subparsers.add_parser(
         "plan-forks",
         help="Create a dry-run fork plan for selected catalog entries.",
@@ -104,6 +138,40 @@ def command_score(args: argparse.Namespace) -> int:
     print(f"scored {scored} repositories")
     for repo in top_repositories(catalog, args.limit):
         print(f"{repo['score']:>4}  {repo['owner']}/{repo['name']}")
+    return 0
+
+
+def command_enrich(args: argparse.Namespace) -> int:
+    catalog = load_catalog(args.catalog)
+    client = GitHubClient.from_environment(token_env=args.token_env)
+    result = enrich_catalog(
+        catalog,
+        client=client,
+        limit=args.limit,
+        refresh=args.refresh,
+    )
+    output = args.output or args.catalog
+    save_catalog(output, catalog)
+
+    print(
+        f"enriched {result.enriched} repositories, "
+        f"skipped {result.skipped}, "
+        f"failed {result.failed}"
+    )
+    print(f"catalog: {output}")
+    return 0
+
+
+def command_recon(args: argparse.Namespace) -> int:
+    report = inspect_repository(args.path)
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        with args.output.open("w", encoding="utf-8") as handle:
+            json.dump(report, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+        print(f"wrote recon report: {args.output}")
+    else:
+        print(json.dumps(report, indent=2, sort_keys=True))
     return 0
 
 

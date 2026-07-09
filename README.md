@@ -38,6 +38,23 @@ packages, and applications, the org provides a trusted downstream lane:
 - [ROADMAP.md](./ROADMAP.md): staged implementation plan from catalog and fork
   sync to behavior-reproducible releases.
 
+## Current Prototype Commands
+
+The current CLI is intentionally observe-first. It can build a catalog, enrich
+candidate metadata, inspect local checkouts, score candidates, and generate
+dry-run fork plans.
+
+```text
+saucetotal ingest --seed awesome-security.md --catalog catalog.json
+saucetotal enrich --catalog catalog.json
+saucetotal score --catalog catalog.json
+saucetotal recon --path /path/to/checkout --output recon.json
+saucetotal plan-forks --catalog catalog.json --org <org>
+```
+
+`enrich` uses public GitHub API access by default and reads `GITHUB_TOKEN` when
+available.
+
 ## North Star
 
 The highest assurance target is not only reproducible builds. It is
