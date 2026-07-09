@@ -94,6 +94,8 @@ Current prototype status:
 - fork-plan application records lifecycle state
 - GitHub fork mutation is guarded behind `--execute`
 - local clone/sync plan generation exists
+- sync-plan application records lifecycle state
+- git sync execution is guarded behind `--execute`
 
 ## Phase 3: Repository Recon
 

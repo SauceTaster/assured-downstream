@@ -24,6 +24,7 @@ from assured_downstream.pipeline import run_pilot_pipeline
 from assured_downstream.recon import inspect_repository
 from assured_downstream.scoring import score_catalog
 from assured_downstream.seed import parse_seed_file
+from assured_downstream.sync_apply import apply_sync_plan
 from assured_downstream.sync_plan import create_sync_plan
 
 
@@ -284,6 +285,19 @@ def build_parser() -> argparse.ArgumentParser:
     plan_sync.add_argument("--workspace", required=True, type=Path)
     plan_sync.add_argument("--output", type=Path)
     plan_sync.set_defaults(func=command_plan_sync)
+
+    apply_sync = subparsers.add_parser(
+        "apply-sync-plan",
+        help="Apply or dry-run a local clone/sync plan with lifecycle state recording.",
+    )
+    apply_sync.add_argument("--plan", required=True, type=Path)
+    apply_sync.add_argument("--state", required=True, type=Path)
+    apply_sync.add_argument(
+        "--execute",
+        action="store_true",
+        help="Actually run git sync commands. Default is dry-run.",
+    )
+    apply_sync.set_defaults(func=command_apply_sync_plan)
 
     return parser
 
@@ -580,6 +594,22 @@ def command_plan_sync(args: argparse.Namespace) -> int:
             for command in repo["commands"]:
                 print(f"  {command['display']}")
     return 0
+
+
+def command_apply_sync_plan(args: argparse.Namespace) -> int:
+    with args.plan.open("r", encoding="utf-8") as handle:
+        plan = json.load(handle)
+    state = StateStore.load(args.state)
+    result = apply_sync_plan(plan, state=state, execute=args.execute)
+    state.save(args.state)
+    mode = "executed" if args.execute else "dry-run"
+    print(
+        f"{mode} sync plan: "
+        f"{result.succeeded} succeeded, "
+        f"{result.failed} failed"
+    )
+    print(f"state: {args.state}")
+    return 1 if result.failed else 0
 
 
 def top_repositories(catalog: dict, limit: int) -> list[dict]:
