@@ -135,6 +135,14 @@ Exit criteria:
 - changes are explainable and scoped
 - CI hardening can be tested without publishing a release
 
+Current prototype status:
+
+- overlay planning from recon reports exists
+- hardened, attested, reproducible, and behavior-reproducible target levels are
+  represented in plans
+- approved tooling policy scaffold exists at `policies/approved-tooling.json`
+- patch rendering is still pending
+
 ## Phase 5: Attested Release
 
 Build:

@@ -11,6 +11,7 @@ from assured_downstream.fork_apply import apply_fork_plan
 from assured_downstream.fork_plan import create_fork_plan
 from assured_downstream.github_api import GitHubClient
 from assured_downstream.lifecycle import StateStore
+from assured_downstream.overlay import plan_overlay
 from assured_downstream.recon import inspect_repository
 from assured_downstream.scoring import score_catalog
 from assured_downstream.seed import parse_seed_file
@@ -92,6 +93,19 @@ def build_parser() -> argparse.ArgumentParser:
     recon.add_argument("--path", required=True, type=Path)
     recon.add_argument("--output", type=Path)
     recon.set_defaults(func=command_recon)
+
+    overlay = subparsers.add_parser(
+        "plan-overlay",
+        help="Create a hardening overlay plan from a recon report.",
+    )
+    overlay.add_argument("--recon", required=True, type=Path)
+    overlay.add_argument(
+        "--target",
+        choices=["Hardened", "Attested", "Reproducible", "Behavior-Reproducible"],
+        default="Hardened",
+    )
+    overlay.add_argument("--output", type=Path)
+    overlay.set_defaults(func=command_plan_overlay)
 
     plan_forks = subparsers.add_parser(
         "plan-forks",
@@ -197,6 +211,22 @@ def command_recon(args: argparse.Namespace) -> int:
         print(f"wrote recon report: {args.output}")
     else:
         print(json.dumps(report, indent=2, sort_keys=True))
+    return 0
+
+
+def command_plan_overlay(args: argparse.Namespace) -> int:
+    with args.recon.open("r", encoding="utf-8") as handle:
+        recon_report = json.load(handle)
+    overlay = plan_overlay(recon_report, target=args.target)
+
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        with args.output.open("w", encoding="utf-8") as handle:
+            json.dump(overlay, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+        print(f"wrote overlay plan: {args.output}")
+    else:
+        print(json.dumps(overlay, indent=2, sort_keys=True))
     return 0
 
 

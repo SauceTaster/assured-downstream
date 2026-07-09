@@ -49,13 +49,16 @@ saucetotal ingest --seed awesome-security.md --catalog catalog.json
 saucetotal enrich --catalog catalog.json
 saucetotal score --catalog catalog.json
 saucetotal recon --path /path/to/checkout --output recon.json
+saucetotal plan-overlay --recon recon.json --target Attested --output overlay-plan.json
 saucetotal plan-forks --catalog catalog.json --org <org>
 saucetotal apply-fork-plan --plan fork-plan.json --state state.json
 saucetotal plan-sync --fork-plan fork-plan.json --workspace ./worktrees
 ```
 
 `enrich` uses public GitHub API access by default and reads `GITHUB_TOKEN` when
-available. `apply-fork-plan` is dry-run unless `--execute` is passed.
+available. `apply-fork-plan` is dry-run unless `--execute` is passed. Overlay
+planning is also non-mutating; it turns recon evidence into a structured set of
+proposed hardening changes.
 
 ## North Star
 

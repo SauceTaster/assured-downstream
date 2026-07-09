@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "status": "dev-idea-stage",
+  "note": "Prototype approved tooling policy. Entries define intended controls and must be pinned, mirrored, signed, and attested before production use.",
+  "github_actions": [
+    {
+      "name": "actions/checkout",
+      "usage": "source checkout",
+      "requires_full_sha_pin": true
+    },
+    {
+      "name": "actions/dependency-review-action",
+      "usage": "pull request dependency review",
+      "requires_full_sha_pin": true
+    },
+    {
+      "name": "github/codeql-action/upload-sarif",
+      "usage": "SARIF upload",
+      "requires_full_sha_pin": true
+    },
+    {
+      "name": "ossf/scorecard-action",
+      "usage": "OpenSSF Scorecard evidence",
+      "requires_full_sha_pin": true
+    },
+    {
+      "name": "step-security/harden-runner",
+      "usage": "GitHub Actions runtime egress and process monitoring",
+      "requires_full_sha_pin": true
+    }
+  ],
+  "release_tooling": [
+    {
+      "name": "cosign",
+      "usage": "Sigstore signing and verification",
+      "requires_signature_verification": true
+    },
+    {
+      "name": "syft",
+      "usage": "SBOM generation",
+      "requires_signature_verification": true
+    },
+    {
+      "name": "slsa-github-generator",
+      "usage": "SLSA provenance generation for supported builders",
+      "requires_signature_verification": true
+    }
+  ],
+  "policy": [
+    "No unpinned third-party GitHub Action references in production overlays.",
+    "No long-lived secrets in builds for untrusted upstream code.",
+    "Default GitHub token permissions must be read-only unless a job explicitly requires more.",
+    "Release signing and attestation jobs must use OIDC/keyless identity where possible."
+  ]
+}
