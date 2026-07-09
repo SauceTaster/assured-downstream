@@ -145,6 +145,11 @@ AdoptedProject
 
 ## Agent Roles
 
+See [docs/AGENT_OPERATING_MODEL.md](./docs/AGENT_OPERATING_MODEL.md) and
+[`policies/agent-registry.json`](./policies/agent-registry.json) for the
+operational version of these roles. The CLI is a local harness that agents call;
+the intended system is an event-driven agent network.
+
 ### Seed Agent
 
 Ingests awesome lists and other seed sources, extracts repositories, deduplicates

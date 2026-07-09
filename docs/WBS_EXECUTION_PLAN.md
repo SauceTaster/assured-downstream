@@ -31,11 +31,12 @@ As of the 2026-07-09 prototype pass:
 
 Current critical path:
 
-1. WP1 and WP2: live fork/sync idempotence against a sandbox org.
-2. WP6: workflow-produced evidence bundle, attestation metadata capture, and
+1. Local multi-agent replay from discovery through liaison packet.
+2. WP1 and WP2: live fork/sync idempotence against a sandbox org.
+3. WP6: workflow-produced evidence bundle, attestation metadata capture, and
    verification guide upload.
-3. WP10: full sandbox MVP run.
-4. WP11: artifact reproducibility once Attested has a green sandbox run.
+4. WP10: full sandbox MVP run.
+5. WP11: artifact reproducibility once Attested has a green sandbox run.
 
 ## Operating Rules
 

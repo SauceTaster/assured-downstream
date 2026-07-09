@@ -35,6 +35,8 @@ packages, and applications, the org provides a trusted downstream lane:
   boundaries.
 - [ARCHITECTURE.md](./ARCHITECTURE.md): trust domains, lifecycle, agents,
   assurance levels, evidence model, and policy gates.
+- [docs/AGENT_OPERATING_MODEL.md](./docs/AGENT_OPERATING_MODEL.md): full
+  project-finding, ingestion, agent, event, tool, and handoff model.
 - [ROADMAP.md](./ROADMAP.md): staged implementation plan from catalog and fork
   sync to behavior-reproducible releases.
 - [docs/WBS.md](./docs/WBS.md): work breakdown for what remains before and
@@ -47,9 +49,9 @@ packages, and applications, the org provides a trusted downstream lane:
 
 ## Current Prototype Commands
 
-The current CLI is intentionally observe-first. It can build a catalog, enrich
-candidate metadata, inspect local checkouts, score candidates, and generate
-dry-run fork plans.
+The current CLI is intentionally observe-first. It is a local tool adapter for
+the agent system, not the system boundary. Agents should eventually call these
+tools from queues, schedulers, GitHub App events, and human review workflows.
 
 ```text
 assured-downstream pilot --seed awesome-security.md --org <org> --run-dir ./runs/pilot-001

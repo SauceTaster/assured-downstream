@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "status": "dev-idea-stage",
+  "note": "Assured Downstream is an agent system. CLI commands are local tool adapters that agents call; they are not the system boundary.",
+  "control_plane": {
+    "mode": "event-driven human-gated assurance pipeline",
+    "state_store": "catalog, run index, lifecycle state, evidence manifests, release evaluations",
+    "mutation_policy": "observe-first by default; repository, GitHub, release, and outreach mutations require explicit gates"
+  },
+  "required_agent_ids": [
+    "source-discovery",
+    "catalog-ingestion",
+    "triage",
+    "governor",
+    "fork-sync",
+    "recon",
+    "overlay-planner",
+    "patch",
+    "tooling-curator",
+    "build",
+    "trace",
+    "attestation",
+    "repro",
+    "release",
+    "liaison",
+    "watch"
+  ],
+  "agents": [
+    {
+      "id": "source-discovery",
+      "name": "Source Discovery Agent",
+      "purpose": "Find candidate upstream projects from awesome lists, package indexes, advisories, GitHub search, user nominations, and maintainer requests.",
+      "owns": ["seed batches", "source attribution", "project-finding backlog"],
+      "input_events": ["DiscoveryRequested", "FeedRefreshDue", "UserNominationReceived"],
+      "output_events": ["SeedBatchReady"],
+      "tools": ["seed fetchers", "awesome-list parser", "ecosystem index adapters", "advisory feed adapters"],
+      "human_gates": ["new source class approval"]
+    },
+    {
+      "id": "catalog-ingestion",
+      "name": "Catalog Ingestion Agent",
+      "purpose": "Normalize discovered repositories, deduplicate candidates, enrich metadata, and maintain the catalog.",
+      "owns": ["catalog.json", "repository identity", "metadata freshness"],
+      "input_events": ["SeedBatchReady"],
+      "output_events": ["CatalogUpdated", "RepoCandidateReady"],
+      "tools": ["ingest", "enrich", "GitHub metadata client"],
+      "human_gates": ["private or ambiguous repository identity"]
+    },
+    {
+      "id": "triage",
+      "name": "Triage Agent",
+      "purpose": "Score candidates, explain selection, apply allow/suppress policy, and choose first-lane work.",
+      "owns": ["scores", "selection reasons", "allowlist/suppression interpretation"],
+      "input_events": ["RepoCandidateReady", "CatalogUpdated"],
+      "output_events": ["CandidateSelected", "CandidateSuppressed", "NeedsHumanReview"],
+      "tools": ["score", "selection policy", "custodian-review"],
+      "human_gates": ["license ambiguity", "custodian risk", "high-profile project selection"]
+    },
+    {
+      "id": "governor",
+      "name": "Governor Agent",
+      "purpose": "Enforce policies, block unsafe transitions, require evidence before claims, and route uncertainty to humans.",
+      "owns": ["policy decisions", "release gates", "claim discipline"],
+      "input_events": ["CandidateSelected", "OverlayProposed", "ReleaseEvidenceReady", "RebuildCompared", "BehaviorCompared"],
+      "output_events": ["GatePassed", "GateBlocked", "NeedsHumanReview"],
+      "tools": ["evaluate-release", "approved tooling policy", "pin lock checks", "risk signal checks"],
+      "human_gates": ["all blocked release overrides", "custodian claims", "public validation claims"]
+    },
+    {
+      "id": "fork-sync",
+      "name": "Fork And Sync Agent",
+      "purpose": "Create or detect downstream forks, configure remotes, sync upstream, and preserve secure branches.",
+      "owns": ["fork plan", "sync plan", "lifecycle state", "branch model"],
+      "input_events": ["GatePassed:CandidateSelected", "UpstreamChanged"],
+      "output_events": ["ForkReady", "SyncReady", "SyncConflict"],
+      "tools": ["plan-forks", "apply-fork-plan", "plan-sync", "apply-sync-plan", "git", "GitHub API"],
+      "human_gates": ["first live org mutation", "sync conflict", "branch protection change"]
+    },
+    {
+      "id": "recon",
+      "name": "Recon Agent",
+      "purpose": "Inspect checkouts without executing target code and infer language, workflow, release, artifact, and risk signals.",
+      "owns": ["recon.json", "artifact candidates", "workflow risk signals"],
+      "input_events": ["SyncReady", "CheckoutReady"],
+      "output_events": ["CheckoutAnalyzed", "InsufficientSignal", "WorkflowRiskFound"],
+      "tools": ["recon", "analyze-checkout", "workflow parser"],
+      "human_gates": ["unparseable release workflow", "ambiguous artifact path"]
+    },
+    {
+      "id": "overlay-planner",
+      "name": "Overlay Planner Agent",
+      "purpose": "Choose the smallest safe hardening overlay for a repository based on recon and target assurance level.",
+      "owns": ["overlay-plan.json", "proposal scope", "skipped change reasons"],
+      "input_events": ["CheckoutAnalyzed"],
+      "output_events": ["OverlayProposed", "OverlayBlocked"],
+      "tools": ["plan-overlay", "policy catalog", "approved workflow templates"],
+      "human_gates": ["repository-specific workflow surgery", "pull_request_target changes"]
+    },
+    {
+      "id": "patch",
+      "name": "Patch Agent",
+      "purpose": "Render approved overlays and repository-specific changes while keeping diffs small and reviewable.",
+      "owns": ["proposal branches", "render results", "patch summaries"],
+      "input_events": ["OverlayProposed", "ReleaseProfileDrafted"],
+      "output_events": ["PatchRendered", "PatchNeedsReview"],
+      "tools": ["render-overlay", "render-release-workflow", "git"],
+      "human_gates": ["non-additive patch", "existing workflow overwrite", "release profile confirmation"]
+    },
+    {
+      "id": "tooling-curator",
+      "name": "Tooling Curator Agent",
+      "purpose": "Maintain approved tools, resolve pins, refresh lockfiles, verify tooling provenance, and retire risky tools.",
+      "owns": ["approved-tooling.json", "pin locks", "tool refresh reports"],
+      "input_events": ["ToolRefreshDue", "WorkflowRequiresTool", "ToolAdvisoryFound"],
+      "output_events": ["ToolPinsReady", "ToolBlocked", "ToolNeedsReview"],
+      "tools": ["resolve-pins", "GitHub commit resolver", "signature verification tools"],
+      "human_gates": ["new tool approval", "stale or compromised tool exception"]
+    },
+    {
+      "id": "build",
+      "name": "Build Agent",
+      "purpose": "Run target builds in isolated environments with approved tooling and no long-lived secrets.",
+      "owns": ["build logs", "artifact staging", "build environment metadata"],
+      "input_events": ["PatchRendered", "ToolPinsReady", "ReleaseConfirmed"],
+      "output_events": ["BuildArtifactsReady", "BuildFailed"],
+      "tools": ["secure workflows", "runner images", "package managers"],
+      "human_gates": ["secret requirement", "non-hermetic build", "unexpected network requirement"]
+    },
+    {
+      "id": "trace",
+      "name": "Trace Agent",
+      "purpose": "Capture process, file, network, syscall, and security-event evidence during builds.",
+      "owns": ["raw traces", "normalized behavior reports", "trace retention policy"],
+      "input_events": ["BuildStarted"],
+      "output_events": ["TraceReady", "TracePolicyFailed"],
+      "tools": ["normalize-trace", "process tracer", "network monitor", "syscall collector"],
+      "human_gates": ["collector blind spot", "sensitive trace retention"]
+    },
+    {
+      "id": "attestation",
+      "name": "Attestation Agent",
+      "purpose": "Produce SBOMs, SLSA provenance, in-toto statements, signatures, evidence manifests, and verification guides.",
+      "owns": ["evidence manifest", "attestation references", "verification guide"],
+      "input_events": ["BuildArtifactsReady", "TraceReady"],
+      "output_events": ["ReleaseEvidenceReady", "EvidenceVerificationFailed"],
+      "tools": ["create-evidence", "create-attestation", "verify-evidence", "write-verification-guide", "actions/attest", "sigstore"],
+      "human_gates": ["missing artifact role", "missing attestation role", "signature policy exception"]
+    },
+    {
+      "id": "repro",
+      "name": "Repro Agent",
+      "purpose": "Run independent rebuilds and compare artifacts, SBOMs, materials, provenance, and normalized behavior.",
+      "owns": ["rebuild manifests", "comparison reports", "mismatch packets"],
+      "input_events": ["ReleaseEvidenceReady", "RebuildRequested"],
+      "output_events": ["RebuildCompared", "RebuildMismatch", "BehaviorCompared", "BehaviorMismatch"],
+      "tools": ["compare-evidence", "compare-behavior", "independent runners"],
+      "human_gates": ["artifact mismatch", "behavior mismatch", "allowed divergence update"]
+    },
+    {
+      "id": "release",
+      "name": "Release Agent",
+      "purpose": "Publish hardened releases only after gates pass and attach evidence for downstream users.",
+      "owns": ["release notes", "release assets", "published evidence links"],
+      "input_events": ["GatePassed:Attested", "GatePassed:Reproducible"],
+      "output_events": ["ReleasePublished", "ReleaseBlocked"],
+      "tools": ["GitHub releases", "sigstore", "verification guide"],
+      "human_gates": ["first release per project", "public release claim wording"]
+    },
+    {
+      "id": "liaison",
+      "name": "Upstream Liaison Agent",
+      "purpose": "Prepare optional maintainer fetch instructions, proposal summaries, and respectful outreach drafts.",
+      "owns": ["liaison packets", "maintainer preferences", "outreach suppression"],
+      "input_events": ["PatchRendered", "ReleaseEvidenceReady", "MaintainerPreferenceUpdated"],
+      "output_events": ["LiaisonPacketReady", "OutreachSuppressed"],
+      "tools": ["create-liaison-packet", "proposal branch summary"],
+      "human_gates": ["automatic PR creation", "repeat outreach", "custodian language"]
+    },
+    {
+      "id": "watch",
+      "name": "Watch Agent",
+      "purpose": "Monitor upstream commits, releases, advisories, tooling changes, policy changes, and downstream drift.",
+      "owns": ["watch schedule", "refresh triggers", "drift reports"],
+      "input_events": ["ReleasePublished", "ProjectWatched", "ToolPinsReady"],
+      "output_events": ["UpstreamChanged", "AdvisoryFound", "ToolRefreshDue", "PolicyRefreshDue"],
+      "tools": ["GitHub API", "advisory feeds", "package index feeds", "scheduler"],
+      "human_gates": ["high-impact advisory escalation", "project deprecation"]
+    }
+  ],
+  "handoff_invariants": [
+    "Every output event must reference a run id and source repository when applicable.",
+    "Every agent must write machine-readable artifacts before human-readable summaries.",
+    "Every mutation-capable agent must support dry-run planning.",
+    "Every release claim must be backed by evidence and a Governor Agent decision.",
+    "Maintainer outreach must respect suppression and preference state."
+  ]
+}

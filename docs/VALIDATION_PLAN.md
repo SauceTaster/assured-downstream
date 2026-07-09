@@ -15,10 +15,10 @@ evidence-backed case study.
 
 ## Validation Tiers
 
-### T0 - Local Self-Test
+### T0 - Local System Self-Test
 
-Purpose: prove the local control plane, recon, release planning, rendering, and
-evidence gates still compose.
+Purpose: prove the local agent registry, control plane assumptions, recon,
+release planning, rendering, and evidence gates still compose.
 
 Command:
 
@@ -28,6 +28,8 @@ assured-downstream self-test --output-dir ./runs/self-test
 
 What it checks:
 
+- the agent registry is loadable and includes required system agents
+- agent handoff invariants are declared
 - Go, Rust, Python, Java, and .NET fixtures parse structurally.
 - Fixture workflows expose artifact candidates.
 - Release profiles resolve to known language families.
@@ -41,8 +43,8 @@ Pass condition: all self-test checks pass and `SELF_TEST_SUMMARY.md` plus
 
 ### T1 - Local Candidate Dry Run
 
-Purpose: prove the system can analyze real cloned repositories without network
-mutation.
+Purpose: prove the agent system can analyze real cloned repositories without
+network mutation.
 
 Inputs:
 
@@ -54,15 +56,16 @@ Outputs:
 
 - pilot run index
 - selection reasons
+- agent assignment/handoff record
 - recon reports
 - overlay plans
 - release profiles
 - dry-run render results
 - liaison packet drafts
 
-Pass condition: every selected candidate has a clear action: renderable,
-blocked-with-reason, or human-review-required. No candidate should fail with an
-unexplained exception.
+Pass condition: every selected candidate has a clear agent-owned next action:
+renderable, blocked-with-reason, or human-review-required. No candidate should
+fail with an unexplained exception or orphaned handoff.
 
 ### T2 - Sandbox Org Attested Case Study
 
@@ -77,6 +80,8 @@ Inputs:
 
 Outputs:
 
+- discovery, catalog, triage, governor, fork/sync, recon, patch, build,
+  attestation, release, liaison, and watch agent handoffs
 - idempotent fork or existing-fork detection
 - idempotent sync state
 - hardened overlay branch
@@ -87,7 +92,8 @@ Outputs:
 - a case-study report with failure modes and residual risks
 
 Pass condition: a fresh reviewer can verify the released artifact evidence from
-the published bundle without trusting the agent transcript.
+the published bundle and reconstruct which agent owned each transition without
+trusting the agent transcript.
 
 ### T3 - External Review
 

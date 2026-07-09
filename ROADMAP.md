@@ -13,7 +13,7 @@ Target public GitHub projects with:
 - active or historically important security relevance
 - GitHub-hosted source
 - existing release artifacts or a clear build output
-- Go, Rust, or Python as the first language families
+- Go, Rust, Python, Java, or .NET as the first language families
 - GitHub Actions as the first CI target
 
 The MVP should not try to solve every ecosystem, every build system, or full
@@ -70,6 +70,7 @@ Current prototype status:
 - explainable heuristic scoring exists
 - observe-first pilot runs produce catalog, fork plan, lifecycle state, sync
   plan, and Markdown summary artifacts
+- first machine-readable agent registry exists at `policies/agent-registry.json`
 
 ## Phase 2: Fork and Sync Control Plane
 
@@ -180,8 +181,8 @@ Current prototype status:
 - release policy gate evaluation exists for attested, reproducible,
   behavior-reproducible, and validated targets
 - Markdown verification guide generation exists for release evidence manifests
-- draft release profile planning exists for first-lane Go, Rust, and Python
-  checkouts
+- draft release profile planning exists for first-lane Go, Rust, Python, Java,
+  and .NET checkouts
 - pinned attested-release workflow rendering exists using `actions/attest`
 - live CI execution of SBOM/provenance/signature generation is still pending
 

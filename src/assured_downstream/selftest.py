@@ -4,6 +4,11 @@ import json
 from pathlib import Path
 from typing import Any
 
+from assured_downstream.agent_registry import (
+    default_agent_registry_path,
+    load_agent_registry,
+    summarize_agent_registry,
+)
 from assured_downstream.catalog import utc_now
 from assured_downstream.evidence import create_evidence_manifest, verify_evidence_manifest
 from assured_downstream.policy_eval import evaluate_release
@@ -32,6 +37,7 @@ def run_self_test(
     fixture_root = fixtures_root or default_fixtures_root()
     selected_ecosystems = ecosystems or DEFAULT_SELF_TEST_ECOSYSTEMS
 
+    agent_system_result = run_agent_system_self_test(output_dir)
     ecosystem_results = [
         run_ecosystem_self_test(
             ecosystem=ecosystem,
@@ -43,16 +49,21 @@ def run_self_test(
     evidence_result = run_evidence_self_test(output_dir)
 
     checks = [
-        check
-        for ecosystem_result in ecosystem_results
-        for check in ecosystem_result["checks"]
-    ] + evidence_result["checks"]
+        *agent_system_result["checks"],
+        *evidence_result["checks"],
+        *[
+            check
+            for ecosystem_result in ecosystem_results
+            for check in ecosystem_result["checks"]
+        ],
+    ]
     result = {
         "schema_version": 1,
         "generated_at": utc_now(),
         "status": "passed" if all(check["ok"] for check in checks) else "failed",
         "ok": all(check["ok"] for check in checks),
         "fixtures_root": str(fixture_root),
+        "agent_system": agent_system_result,
         "ecosystems": ecosystem_results,
         "evidence": evidence_result,
         "summary": {
@@ -64,6 +75,39 @@ def run_self_test(
     write_json(output_dir / "self-test-result.json", result)
     write_self_test_summary(output_dir / "SELF_TEST_SUMMARY.md", result)
     return result
+
+
+def run_agent_system_self_test(output_dir: Path) -> dict[str, Any]:
+    system_dir = output_dir / "agent-system"
+    system_dir.mkdir(parents=True, exist_ok=True)
+    registry_path = default_agent_registry_path()
+
+    try:
+        registry = load_agent_registry(registry_path)
+        summary = summarize_agent_registry(registry)
+        checks = [
+            check("agent registry loads", True),
+            check("required agents present", summary["agent_count"] >= summary["required_agent_count"]),
+            check("handoff invariants declared", summary["handoff_invariants"] > 0),
+            check("mutation-capable agents identifiable", bool(summary["mutation_capable_agents"])),
+        ]
+    except Exception as exc:  # noqa: BLE001 - self-test records validation failure details.
+        registry = {}
+        summary = {}
+        checks = [check("agent registry loads", False, str(exc))]
+
+    payload = {
+        "registry_path": str(registry_path),
+        "summary": summary,
+        "checks": checks,
+    }
+    write_json(system_dir / "agent-system.json", payload)
+    if registry:
+        write_json(system_dir / "agent-registry.snapshot.json", registry)
+    return {
+        "output_dir": str(system_dir),
+        **payload,
+    }
 
 
 def run_ecosystem_self_test(
@@ -123,7 +167,6 @@ def run_ecosystem_self_test(
             "release_render_result": str(ecosystem_dir / "release-render-result.json"),
         },
     }
-
 
 def run_evidence_self_test(output_dir: Path) -> dict[str, Any]:
     evidence_dir = output_dir / "evidence-smoke"
@@ -205,9 +248,29 @@ def write_self_test_summary(path: Path, result: dict[str, Any]) -> None:
         f"- passed: {result['summary']['passed']}",
         f"- failed: {result['summary']['failed']}",
         "",
-        "## Ecosystems",
+        "## Agent System",
         "",
     ]
+    agent_system = result["agent_system"]
+    agent_summary = agent_system.get("summary") or {}
+    lines.extend(
+        [
+            f"- registry: `{agent_system['registry_path']}`",
+            f"- agents: {agent_summary.get('agent_count', 0)}",
+            f"- handoff invariants: {agent_summary.get('handoff_invariants', 0)}",
+        ]
+    )
+    for item in agent_system["checks"]:
+        marker = "pass" if item["ok"] else "fail"
+        detail = f" - {item['detail']}" if item.get("detail") else ""
+        lines.append(f"- {marker}: {item['name']}{detail}")
+    lines.extend(
+        [
+            "",
+            "## Ecosystems",
+            "",
+        ]
+    )
     for ecosystem in result["ecosystems"]:
         lines.append(f"### {ecosystem['ecosystem']}")
         lines.append("")
