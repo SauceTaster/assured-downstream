@@ -7,7 +7,11 @@ from pathlib import Path
 
 from assured_downstream.catalog import load_catalog, save_catalog, upsert_findings
 from assured_downstream.enrichment import enrich_catalog
-from assured_downstream.evidence import create_evidence_manifest, verify_evidence_manifest
+from assured_downstream.evidence import (
+    compare_evidence_manifests,
+    create_evidence_manifest,
+    verify_evidence_manifest,
+)
 from assured_downstream.fork_apply import apply_fork_plan
 from assured_downstream.fork_plan import create_fork_plan
 from assured_downstream.github_api import GitHubClient
@@ -179,6 +183,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_evidence.add_argument("--manifest", required=True, type=Path)
     verify_evidence.set_defaults(func=command_verify_evidence)
+
+    compare_evidence = subparsers.add_parser(
+        "compare-evidence",
+        help="Compare two evidence manifests from independent builds.",
+    )
+    compare_evidence.add_argument("--left", required=True, type=Path)
+    compare_evidence.add_argument("--right", required=True, type=Path)
+    compare_evidence.add_argument("--output", type=Path)
+    compare_evidence.set_defaults(func=command_compare_evidence)
 
     plan_forks = subparsers.add_parser(
         "plan-forks",
@@ -383,6 +396,24 @@ def command_verify_evidence(args: argparse.Namespace) -> int:
     for failure in result["failures"]:
         print(f"  {failure}")
     return 1
+
+
+def command_compare_evidence(args: argparse.Namespace) -> int:
+    with args.left.open("r", encoding="utf-8") as handle:
+        left = json.load(handle)
+    with args.right.open("r", encoding="utf-8") as handle:
+        right = json.load(handle)
+    result = compare_evidence_manifests(left, right)
+
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        with args.output.open("w", encoding="utf-8") as handle:
+            json.dump(result, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+        print(f"wrote comparison report: {args.output}")
+    else:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if result["ok"] else 1
 
 
 def command_plan_forks(args: argparse.Namespace) -> int:

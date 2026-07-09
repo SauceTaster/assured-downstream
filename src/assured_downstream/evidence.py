@@ -59,6 +59,66 @@ def verify_evidence_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def compare_evidence_manifests(
+    left: dict[str, Any],
+    right: dict[str, Any],
+) -> dict[str, Any]:
+    failures = []
+    warnings = []
+    matches = []
+
+    left_project = left.get("project", {})
+    right_project = right.get("project", {})
+    for field in ["source_full_name", "upstream_ref", "release_tag"]:
+        if left_project.get(field) != right_project.get(field):
+            failures.append(
+                f"project {field} differs: {left_project.get(field)!r} != {right_project.get(field)!r}"
+            )
+
+    left_index = evidence_index(left)
+    right_index = evidence_index(right)
+    all_keys = sorted(set(left_index) | set(right_index))
+
+    for key in all_keys:
+        left_entry = left_index.get(key)
+        right_entry = right_index.get(key)
+        role, name = key
+        if left_entry is None:
+            failures.append(f"{role}: {name} missing from left manifest")
+            continue
+        if right_entry is None:
+            failures.append(f"{role}: {name} missing from right manifest")
+            continue
+        if left_entry.get("sha256") != right_entry.get("sha256"):
+            failures.append(f"{role}: {name} sha256 differs")
+            continue
+        if left_entry.get("size") != right_entry.get("size"):
+            warnings.append(f"{role}: {name} size differs despite matching sha256")
+        matches.append({"role": role, "name": name, "sha256": left_entry.get("sha256")})
+
+    return {
+        "schema_version": 1,
+        "generated_at": utc_now(),
+        "ok": not failures,
+        "summary": {
+            "matches": len(matches),
+            "failures": len(failures),
+            "warnings": len(warnings),
+        },
+        "matches": matches,
+        "failures": failures,
+        "warnings": warnings,
+    }
+
+
+def evidence_index(manifest: dict[str, Any]) -> dict[tuple[str, str], dict[str, Any]]:
+    index = {}
+    for role, entries in manifest.get("evidence", {}).items():
+        for entry in entries:
+            index[(role, entry["name"])] = entry
+    return index
+
+
 def file_entry(path: Path, *, role: str) -> dict[str, Any]:
     resolved = path.resolve()
     if not resolved.exists():
@@ -80,4 +140,3 @@ def sha256_file(path: Path) -> str:
         while chunk := handle.read(CHUNK_SIZE):
             digest.update(chunk)
     return digest.hexdigest()
-

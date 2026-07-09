@@ -4,7 +4,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from assured_downstream.evidence import create_evidence_manifest, verify_evidence_manifest
+from assured_downstream.evidence import (
+    compare_evidence_manifests,
+    create_evidence_manifest,
+    verify_evidence_manifest,
+)
 
 
 class EvidenceTests(unittest.TestCase):
@@ -63,7 +67,52 @@ class EvidenceTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertIn("sha256 mismatch", result["failures"][0])
 
+    def test_compares_matching_manifests(self) -> None:
+        with tempfile.TemporaryDirectory() as left_tmp, tempfile.TemporaryDirectory() as right_tmp:
+            left_artifact = Path(left_tmp) / "tool"
+            right_artifact = Path(right_tmp) / "tool"
+            left_artifact.write_text("same", encoding="utf-8")
+            right_artifact.write_text("same", encoding="utf-8")
+            left = minimal_manifest(left_artifact)
+            right = minimal_manifest(right_artifact)
+
+            result = compare_evidence_manifests(left, right)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["summary"]["matches"], 1)
+
+    def test_compares_mismatching_manifests(self) -> None:
+        with tempfile.TemporaryDirectory() as left_tmp, tempfile.TemporaryDirectory() as right_tmp:
+            left_artifact = Path(left_tmp) / "tool"
+            right_artifact = Path(right_tmp) / "tool"
+            left_artifact.write_text("left", encoding="utf-8")
+            right_artifact.write_text("right", encoding="utf-8")
+            left = minimal_manifest(left_artifact)
+            right = minimal_manifest(right_artifact)
+
+            result = compare_evidence_manifests(left, right)
+
+        self.assertFalse(result["ok"])
+        self.assertIn("sha256 differs", result["failures"][0])
+
+
+def minimal_manifest(artifact: Path) -> dict:
+    return create_evidence_manifest(
+        project="owner/project",
+        target_repo="assured-oss/project",
+        upstream_ref="abc123",
+        overlay_ref="def456",
+        release_tag="secure-v1.0.0+org.1",
+        assurance="Attested",
+        files={
+            "artifacts": [artifact],
+            "sboms": [],
+            "attestations": [],
+            "traces": [],
+            "reports": [],
+        },
+    )
+
 
 if __name__ == "__main__":
     unittest.main()
-

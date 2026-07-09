@@ -188,6 +188,12 @@ Exit criteria:
 - matching artifacts promote the release to `Reproducible`
 - mismatches produce actionable reports
 
+Current prototype status:
+
+- evidence manifests can be compared across independent builds
+- comparison matches evidence files by role, name, size, and SHA-256
+- mismatch reports are machine-readable and CLI-visible
+
 ## Phase 7: Runtime and Behavior Evidence
 
 Build:

@@ -59,6 +59,7 @@ saucetotal create-evidence --project owner/repo --target-repo org/repo \
   --upstream-ref <sha> --overlay-ref <sha> --release-tag secure-v1.0.0+org.1 \
   --artifact ./dist/tool --sbom ./dist/sbom.json --output evidence.json
 saucetotal verify-evidence --manifest evidence.json
+saucetotal compare-evidence --left host-a-evidence.json --right host-b-evidence.json
 ```
 
 `enrich` uses public GitHub API access by default and reads `GITHUB_TOKEN` when
