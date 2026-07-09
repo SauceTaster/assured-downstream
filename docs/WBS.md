@@ -3,6 +3,10 @@
 Status: dev/idea-stage work breakdown. This is scoped to a working MVP first,
 then the hardening path after the MVP is operating on real forks.
 
+See [WBS_EXECUTION_PLAN.md](./WBS_EXECUTION_PLAN.md) for the agent-sized
+implementation split, dependencies, acceptance criteria, and immediate parallel
+work packages.
+
 ## 1. MVP Control Plane
 
 ### 1.1 Candidate Intake
@@ -220,4 +224,3 @@ After the MVP is real, the priority order is:
 - behavior-reproducible comparison
 - validated security review workflows
 - custodian mode governance
-

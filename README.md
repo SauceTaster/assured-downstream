@@ -39,6 +39,8 @@ packages, and applications, the org provides a trusted downstream lane:
   sync to behavior-reproducible releases.
 - [docs/WBS.md](./docs/WBS.md): work breakdown for what remains before and
   after the MVP.
+- [docs/WBS_EXECUTION_PLAN.md](./docs/WBS_EXECUTION_PLAN.md): agent-sized work
+  packages, dependencies, acceptance criteria, and implementation order.
 - [docs/RESEARCH.md](./docs/RESEARCH.md): implementation-shaping research notes.
 
 ## Current Prototype Commands
