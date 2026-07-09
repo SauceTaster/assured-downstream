@@ -45,6 +45,7 @@ candidate metadata, inspect local checkouts, score candidates, and generate
 dry-run fork plans.
 
 ```text
+saucetotal pilot --seed awesome-security.md --org <org> --run-dir ./runs/pilot-001
 saucetotal ingest --seed awesome-security.md --catalog catalog.json
 saucetotal enrich --catalog catalog.json
 saucetotal score --catalog catalog.json
@@ -71,6 +72,10 @@ planning is also non-mutating; it turns recon evidence into a structured set of
 proposed hardening changes. Overlay rendering is dry-run unless `--execute` is
 passed, and generated workflows require full commit SHA pins supplied through
 `--pins`.
+
+`pilot` is the current observe-first entrypoint. It writes a run directory with
+`catalog.json`, `fork-plan.json`, `state.json`, `sync-plan.json`, and
+`RUN_SUMMARY.md`.
 
 ## North Star
 

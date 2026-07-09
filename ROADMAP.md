@@ -67,6 +67,8 @@ Current prototype status:
 - local catalog writing exists
 - GitHub metadata enrichment exists
 - explainable heuristic scoring exists
+- observe-first pilot runs produce catalog, fork plan, lifecycle state, sync
+  plan, and Markdown summary artifacts
 
 ## Phase 2: Fork and Sync Control Plane
 

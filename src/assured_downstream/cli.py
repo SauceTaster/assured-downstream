@@ -20,6 +20,7 @@ from assured_downstream.lifecycle import StateStore
 from assured_downstream.overlay import plan_overlay
 from assured_downstream.overlay_render import render_overlay
 from assured_downstream.pin_resolver import resolve_tooling_pins
+from assured_downstream.pipeline import run_pilot_pipeline
 from assured_downstream.recon import inspect_repository
 from assured_downstream.scoring import score_catalog
 from assured_downstream.seed import parse_seed_file
@@ -57,6 +58,37 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ingest.add_argument("--catalog", required=True, type=Path)
     ingest.set_defaults(func=command_ingest)
+
+    pilot = subparsers.add_parser(
+        "pilot",
+        help="Run an observe-first SauceTotal pilot pipeline from seed files.",
+    )
+    pilot.add_argument("--seed", action="append", required=True, type=Path)
+    pilot.add_argument("--org", required=True)
+    pilot.add_argument("--run-dir", required=True, type=Path)
+    pilot.add_argument("--limit", type=int, default=None)
+    pilot.add_argument(
+        "--enrich",
+        action="store_true",
+        help="Fetch GitHub metadata during the run.",
+    )
+    pilot.add_argument(
+        "--resolve-pins",
+        action="store_true",
+        help="Resolve approved tooling pins during the run.",
+    )
+    pilot.add_argument(
+        "--tooling",
+        type=Path,
+        default=Path("policies/approved-tooling.json"),
+        help="Approved tooling policy JSON.",
+    )
+    pilot.add_argument(
+        "--token-env",
+        default="GITHUB_TOKEN",
+        help="Environment variable containing a GitHub token.",
+    )
+    pilot.set_defaults(func=command_pilot)
 
     score = subparsers.add_parser(
         "score",
@@ -274,6 +306,24 @@ def command_ingest(args: argparse.Namespace) -> int:
         f"added {added_seed_refs} seed references"
     )
     print(f"catalog: {args.catalog}")
+    return 0
+
+
+def command_pilot(args: argparse.Namespace) -> int:
+    client = GitHubClient.from_environment(token_env=args.token_env)
+    summary = run_pilot_pipeline(
+        seed_paths=args.seed,
+        org=args.org,
+        run_dir=args.run_dir,
+        limit=args.limit,
+        enrich=args.enrich,
+        resolve_pins=args.resolve_pins,
+        tooling_path=args.tooling,
+        client=client,
+    )
+    print(f"pilot run complete: {args.run_dir}")
+    print(f"summary: {summary['summary_path']}")
+    print(f"candidates: {summary['repositories']}")
     return 0
 
 
