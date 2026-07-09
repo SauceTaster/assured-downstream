@@ -7,6 +7,7 @@ from pathlib import Path
 
 from assured_downstream.behavior import compare_behavior_reports, normalize_trace
 from assured_downstream.catalog import load_catalog, save_catalog, upsert_findings
+from assured_downstream.checkout_pipeline import run_checkout_analysis
 from assured_downstream.custody import create_custodian_review
 from assured_downstream.enrichment import enrich_catalog
 from assured_downstream.evidence import (
@@ -90,6 +91,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="Environment variable containing a GitHub token.",
     )
     pilot.set_defaults(func=command_pilot)
+
+    checkout = subparsers.add_parser(
+        "analyze-checkout",
+        help="Run recon, overlay planning, and optional rendering for a local checkout.",
+    )
+    checkout.add_argument("--path", required=True, type=Path)
+    checkout.add_argument("--run-dir", required=True, type=Path)
+    checkout.add_argument(
+        "--target",
+        choices=["Hardened", "Attested", "Reproducible", "Behavior-Reproducible"],
+        default="Attested",
+    )
+    checkout.add_argument("--pins", type=Path)
+    checkout.add_argument(
+        "--render",
+        action="store_true",
+        help="Render safe overlay artifacts into the checkout. Default is dry-run analysis only.",
+    )
+    checkout.add_argument("--force", action="store_true")
+    checkout.set_defaults(func=command_analyze_checkout)
 
     score = subparsers.add_parser(
         "score",
@@ -347,6 +368,26 @@ def command_pilot(args: argparse.Namespace) -> int:
     print(f"pilot run complete: {args.run_dir}")
     print(f"summary: {summary['summary_path']}")
     print(f"candidates: {summary['repositories']}")
+    return 0
+
+
+def command_analyze_checkout(args: argparse.Namespace) -> int:
+    pins = {}
+    if args.pins:
+        with args.pins.open("r", encoding="utf-8") as handle:
+            pin_payload = json.load(handle)
+        pins = pin_payload.get("pins", pin_payload)
+    summary = run_checkout_analysis(
+        checkout_path=args.path,
+        run_dir=args.run_dir,
+        target=args.target,
+        pins=pins,
+        render=args.render,
+        force=args.force,
+    )
+    print(f"checkout analysis complete: {args.run_dir}")
+    print(f"summary: {summary['summary_path']}")
+    print(f"overlay changes: {summary['overlay_changes']}")
     return 0
 
 

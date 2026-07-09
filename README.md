@@ -48,6 +48,8 @@ dry-run fork plans.
 saucetotal pilot --seed awesome-security.md --org <org> --run-dir ./runs/pilot-001
 saucetotal pilot --seed https://example.com/awesome-security.md --org <org> \
   --run-dir ./runs/pilot-remote
+saucetotal analyze-checkout --path /path/to/checkout --run-dir ./runs/checkout-001 \
+  --target Attested
 saucetotal ingest --seed awesome-security.md --catalog catalog.json
 saucetotal enrich --catalog catalog.json
 saucetotal score --catalog catalog.json
@@ -80,6 +82,10 @@ passed, and generated workflows require full commit SHA pins supplied through
 Seeds can be local files or URLs. `pilot` is the current observe-first
 entrypoint. It writes a run directory with `catalog.json`, `fork-plan.json`,
 `state.json`, `sync-plan.json`, and `RUN_SUMMARY.md`.
+
+`analyze-checkout` is the local Patch Agent cockpit. It writes `recon.json`,
+`overlay-plan.json`, `render-result.json`, and `CHECKOUT_SUMMARY.md`, and only
+writes overlay files into the checkout when `--render` is passed.
 
 ## North Star
 
