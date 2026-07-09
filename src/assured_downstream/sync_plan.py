@@ -63,20 +63,18 @@ def sync_commands(
             "checkout",
             "-B",
             f"upstream/{default_branch}",
-            f"upstream/{default_branch}",
+            f"refs/remotes/upstream/{default_branch}",
         ],
         [
             "git",
             "-C",
             str(local_path),
-            "checkout",
-            "-B",
+            "branch",
             f"secure/{default_branch}",
-            f"upstream/{default_branch}",
+            f"refs/remotes/upstream/{default_branch}",
         ],
     ]
 
 
 def safe_repo_dir(full_name: str) -> str:
     return full_name.replace("/", "__")
-

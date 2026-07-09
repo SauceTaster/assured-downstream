@@ -24,9 +24,9 @@ class SyncPlanTests(unittest.TestCase):
         self.assertEqual(repo["default_branch"], "trunk")
         self.assertEqual(repo["local_path"], "/tmp/work/assured-oss__project")
         self.assertIn("git clone", repo["commands"][0]["display"])
-        self.assertIn("secure/trunk", repo["commands"][-1]["display"])
+        self.assertIn("branch secure/trunk", repo["commands"][-1]["display"])
+        self.assertIn("refs/remotes/upstream/trunk", repo["commands"][-1]["display"])
 
 
 if __name__ == "__main__":
     unittest.main()
-
