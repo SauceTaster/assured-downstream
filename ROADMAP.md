@@ -178,7 +178,10 @@ Current prototype status:
 - generic in-toto statement generation exists
 - release policy gate evaluation exists for attested, reproducible,
   behavior-reproducible, and validated targets
-- actual SBOM/provenance/signature generation is still pending
+- draft release profile planning exists for first-lane Go, Rust, and Python
+  checkouts
+- pinned attested-release workflow rendering exists using `actions/attest`
+- live CI execution of SBOM/provenance/signature generation is still pending
 
 ## Phase 6: Reproducible Release
 

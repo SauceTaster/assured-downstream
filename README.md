@@ -50,6 +50,9 @@ saucetotal pilot --seed https://example.com/awesome-security.md --org <org> \
   --run-dir ./runs/pilot-remote
 saucetotal analyze-checkout --path /path/to/checkout --run-dir ./runs/checkout-001 \
   --target Attested
+saucetotal plan-release --recon recon.json --output release-profile.json
+saucetotal render-release-workflow --profile release-profile.json \
+  --path /path/to/checkout --pins pins.json
 saucetotal ingest --seed awesome-security.md --catalog catalog.json
 saucetotal enrich --catalog catalog.json
 saucetotal score --catalog catalog.json
@@ -90,6 +93,11 @@ entrypoint. It writes a run directory with `catalog.json`, `fork-plan.json`,
 `analyze-checkout` is the local Patch Agent cockpit. It writes `recon.json`,
 `overlay-plan.json`, `render-result.json`, and `CHECKOUT_SUMMARY.md`, and only
 writes overlay files into the checkout when `--render` is passed.
+
+`plan-release` and `render-release-workflow` are the current attested-release
+MVP path. They draft a human-review-required release profile and render a pinned
+GitHub Actions workflow that builds artifacts, generates an SBOM, uses
+`actions/attest`, and uploads evidence.
 
 ## North Star
 

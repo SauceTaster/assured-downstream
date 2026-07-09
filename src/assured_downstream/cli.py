@@ -26,6 +26,8 @@ from assured_downstream.pin_resolver import resolve_tooling_pins
 from assured_downstream.policy_eval import evaluate_release
 from assured_downstream.pipeline import run_pilot_pipeline
 from assured_downstream.recon import inspect_repository
+from assured_downstream.release_profile import plan_release_profile
+from assured_downstream.release_render import render_release_workflow
 from assured_downstream.scoring import score_catalog
 from assured_downstream.seed import parse_seed_source
 from assured_downstream.sync_apply import apply_sync_plan
@@ -179,6 +181,25 @@ def build_parser() -> argparse.ArgumentParser:
     )
     overlay.add_argument("--output", type=Path)
     overlay.set_defaults(func=command_plan_overlay)
+
+    release = subparsers.add_parser(
+        "plan-release",
+        help="Create a draft attested-release profile from a recon report.",
+    )
+    release.add_argument("--recon", required=True, type=Path)
+    release.add_argument("--output", required=True, type=Path)
+    release.set_defaults(func=command_plan_release)
+
+    render_release = subparsers.add_parser(
+        "render-release-workflow",
+        help="Render a pinned attested-release workflow from a release profile.",
+    )
+    render_release.add_argument("--profile", required=True, type=Path)
+    render_release.add_argument("--path", required=True, type=Path)
+    render_release.add_argument("--pins", required=True, type=Path)
+    render_release.add_argument("--execute", action="store_true")
+    render_release.add_argument("--force", action="store_true")
+    render_release.set_defaults(func=command_render_release_workflow)
 
     render = subparsers.add_parser(
         "render-overlay",
@@ -495,6 +516,40 @@ def command_plan_overlay(args: argparse.Namespace) -> int:
         print(f"wrote overlay plan: {args.output}")
     else:
         print(json.dumps(overlay, indent=2, sort_keys=True))
+    return 0
+
+
+def command_plan_release(args: argparse.Namespace) -> int:
+    with args.recon.open("r", encoding="utf-8") as handle:
+        recon_report = json.load(handle)
+    profile = plan_release_profile(recon_report)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with args.output.open("w", encoding="utf-8") as handle:
+        json.dump(profile, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    print(f"wrote release profile: {args.output}")
+    print(f"status: {profile['status']}")
+    return 0
+
+
+def command_render_release_workflow(args: argparse.Namespace) -> int:
+    with args.profile.open("r", encoding="utf-8") as handle:
+        profile = json.load(handle)
+    with args.pins.open("r", encoding="utf-8") as handle:
+        pin_payload = json.load(handle)
+    result = render_release_workflow(
+        profile,
+        root=args.path,
+        pins=pin_payload.get("pins", pin_payload),
+        execute=args.execute,
+        force=args.force,
+    )
+    mode = "wrote" if args.execute else "planned"
+    print(f"{mode} release workflow: {len(result.written)} writable, {len(result.skipped)} skipped")
+    for item in result.written:
+        print(f"  {item['path']}")
+    for item in result.skipped:
+        print(f"  skipped {item['id']}: {item['reason']}")
     return 0
 
 
