@@ -213,6 +213,14 @@ Exit criteria:
 - matching independent behavior can promote a release to
   `Behavior-Reproducible`
 
+Current prototype status:
+
+- generic JSON trace normalization exists
+- behavior digests cover process, file, network, and syscall/security-event
+  categories
+- behavior reports can be compared across independent builds
+- real trace collector integrations are still pending
+
 ## Phase 8: Validation Workflows
 
 Build:

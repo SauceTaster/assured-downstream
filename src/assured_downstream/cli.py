@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from assured_downstream.behavior import compare_behavior_reports, normalize_trace
 from assured_downstream.catalog import load_catalog, save_catalog, upsert_findings
 from assured_downstream.enrichment import enrich_catalog
 from assured_downstream.evidence import (
@@ -192,6 +193,28 @@ def build_parser() -> argparse.ArgumentParser:
     compare_evidence.add_argument("--right", required=True, type=Path)
     compare_evidence.add_argument("--output", type=Path)
     compare_evidence.set_defaults(func=command_compare_evidence)
+
+    normalize_behavior = subparsers.add_parser(
+        "normalize-trace",
+        help="Normalize raw build trace JSON into a behavior digest report.",
+    )
+    normalize_behavior.add_argument("--trace", required=True, type=Path)
+    normalize_behavior.add_argument("--output", required=True, type=Path)
+    normalize_behavior.add_argument(
+        "--workspace-root",
+        type=Path,
+        help="Optional workspace root to normalize paths.",
+    )
+    normalize_behavior.set_defaults(func=command_normalize_trace)
+
+    compare_behavior = subparsers.add_parser(
+        "compare-behavior",
+        help="Compare two normalized behavior reports.",
+    )
+    compare_behavior.add_argument("--left", required=True, type=Path)
+    compare_behavior.add_argument("--right", required=True, type=Path)
+    compare_behavior.add_argument("--output", type=Path)
+    compare_behavior.set_defaults(func=command_compare_behavior)
 
     plan_forks = subparsers.add_parser(
         "plan-forks",
@@ -411,6 +434,36 @@ def command_compare_evidence(args: argparse.Namespace) -> int:
             json.dump(result, handle, indent=2, sort_keys=True)
             handle.write("\n")
         print(f"wrote comparison report: {args.output}")
+    else:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if result["ok"] else 1
+
+
+def command_normalize_trace(args: argparse.Namespace) -> int:
+    with args.trace.open("r", encoding="utf-8") as handle:
+        trace = json.load(handle)
+    report = normalize_trace(trace, workspace_root=args.workspace_root)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with args.output.open("w", encoding="utf-8") as handle:
+        json.dump(report, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    print(f"wrote behavior report: {args.output}")
+    print(f"digest: {report['digest']}")
+    return 0
+
+
+def command_compare_behavior(args: argparse.Namespace) -> int:
+    with args.left.open("r", encoding="utf-8") as handle:
+        left = json.load(handle)
+    with args.right.open("r", encoding="utf-8") as handle:
+        right = json.load(handle)
+    result = compare_behavior_reports(left, right)
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        with args.output.open("w", encoding="utf-8") as handle:
+            json.dump(result, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+        print(f"wrote behavior comparison: {args.output}")
     else:
         print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result["ok"] else 1
