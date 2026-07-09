@@ -86,6 +86,13 @@ Exit criteria:
 - sync events are recorded
 - failures move to explicit states
 
+Current prototype status:
+
+- dry-run fork plans exist
+- fork-plan application records lifecycle state
+- GitHub fork mutation is guarded behind `--execute`
+- local clone/sync plan generation exists
+
 ## Phase 3: Repository Recon
 
 Build:

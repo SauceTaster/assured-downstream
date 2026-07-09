@@ -7,11 +7,14 @@ from pathlib import Path
 
 from assured_downstream.catalog import load_catalog, save_catalog, upsert_findings
 from assured_downstream.enrichment import enrich_catalog
+from assured_downstream.fork_apply import apply_fork_plan
 from assured_downstream.fork_plan import create_fork_plan
 from assured_downstream.github_api import GitHubClient
+from assured_downstream.lifecycle import StateStore
 from assured_downstream.recon import inspect_repository
 from assured_downstream.scoring import score_catalog
 from assured_downstream.seed import parse_seed_file
+from assured_downstream.sync_plan import create_sync_plan
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -104,6 +107,28 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional JSON output path for the dry-run plan.",
     )
     plan_forks.set_defaults(func=command_plan_forks)
+
+    apply_forks = subparsers.add_parser(
+        "apply-fork-plan",
+        help="Apply or dry-run a fork plan with lifecycle state recording.",
+    )
+    apply_forks.add_argument("--plan", required=True, type=Path)
+    apply_forks.add_argument("--state", required=True, type=Path)
+    apply_forks.add_argument(
+        "--execute",
+        action="store_true",
+        help="Actually run GitHub fork commands. Default is dry-run.",
+    )
+    apply_forks.set_defaults(func=command_apply_fork_plan)
+
+    plan_sync = subparsers.add_parser(
+        "plan-sync",
+        help="Create a dry-run local clone/sync plan from a fork plan.",
+    )
+    plan_sync.add_argument("--fork-plan", required=True, type=Path)
+    plan_sync.add_argument("--workspace", required=True, type=Path)
+    plan_sync.add_argument("--output", type=Path)
+    plan_sync.set_defaults(func=command_plan_sync)
 
     return parser
 
@@ -198,6 +223,43 @@ def command_plan_forks(args: argparse.Namespace) -> int:
                 f"(score {entry['score']})"
             )
             print(f"  {entry['dry_run_command']}")
+    return 0
+
+
+def command_apply_fork_plan(args: argparse.Namespace) -> int:
+    with args.plan.open("r", encoding="utf-8") as handle:
+        plan = json.load(handle)
+    state = StateStore.load(args.state)
+    result = apply_fork_plan(plan, state=state, execute=args.execute)
+    state.save(args.state)
+
+    mode = "executed" if args.execute else "dry-run"
+    print(
+        f"{mode} fork plan: "
+        f"{result.succeeded} succeeded, "
+        f"{result.failed} failed, "
+        f"{result.skipped} skipped"
+    )
+    print(f"state: {args.state}")
+    return 1 if result.failed else 0
+
+
+def command_plan_sync(args: argparse.Namespace) -> int:
+    with args.fork_plan.open("r", encoding="utf-8") as handle:
+        fork_plan = json.load(handle)
+    plan = create_sync_plan(fork_plan, workspace=args.workspace)
+
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        with args.output.open("w", encoding="utf-8") as handle:
+            json.dump(plan, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+        print(f"wrote dry-run sync plan: {args.output}")
+    else:
+        for repo in plan["repositories"]:
+            print(f"{repo['target_full_name']} in {repo['local_path']}")
+            for command in repo["commands"]:
+                print(f"  {command['display']}")
     return 0
 
 

@@ -1,0 +1,52 @@
+from __future__ import annotations
+
+import subprocess
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class CommandResult:
+    command: list[str]
+    executed: bool
+    returncode: int
+    stdout: str = ""
+    stderr: str = ""
+
+    @property
+    def ok(self) -> bool:
+        return self.returncode == 0
+
+
+class CommandRunner:
+    def __init__(self, *, execute: bool) -> None:
+        self.execute = execute
+
+    def run(self, command: list[str], *, cwd: str | None = None) -> CommandResult:
+        if not self.execute:
+            return CommandResult(command=command, executed=False, returncode=0)
+
+        completed = subprocess.run(
+            command,
+            cwd=cwd,
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        return CommandResult(
+            command=command,
+            executed=True,
+            returncode=completed.returncode,
+            stdout=completed.stdout,
+            stderr=completed.stderr,
+        )
+
+
+def display_command(command: list[str]) -> str:
+    return " ".join(shell_quote(part) for part in command)
+
+
+def shell_quote(value: str) -> str:
+    if value and all(character.isalnum() or character in "-_./:=@" for character in value):
+        return value
+    return "'" + value.replace("'", "'\"'\"'") + "'"
+
