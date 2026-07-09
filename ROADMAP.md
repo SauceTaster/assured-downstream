@@ -121,7 +121,8 @@ Current prototype status:
 - local checkout recon exists
 - language, package manager, build system, workflow, release signal, security
   control, and risk signal detection exists
-- checkout analysis pipeline exists for recon-to-overlay run artifacts
+- checkout analysis pipeline exists for recon-to-overlay and recon-to-release
+  run artifacts
 
 ## Phase 4: Hardened CI Overlay
 

@@ -91,8 +91,9 @@ entrypoint. It writes a run directory with `catalog.json`, `fork-plan.json`,
 `state.json`, `sync-plan.json`, and `RUN_SUMMARY.md`.
 
 `analyze-checkout` is the local Patch Agent cockpit. It writes `recon.json`,
-`overlay-plan.json`, `render-result.json`, and `CHECKOUT_SUMMARY.md`, and only
-writes overlay files into the checkout when `--render` is passed.
+`overlay-plan.json`, `render-result.json`, `release-profile.json`,
+`release-render-result.json`, and `CHECKOUT_SUMMARY.md`, and only writes overlay
+or release workflow files into the checkout when `--render` is passed.
 
 `plan-release` and `render-release-workflow` are the current attested-release
 MVP path. They draft a human-review-required release profile and render a pinned
