@@ -11,13 +11,13 @@ from assured_downstream.fork_plan import create_fork_plan
 from assured_downstream.lifecycle import StateStore
 from assured_downstream.pin_resolver import resolve_tooling_pins
 from assured_downstream.scoring import score_catalog
-from assured_downstream.seed import parse_seed_file
+from assured_downstream.seed import parse_seed_source
 from assured_downstream.sync_plan import create_sync_plan
 
 
 def run_pilot_pipeline(
     *,
-    seed_paths: list[Path],
+    seed_paths: list[Path | str],
     org: str,
     run_dir: Path,
     client: Any,
@@ -30,8 +30,8 @@ def run_pilot_pipeline(
 
     catalog = empty_catalog()
     findings = []
-    for seed_path in seed_paths:
-        findings.extend(parse_seed_file(seed_path))
+    for seed_source in seed_paths:
+        findings.extend(parse_seed_source(seed_source))
     added_repositories, added_seed_refs = upsert_findings(catalog, findings)
 
     enrichment_result = None
@@ -134,4 +134,3 @@ def write_summary(path: Path, summary: dict[str, Any], catalog: dict[str, Any]) 
         )
 
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-

@@ -46,6 +46,8 @@ dry-run fork plans.
 
 ```text
 saucetotal pilot --seed awesome-security.md --org <org> --run-dir ./runs/pilot-001
+saucetotal pilot --seed https://example.com/awesome-security.md --org <org> \
+  --run-dir ./runs/pilot-remote
 saucetotal ingest --seed awesome-security.md --catalog catalog.json
 saucetotal enrich --catalog catalog.json
 saucetotal score --catalog catalog.json
@@ -75,9 +77,9 @@ proposed hardening changes. Overlay rendering is dry-run unless `--execute` is
 passed, and generated workflows require full commit SHA pins supplied through
 `--pins`.
 
-`pilot` is the current observe-first entrypoint. It writes a run directory with
-`catalog.json`, `fork-plan.json`, `state.json`, `sync-plan.json`, and
-`RUN_SUMMARY.md`.
+Seeds can be local files or URLs. `pilot` is the current observe-first
+entrypoint. It writes a run directory with `catalog.json`, `fork-plan.json`,
+`state.json`, `sync-plan.json`, and `RUN_SUMMARY.md`.
 
 ## North Star
 

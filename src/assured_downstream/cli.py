@@ -24,7 +24,7 @@ from assured_downstream.pin_resolver import resolve_tooling_pins
 from assured_downstream.pipeline import run_pilot_pipeline
 from assured_downstream.recon import inspect_repository
 from assured_downstream.scoring import score_catalog
-from assured_downstream.seed import parse_seed_file
+from assured_downstream.seed import parse_seed_source
 from assured_downstream.sync_apply import apply_sync_plan
 from assured_downstream.sync_plan import create_sync_plan
 
@@ -55,8 +55,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--seed",
         action="append",
         required=True,
-        type=Path,
-        help="Path to an awesome list or markdown seed file. May be repeated.",
+        help="Path or URL to an awesome list or markdown seed file. May be repeated.",
     )
     ingest.add_argument("--catalog", required=True, type=Path)
     ingest.set_defaults(func=command_ingest)
@@ -65,7 +64,7 @@ def build_parser() -> argparse.ArgumentParser:
         "pilot",
         help="Run an observe-first SauceTotal pilot pipeline from seed files.",
     )
-    pilot.add_argument("--seed", action="append", required=True, type=Path)
+    pilot.add_argument("--seed", action="append", required=True)
     pilot.add_argument("--org", required=True)
     pilot.add_argument("--run-dir", required=True, type=Path)
     pilot.add_argument("--limit", type=int, default=None)
@@ -317,7 +316,7 @@ def command_ingest(args: argparse.Namespace) -> int:
     all_findings = []
 
     for seed_path in args.seed:
-        findings = parse_seed_file(seed_path)
+        findings = parse_seed_source(seed_path)
         all_findings.extend(findings)
 
     added_repositories, added_seed_refs = upsert_findings(catalog, all_findings)

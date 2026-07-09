@@ -64,6 +64,7 @@ Exit criteria:
 Current prototype status:
 
 - local seed ingestion exists
+- remote URL seed ingestion exists
 - local catalog writing exists
 - GitHub metadata enrichment exists
 - explainable heuristic scoring exists

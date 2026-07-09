@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.request import Request, urlopen
 
 
 GITHUB_PATTERNS = [
@@ -48,6 +49,29 @@ class SeedFinding:
 def parse_seed_file(path: Path) -> list[SeedFinding]:
     with path.open("r", encoding="utf-8") as handle:
         return parse_seed_text(handle.read(), source=str(path))
+
+
+def parse_seed_source(source: str | Path) -> list[SeedFinding]:
+    source_text = str(source)
+    if is_url(source_text):
+        return parse_seed_text(fetch_seed_url(source_text), source=source_text)
+    return parse_seed_file(Path(source_text))
+
+
+def is_url(value: str) -> bool:
+    return value.startswith("https://") or value.startswith("http://")
+
+
+def fetch_seed_url(url: str) -> str:
+    request = Request(
+        url,
+        headers={
+            "Accept": "text/plain, text/markdown, */*",
+            "User-Agent": "saucetotal-dev-prototype",
+        },
+    )
+    with urlopen(request, timeout=30) as response:
+        return response.read().decode("utf-8")
 
 
 def parse_seed_text(text: str, *, source: str) -> list[SeedFinding]:
@@ -99,4 +123,3 @@ def is_valid_repo(owner: str, name: str) -> bool:
     if len(owner) > 39:
         return False
     return True
-
