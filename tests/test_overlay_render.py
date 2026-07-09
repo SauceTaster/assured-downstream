@@ -56,6 +56,31 @@ class OverlayRenderTests(unittest.TestCase):
             self.assertEqual(len(result.written), 1)
             self.assertIn(FULL_SHA, workflow.read_text(encoding="utf-8"))
 
+    def test_skips_workflows_with_stale_pin_lock_entries(self) -> None:
+        overlay = overlay_with_changes(["dependency-review"])
+        lock = pin_lock(
+            {
+                "actions/checkout": {
+                    "status": "resolved",
+                    "sha": FULL_SHA,
+                    "expires_at": "2000-01-01T00:00:00+00:00",
+                    "refresh_status": "current",
+                },
+                "actions/dependency-review-action": {
+                    "status": "resolved",
+                    "sha": FULL_SHA,
+                    "expires_at": "2999-01-01T00:00:00+00:00",
+                    "refresh_status": "current",
+                },
+            }
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            result = render_overlay(overlay, root=Path(tmp), pins=lock)
+
+        self.assertEqual(result.written, [])
+        self.assertEqual(result.skipped[0]["id"], "dependency-review")
+
 
 def overlay_with_changes(change_ids: list[str]) -> dict:
     return {
@@ -74,6 +99,14 @@ def overlay_with_changes(change_ids: list[str]) -> dict:
     }
 
 
+def pin_lock(entries: dict[str, dict[str, str]]) -> dict:
+    return {
+        "schema_version": 1,
+        "status": "complete",
+        "entries": entries,
+        "pins": {name: entry["sha"] for name, entry in entries.items()},
+    }
+
+
 if __name__ == "__main__":
     unittest.main()
-

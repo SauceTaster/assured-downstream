@@ -30,6 +30,34 @@ class PinResolverTests(unittest.TestCase):
 
         self.assertEqual(lock["pins"]["actions/checkout"], FULL_SHA)
         self.assertEqual(lock["entries"]["actions/checkout"]["status"], "resolved")
+        self.assertEqual(lock["entries"]["actions/checkout"]["resolved_ref"], "v4")
+        self.assertEqual(lock["entries"]["actions/checkout"]["refresh_status"], "current")
+        self.assertEqual(lock["coverage"]["required_actions"], ["actions/checkout"])
+        self.assertEqual(lock["coverage"]["missing_actions"], [])
+        self.assertEqual(lock["status"], "complete")
+        self.assertIn("expires_at", lock["entries"]["actions/checkout"])
+
+    def test_marks_lock_incomplete_when_required_action_cannot_resolve(self) -> None:
+        class FailingCommitResolver:
+            def resolve_commit(self, owner: str, name: str, ref: str) -> str:
+                raise RuntimeError("not found")
+
+        policy = {
+            "status": "dev-idea-stage",
+            "github_actions": [
+                {
+                    "name": "actions/checkout",
+                    "ref": "v4",
+                    "requires_full_sha_pin": True,
+                }
+            ],
+        }
+
+        lock = resolve_tooling_pins(policy, client=FailingCommitResolver())
+
+        self.assertEqual(lock["status"], "incomplete")
+        self.assertEqual(lock["coverage"]["missing_actions"], ["actions/checkout"])
+        self.assertEqual(lock["entries"]["actions/checkout"]["status"], "failed")
 
     def test_extracts_repository_from_action_with_subpath(self) -> None:
         self.assertEqual(
@@ -40,4 +68,3 @@ class PinResolverTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

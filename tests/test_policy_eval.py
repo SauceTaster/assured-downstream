@@ -10,9 +10,11 @@ class PolicyEvalTests(unittest.TestCase):
         result = evaluate_release(
             evidence=manifest(
                 artifacts=[{"name": "tool"}],
+                sboms=[{"name": "sbom.spdx.json"}],
                 attestations=[{"name": "build.intoto.json"}],
             ),
             target="Attested",
+            evidence_verification={"ok": True},
         )
 
         self.assertEqual(result["decision"], "pass")
@@ -22,9 +24,11 @@ class PolicyEvalTests(unittest.TestCase):
         result = evaluate_release(
             evidence=manifest(
                 artifacts=[{"name": "tool"}],
+                sboms=[{"name": "sbom.spdx.json"}],
                 attestations=[{"name": "build.intoto.json"}],
             ),
             target="Reproducible",
+            evidence_verification={"ok": True},
             evidence_comparison={"ok": False},
         )
 
@@ -35,17 +39,47 @@ class PolicyEvalTests(unittest.TestCase):
         result = evaluate_release(
             evidence=manifest(
                 artifacts=[{"name": "tool"}],
+                sboms=[{"name": "sbom.spdx.json"}],
                 attestations=[{"name": "build.intoto.json"}],
             ),
             target="Behavior-Reproducible",
+            evidence_verification={"ok": True},
             evidence_comparison={"ok": True},
             behavior_comparison={"ok": True},
         )
 
         self.assertEqual(result["decision"], "pass")
 
+    def test_attested_release_requires_verified_evidence(self) -> None:
+        result = evaluate_release(
+            evidence=manifest(
+                artifacts=[{"name": "tool"}],
+                sboms=[{"name": "sbom.spdx.json"}],
+                attestations=[{"name": "build.intoto.json"}],
+            ),
+            target="Attested",
+            evidence_verification={"ok": False},
+        )
 
-def manifest(*, artifacts: list[dict], attestations: list[dict]) -> dict:
+        self.assertEqual(result["decision"], "block")
+        self.assertIn("verification failed", result["failures"][-1])
+
+    def test_attested_release_requires_sbom_evidence(self) -> None:
+        result = evaluate_release(
+            evidence=manifest(
+                artifacts=[{"name": "tool"}],
+                sboms=[],
+                attestations=[{"name": "build.intoto.json"}],
+            ),
+            target="Attested",
+            evidence_verification={"ok": True},
+        )
+
+        self.assertEqual(result["decision"], "block")
+        self.assertIn("sboms", result["failures"][0])
+
+
+def manifest(*, artifacts: list[dict], sboms: list[dict], attestations: list[dict]) -> dict:
     return {
         "project": {
             "source_full_name": "owner/project",
@@ -56,7 +90,7 @@ def manifest(*, artifacts: list[dict], attestations: list[dict]) -> dict:
         },
         "evidence": {
             "artifacts": artifacts,
-            "sboms": [],
+            "sboms": sboms,
             "attestations": attestations,
             "traces": [],
             "reports": [],
@@ -66,4 +100,3 @@ def manifest(*, artifacts: list[dict], attestations: list[dict]) -> dict:
 
 if __name__ == "__main__":
     unittest.main()
-

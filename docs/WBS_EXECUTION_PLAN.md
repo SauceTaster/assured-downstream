@@ -11,6 +11,30 @@ Synthesized from four read-only Codex worker reviews on 2026-07-09:
 - reproducibility and behavior evidence
 - stewardship and upstream liaison
 
+## Implementation Snapshot
+
+As of the 2026-07-09 prototype pass:
+
+- WP0 core is implemented: pilot runs write a run index, selection reasons, and
+  allow/suppress policy decisions.
+- WP3 is implemented: recon parses GitHub Actions workflows structurally without
+  a runtime YAML dependency and has Go/Rust/Python fixture coverage.
+- WP4/WP5 are partially implemented: pin locks carry freshness metadata, stale
+  lock entries block rendering, and draft release workflows remain manual-only
+  until review fields confirm workflow and artifact paths.
+- WP7 is partially implemented: the Attested gate requires local evidence
+  verification plus artifact, SBOM, and attestation evidence.
+- WP8/WP9 are implemented locally: liaison packets, fetch instructions,
+  suppression-aware outreach drafts, and custodian governance fields exist.
+
+Current critical path:
+
+1. WP1 and WP2: live fork/sync idempotence against a sandbox org.
+2. WP6: workflow-produced evidence bundle, attestation metadata capture, and
+   verification guide upload.
+3. WP10: full sandbox MVP run.
+4. WP11: artifact reproducibility once Attested has a green sandbox run.
+
 ## Operating Rules
 
 - MVP first: prove one sandbox org can follow upstream, apply security overlay
@@ -612,18 +636,17 @@ primary files should overlap only at CLI registration and docs.
 | G | WP11 | reproducibility renderer and mismatch packets | E |
 | H | WP12 | trace collector and behavior mismatch packets | G |
 
-## Next Five Implementation Tasks
+## Next Implementation Tasks
 
-1. Implement WP0: run index plus allow/suppress controls.
-2. Implement WP3: structural workflow recon with Go/Rust/Python fixtures.
-3. Implement WP4 and WP5: pin lock hardening plus release confirmation gate.
-4. Implement WP8 and WP9: maintainer liaison and safe custodian governance
-   packets.
-5. Implement WP1 and WP2: sandbox-safe fork and sync idempotence.
+1. Implement WP1 and WP2: sandbox-safe fork and sync idempotence.
+2. Finish WP6: release workflow evidence bundle and attestation metadata
+   capture.
+3. Finish WP7: add tooling/workflow risk inputs to release gate evaluation.
+4. Run WP10: full sandbox MVP over one first-lane seed and three fixture-like
+   real candidates.
+5. Start WP11 only after WP10 produces a green Attested run.
 
-After those land, run WP6/WP7 to make the Attested lane real, then execute WP10
-against the sandbox org. WP11 and WP12 should wait until the Attested path has a
-green sandbox run.
+WP12 should still wait until artifact reproducibility is stable.
 
 ## Suggested Worker Prompts
 

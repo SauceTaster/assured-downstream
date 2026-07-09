@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -130,6 +131,11 @@ def require_pins(pins: dict[str, str], names: list[str]) -> dict[str, str] | Non
 
 
 def normalize_pin_map(pins: dict[str, Any]) -> dict[str, str]:
+    if isinstance(pins.get("entries"), dict):
+        return normalize_pin_lock(pins)
+    if isinstance(pins.get("pins"), dict):
+        pins = pins["pins"]
+
     normalized = {}
     for name, value in pins.items():
         if isinstance(value, str):
@@ -137,6 +143,37 @@ def normalize_pin_map(pins: dict[str, Any]) -> dict[str, str]:
         elif isinstance(value, dict) and isinstance(value.get("sha"), str):
             normalized[name] = value["sha"]
     return normalized
+
+
+def normalize_pin_lock(lock: dict[str, Any]) -> dict[str, str]:
+    normalized = {}
+    for name, entry in lock.get("entries", {}).items():
+        if not isinstance(entry, dict):
+            continue
+        if not pin_entry_is_current(entry):
+            continue
+        sha = entry.get("sha")
+        if isinstance(sha, str):
+            normalized[name] = sha
+    return normalized
+
+
+def pin_entry_is_current(entry: dict[str, Any]) -> bool:
+    if entry.get("status") != "resolved":
+        return False
+    if entry.get("refresh_status", "current") != "current":
+        return False
+    expires_at = entry.get("expires_at")
+    if isinstance(expires_at, str):
+        try:
+            parsed = datetime.fromisoformat(expires_at)
+        except ValueError:
+            return False
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        if parsed <= datetime.now(UTC):
+            return False
+    return True
 
 
 def dependabot_config() -> str:

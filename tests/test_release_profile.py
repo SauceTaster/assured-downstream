@@ -20,10 +20,15 @@ class ReleaseProfileTests(unittest.TestCase):
             profile = plan_release_profile(report)
 
         self.assertEqual(profile["status"], "draft-human-review-required")
+        self.assertEqual(profile["review"]["status"], "human-review-required")
+        self.assertFalse(profile["review"]["release_workflow_confirmed"])
+        self.assertFalse(profile["review"]["artifact_paths_confirmed"])
         self.assertEqual(profile["project"]["name"], "demo-package")
         self.assertEqual(profile["project"]["language_family"], "python")
         self.assertIn("actions/attest", profile["release"]["required_actions"])
         self.assertIn("dist/*.whl", profile["release"]["artifact_paths"])
+        self.assertEqual(profile["release"]["artifact_candidates"], [])
+        self.assertEqual(profile["release"]["confirmed_tag_pattern"], "secure-v*")
 
     def test_plans_go_release_profile(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -37,7 +42,36 @@ class ReleaseProfileTests(unittest.TestCase):
         self.assertEqual(profile["project"]["language_family"], "go")
         self.assertIn("go build", "\n".join(profile["release"]["build_commands"]))
 
+    def test_carries_recon_artifact_candidates_for_review(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "pyproject.toml").write_text(
+                "[project]\nname = 'demo-package'\n",
+                encoding="utf-8",
+            )
+            profile = plan_release_profile(
+                {
+                    "path": str(root),
+                    "package_managers": [{"name": "python"}],
+                    "languages": {"Python": 1},
+                    "artifact_candidates": [
+                        {
+                            "workflow": ".github/workflows/publish.yml",
+                            "job_id": "publish",
+                            "step_name": "Upload",
+                            "source": "upload-artifact",
+                            "artifact_name": "wheel",
+                            "paths": ["dist/*.whl"],
+                        }
+                    ],
+                }
+            )
+
+        self.assertEqual(profile["release"]["artifact_candidates"][0]["paths"], ["dist/*.whl"])
+        self.assertTrue(
+            any("artifact candidates" in note for note in profile["review_notes"])
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
-

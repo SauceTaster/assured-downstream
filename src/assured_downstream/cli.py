@@ -19,6 +19,7 @@ from assured_downstream.evidence import (
 from assured_downstream.fork_apply import apply_fork_plan
 from assured_downstream.fork_plan import create_fork_plan
 from assured_downstream.github_api import GitHubClient
+from assured_downstream.liaison import create_liaison_packet
 from assured_downstream.lifecycle import StateStore
 from assured_downstream.overlay import plan_overlay
 from assured_downstream.overlay_render import render_overlay
@@ -30,6 +31,7 @@ from assured_downstream.release_profile import plan_release_profile
 from assured_downstream.release_render import render_release_workflow
 from assured_downstream.scoring import score_catalog
 from assured_downstream.seed import parse_seed_source
+from assured_downstream.selection import load_candidate_policy
 from assured_downstream.sync_apply import apply_sync_plan
 from assured_downstream.sync_plan import create_sync_plan
 from assured_downstream.verification_guide import create_verification_guide
@@ -74,6 +76,16 @@ def build_parser() -> argparse.ArgumentParser:
     pilot.add_argument("--org", required=True)
     pilot.add_argument("--run-dir", required=True, type=Path)
     pilot.add_argument("--limit", type=int, default=None)
+    pilot.add_argument("--run-index", type=Path)
+    pilot.add_argument("--run-id")
+    pilot.add_argument("--allowlist", type=Path)
+    pilot.add_argument(
+        "--suppress",
+        "--suppression",
+        dest="suppression",
+        type=Path,
+        help="JSON file of repositories to suppress from selection.",
+    )
     pilot.add_argument(
         "--enrich",
         action="store_true",
@@ -137,7 +149,28 @@ def build_parser() -> argparse.ArgumentParser:
     custody.add_argument("--catalog", required=True, type=Path)
     custody.add_argument("--output", required=True, type=Path)
     custody.add_argument("--min-score", type=int, default=0)
+    custody.add_argument("--maintainer-contacts", type=Path)
     custody.set_defaults(func=command_custodian_review)
+
+    liaison = subparsers.add_parser(
+        "create-liaison-packet",
+        help="Create a local maintainer liaison packet from fork and checkout outputs.",
+    )
+    liaison.add_argument("--fork-plan", required=True, type=Path)
+    liaison.add_argument(
+        "--source",
+        help="Source repository full name to select from the fork plan. Required when the plan has multiple forks.",
+    )
+    liaison.add_argument("--target", help="Target repository full name to select from the fork plan.")
+    liaison.add_argument("--checkout-analysis", type=Path)
+    liaison.add_argument("--overlay-plan", type=Path)
+    liaison.add_argument("--render-result", type=Path)
+    liaison.add_argument("--release-profile", type=Path)
+    liaison.add_argument("--maintainer-preferences", type=Path)
+    liaison.add_argument("--suppression-state", type=Path)
+    liaison.add_argument("--output", required=True, type=Path)
+    liaison.add_argument("--markdown-output", type=Path)
+    liaison.set_defaults(func=command_create_liaison_packet)
 
     enrich = subparsers.add_parser(
         "enrich",
@@ -339,6 +372,11 @@ def build_parser() -> argparse.ArgumentParser:
     ])
     evaluate.add_argument("--evidence-comparison", type=Path)
     evaluate.add_argument("--behavior-comparison", type=Path)
+    evaluate.add_argument(
+        "--verification",
+        type=Path,
+        help="Optional JSON result from verify-evidence; if omitted, evaluate-release verifies the manifest locally.",
+    )
     evaluate.add_argument("--output", type=Path)
     evaluate.set_defaults(func=command_evaluate_release)
 
@@ -350,6 +388,14 @@ def build_parser() -> argparse.ArgumentParser:
     plan_forks.add_argument("--org", required=True)
     plan_forks.add_argument("--min-score", type=int, default=None)
     plan_forks.add_argument("--limit", type=int, default=None)
+    plan_forks.add_argument("--allowlist", type=Path)
+    plan_forks.add_argument(
+        "--suppress",
+        "--suppression",
+        dest="suppression",
+        type=Path,
+        help="JSON file of repositories to suppress from selection.",
+    )
     plan_forks.add_argument(
         "--output",
         type=Path,
@@ -426,6 +472,10 @@ def command_pilot(args: argparse.Namespace) -> int:
         enrich=args.enrich,
         resolve_pins=args.resolve_pins,
         tooling_path=args.tooling,
+        run_index_path=args.run_index,
+        run_id=args.run_id,
+        allowlist_path=args.allowlist,
+        suppression_path=args.suppression,
         client=client,
     )
     print(f"pilot run complete: {args.run_dir}")
@@ -438,8 +488,7 @@ def command_analyze_checkout(args: argparse.Namespace) -> int:
     pins = {}
     if args.pins:
         with args.pins.open("r", encoding="utf-8") as handle:
-            pin_payload = json.load(handle)
-        pins = pin_payload.get("pins", pin_payload)
+            pins = json.load(handle)
     summary = run_checkout_analysis(
         checkout_path=args.path,
         run_dir=args.run_dir,
@@ -468,13 +517,40 @@ def command_score(args: argparse.Namespace) -> int:
 
 def command_custodian_review(args: argparse.Namespace) -> int:
     catalog = load_catalog(args.catalog)
-    packet = create_custodian_review(catalog, min_score=args.min_score)
+    packet = create_custodian_review(
+        catalog,
+        min_score=args.min_score,
+        maintainer_contacts=read_optional_json(args.maintainer_contacts),
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as handle:
         json.dump(packet, handle, indent=2, sort_keys=True)
         handle.write("\n")
     print(f"wrote custodian review packet: {args.output}")
     print(f"candidates: {len(packet['candidates'])}")
+    return 0
+
+
+def command_create_liaison_packet(args: argparse.Namespace) -> int:
+    fork_plan = read_json(args.fork_plan)
+    entry = select_fork_plan_entry(fork_plan, source=args.source, target=args.target)
+    packet = create_liaison_packet(
+        entry,
+        checkout_analysis=read_optional_json(args.checkout_analysis),
+        overlay_plan=read_optional_json(args.overlay_plan),
+        render_result=read_optional_json(args.render_result),
+        release_profile=read_optional_json(args.release_profile),
+        maintainer_preferences=read_optional_json(args.maintainer_preferences),
+        suppression_state=read_optional_json(args.suppression_state),
+    )
+    write_json_file(args.output, packet)
+    print(f"wrote liaison packet: {args.output}")
+    print(f"status: {packet['status']}")
+
+    if args.markdown_output:
+        args.markdown_output.parent.mkdir(parents=True, exist_ok=True)
+        args.markdown_output.write_text(liaison_packet_markdown(packet), encoding="utf-8")
+        print(f"wrote liaison markdown: {args.markdown_output}")
     return 0
 
 
@@ -549,7 +625,7 @@ def command_render_release_workflow(args: argparse.Namespace) -> int:
     result = render_release_workflow(
         profile,
         root=args.path,
-        pins=pin_payload.get("pins", pin_payload),
+        pins=pin_payload,
         execute=args.execute,
         force=args.force,
     )
@@ -568,8 +644,7 @@ def command_render_overlay(args: argparse.Namespace) -> int:
     pins = {}
     if args.pins:
         with args.pins.open("r", encoding="utf-8") as handle:
-            pin_payload = json.load(handle)
-        pins = pin_payload.get("pins", pin_payload)
+            pins = json.load(handle)
 
     result = render_overlay(
         overlay,
@@ -723,8 +798,12 @@ def command_compare_behavior(args: argparse.Namespace) -> int:
 def command_evaluate_release(args: argparse.Namespace) -> int:
     with args.evidence.open("r", encoding="utf-8") as handle:
         evidence = json.load(handle)
+    evidence_verification = verify_evidence_manifest(evidence)
     evidence_comparison = None
     behavior_comparison = None
+    if args.verification:
+        with args.verification.open("r", encoding="utf-8") as handle:
+            evidence_verification = json.load(handle)
     if args.evidence_comparison:
         with args.evidence_comparison.open("r", encoding="utf-8") as handle:
             evidence_comparison = json.load(handle)
@@ -735,6 +814,7 @@ def command_evaluate_release(args: argparse.Namespace) -> int:
     result = evaluate_release(
         evidence=evidence,
         target=args.target,
+        evidence_verification=evidence_verification,
         evidence_comparison=evidence_comparison,
         behavior_comparison=behavior_comparison,
     )
@@ -751,11 +831,16 @@ def command_evaluate_release(args: argparse.Namespace) -> int:
 
 def command_plan_forks(args: argparse.Namespace) -> int:
     catalog = load_catalog(args.catalog)
+    selection_policy = load_candidate_policy(
+        allowlist_path=args.allowlist,
+        suppression_path=args.suppression,
+    )
     plan = create_fork_plan(
         catalog,
         org=args.org,
         min_score=args.min_score,
         limit=args.limit,
+        selection_policy=selection_policy,
     )
 
     if args.output:
@@ -773,6 +858,80 @@ def command_plan_forks(args: argparse.Namespace) -> int:
             )
             print(f"  {entry['dry_run_command']}")
     return 0
+
+
+def read_json(path: Path) -> dict:
+    with path.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if not isinstance(payload, dict):
+        raise ValueError(f"Expected JSON object in {path}")
+    return payload
+
+
+def read_optional_json(path: Path | None) -> dict | None:
+    return read_json(path) if path else None
+
+
+def write_json_file(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+
+
+def select_fork_plan_entry(
+    fork_plan: dict,
+    *,
+    source: str | None = None,
+    target: str | None = None,
+) -> dict:
+    forks = fork_plan.get("forks") or []
+    if not isinstance(forks, list):
+        raise ValueError("Fork plan field 'forks' must be a list")
+
+    matches = []
+    for entry in forks:
+        if not isinstance(entry, dict):
+            continue
+        if source and entry.get("source_full_name") != source:
+            continue
+        if target and entry.get("target_full_name") != target:
+            continue
+        matches.append(entry)
+
+    if not source and not target and len(matches) != 1:
+        raise ValueError("Pass --source or --target when the fork plan does not contain exactly one fork")
+    if not matches:
+        raise ValueError("No fork plan entry matched the requested source/target")
+    if len(matches) > 1:
+        raise ValueError("Multiple fork plan entries matched; pass both --source and --target")
+    return matches[0]
+
+
+def liaison_packet_markdown(packet: dict) -> str:
+    lines = [
+        "# Assured Downstream Liaison Packet",
+        "",
+        f"Status: `{packet.get('status', 'unknown')}`",
+        "",
+    ]
+    outreach = packet.get("outreach") or {}
+    if outreach.get("suppressed"):
+        lines.extend(
+            [
+                "Outreach is suppressed for this repository.",
+                "",
+                f"Reason: {outreach.get('reason') or 'No reason recorded.'}",
+                "",
+            ]
+        )
+        return "\n".join(lines)
+
+    for key in ("fetch_instructions_markdown", "proposal_summary_markdown", "pr_description_draft"):
+        value = packet.get(key)
+        if value:
+            lines.extend([str(value).strip(), ""])
+    return "\n".join(lines).rstrip() + "\n"
 
 
 def command_apply_fork_plan(args: argparse.Namespace) -> int:

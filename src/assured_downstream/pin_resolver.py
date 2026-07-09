@@ -1,8 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
-
-from assured_downstream.catalog import utc_now
 
 
 class CommitResolver(Protocol):
@@ -14,18 +13,25 @@ def resolve_tooling_pins(
     tooling_policy: dict[str, Any],
     *,
     client: CommitResolver,
+    ttl_days: int = 30,
 ) -> dict[str, Any]:
+    resolved_at = utc_now()
+    expires_at = (datetime.now(UTC) + timedelta(days=ttl_days)).isoformat(timespec="seconds")
     pins = {}
     entries = {}
+    required_actions = []
 
     for action in tooling_policy.get("github_actions", []):
         if not action.get("requires_full_sha_pin"):
             continue
         name = action["name"]
+        required_actions.append(name)
         ref = action.get("ref")
         if not ref:
             entries[name] = {
                 "status": "skipped",
+                "requires_full_sha_pin": True,
+                "usage": action.get("usage"),
                 "reason": "missing ref",
             }
             continue
@@ -36,7 +42,10 @@ def resolve_tooling_pins(
         except Exception as exc:  # noqa: BLE001 - record per-action resolution errors.
             entries[name] = {
                 "status": "failed",
+                "requires_full_sha_pin": True,
+                "usage": action.get("usage"),
                 "ref": ref,
+                "resolved_ref": ref,
                 "reason": str(exc),
             }
             continue
@@ -44,15 +53,28 @@ def resolve_tooling_pins(
         pins[name] = sha
         entries[name] = {
             "status": "resolved",
+            "requires_full_sha_pin": True,
+            "usage": action.get("usage"),
             "repository": f"{owner}/{repo}",
             "ref": ref,
+            "resolved_ref": ref,
             "sha": sha,
+            "resolved_at": resolved_at,
+            "expires_at": expires_at,
+            "refresh_status": "current",
         }
 
+    missing_actions = sorted(name for name in required_actions if name not in pins)
     return {
         "schema_version": 1,
-        "generated_at": utc_now(),
+        "generated_at": resolved_at,
         "source_policy_status": tooling_policy.get("status"),
+        "status": "complete" if not missing_actions else "incomplete",
+        "coverage": {
+            "required_actions": sorted(required_actions),
+            "resolved_actions": sorted(pins),
+            "missing_actions": missing_actions,
+        },
         "pins": pins,
         "entries": entries,
     }
@@ -64,3 +86,6 @@ def action_repository(action_name: str) -> tuple[str, str]:
         raise ValueError(f"Invalid GitHub Action name: {action_name}")
     return parts[0], parts[1]
 
+
+def utc_now() -> str:
+    return datetime.now(UTC).isoformat(timespec="seconds")

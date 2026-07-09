@@ -11,7 +11,7 @@ work packages.
 
 ### 1.1 Candidate Intake
 
-Status: mostly built.
+Status: MVP built; live tuning and scheduler integration remain.
 
 - 1.1.1 Ingest local awesome-list seeds
 - 1.1.2 Ingest remote URL seeds
@@ -49,7 +49,7 @@ Status: planned and guarded, live execution still pending.
 
 ### 2.1 Recon
 
-Status: first pass built.
+Status: structural first pass built with first-lane fixtures.
 
 - 2.1.1 Detect languages and package managers
 - 2.1.2 Detect CI workflows and release signals
@@ -85,7 +85,8 @@ Status: safe additive rendering exists.
 
 ### 3.1 Approved Tooling
 
-Status: first pass built.
+Status: action pin lockfiles built with freshness metadata; binary verification
+and mirroring remain.
 
 - 3.1.1 Maintain approved tooling policy
 - 3.1.2 Resolve approved GitHub Actions to full commit SHAs
@@ -96,7 +97,8 @@ Status: first pass built.
 
 ### 3.2 Release Profile
 
-Status: draft planner built.
+Status: draft planner built with human confirmation gates and artifact candidate
+review.
 
 - 3.2.1 Generate release profiles from recon
 - 3.2.2 Support first-lane Go builds
@@ -120,7 +122,8 @@ Status: draft renderer built.
 
 ### 3.4 Evidence And Verification
 
-Status: first pass built.
+Status: first pass built; Attested gate now requires local evidence
+verification, while GitHub attestation metadata ingestion remains.
 
 - 3.4.1 Create evidence manifests
 - 3.4.2 Verify local evidence manifests
@@ -158,7 +161,8 @@ Status: normalization primitives built, collectors pending.
 
 ### 5.1 Custodian Review
 
-Status: packet generation built.
+Status: packet generation built with governance fields; public custodian claims
+remain human-gated.
 
 - 5.1.1 Detect archived/stale repositories
 - 5.1.2 Generate custodian review packets
@@ -169,7 +173,7 @@ Status: packet generation built.
 
 ### 5.2 Upstream Liaison
 
-Status: pending.
+Status: local packet generation built; outreach automation remains pending.
 
 - 5.2.1 Generate maintainer fetch instructions
 - 5.2.2 Generate proposal branch summaries
@@ -181,7 +185,7 @@ Status: pending.
 
 ### 6.1 Run Management
 
-Status: basic pilot summaries built.
+Status: pilot summaries and run index built; scheduler and dashboards remain.
 
 - 6.1.1 Produce pilot run directories
 - 6.1.2 Produce checkout analysis run directories

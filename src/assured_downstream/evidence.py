@@ -54,6 +54,8 @@ def verify_evidence_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
             if size != entry.get("size"):
                 failures.append(f"{role}: size mismatch for {path}")
     return {
+        "schema_version": 1,
+        "generated_at": utc_now(),
         "ok": not failures,
         "failures": failures,
     }

@@ -18,6 +18,7 @@ def evaluate_release(
     *,
     evidence: dict[str, Any],
     target: str,
+    evidence_verification: dict[str, Any] | None = None,
     evidence_comparison: dict[str, Any] | None = None,
     behavior_comparison: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -40,9 +41,12 @@ def evaluate_release(
 
     if target_at_least(target, "Attested"):
         require_role(evidence_roles, "artifacts", failures)
+        require_role(evidence_roles, "sboms", failures)
         require_role(evidence_roles, "attestations", failures)
-        if not evidence_roles.get("sboms"):
-            warnings.append("no SBOMs recorded")
+        if evidence_verification is None:
+            failures.append("missing evidence verification result for attested target")
+        elif not evidence_verification.get("ok"):
+            failures.append("evidence manifest verification failed")
 
     if target_at_least(target, "Reproducible"):
         if not evidence_comparison:
@@ -67,6 +71,9 @@ def evaluate_release(
         "promoted_assurance": None if failures else target,
         "failures": failures,
         "warnings": warnings,
+        "verification": {
+            "evidence_ok": None if evidence_verification is None else bool(evidence_verification.get("ok")),
+        },
     }
 
 
@@ -81,4 +88,3 @@ def require_role(
 ) -> None:
     if not evidence_roles.get(role):
         failures.append(f"missing required evidence role: {role}")
-

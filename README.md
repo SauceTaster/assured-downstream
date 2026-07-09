@@ -53,6 +53,8 @@ dry-run fork plans.
 assured-downstream pilot --seed awesome-security.md --org <org> --run-dir ./runs/pilot-001
 assured-downstream pilot --seed https://example.com/awesome-security.md --org <org> \
   --run-dir ./runs/pilot-remote
+assured-downstream pilot --seed awesome-security.md --org <org> --run-dir ./runs/pilot-001 \
+  --allowlist first-lane.json --suppress do-not-touch.json --run-index ./runs/index.json
 assured-downstream analyze-checkout --path /path/to/checkout --run-dir ./runs/checkout-001 \
   --target Attested
 assured-downstream plan-release --recon recon.json --output release-profile.json
@@ -79,6 +81,9 @@ assured-downstream verify-evidence --manifest evidence.json
 assured-downstream write-verification-guide --evidence evidence.json --output VERIFY.md
 assured-downstream evaluate-release --evidence evidence.json --target Attested \
   --output release-evaluation.json
+assured-downstream create-liaison-packet --fork-plan fork-plan.json --source owner/repo \
+  --checkout-analysis recon.json --overlay-plan overlay-plan.json --render-result render-result.json \
+  --release-profile release-profile.json --output liaison.json --markdown-output LIAISON.md
 assured-downstream compare-evidence --left host-a-evidence.json --right host-b-evidence.json
 assured-downstream normalize-trace --trace raw-trace.json --workspace-root /workspace \
   --output behavior.json
@@ -94,7 +99,8 @@ passed, and generated workflows require full commit SHA pins supplied through
 
 Seeds can be local files or URLs. `pilot` is the current observe-first
 entrypoint. It writes a run directory with `catalog.json`, `fork-plan.json`,
-`state.json`, `sync-plan.json`, and `RUN_SUMMARY.md`.
+`selection-reasons.json`, `state.json`, `sync-plan.json`, and `RUN_SUMMARY.md`,
+and appends to a machine-readable run index.
 
 `analyze-checkout` is the local Patch Agent cockpit. It writes `recon.json`,
 `overlay-plan.json`, `render-result.json`, `release-profile.json`,
@@ -104,7 +110,8 @@ or release workflow files into the checkout when `--render` is passed.
 `plan-release` and `render-release-workflow` are the current attested-release
 MVP path. They draft a human-review-required release profile and render a pinned
 GitHub Actions workflow that builds artifacts, generates an SBOM, uses
-`actions/attest`, and uploads evidence.
+`actions/attest`, and uploads evidence. Draft release workflows are manual-only
+until the release workflow and artifact paths are confirmed in the profile.
 
 ## North Star
 
