@@ -4,7 +4,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from assured_downstream.release_render import render_release_workflow
+from assured_downstream.release_render import (
+    ASSURED_DOWNSTREAM_PREDICATE_TYPE,
+    render_release_workflow,
+)
+from assured_downstream.workflow_yaml import parse_workflow_yaml
 
 
 FULL_SHA = "0123456789abcdef0123456789abcdef01234567"
@@ -38,9 +42,15 @@ class ReleaseRenderTests(unittest.TestCase):
             text = workflow.read_text(encoding="utf-8")
             self.assertIn("actions/attest@", text)
             self.assertIn("sbom-path: dist/assured-downstream-sbom.spdx.json", text)
+            self.assertIn(f"predicate-type: {ASSURED_DOWNSTREAM_PREDICATE_TYPE}", text)
+            self.assertIn("steps.provenance.outputs['bundle-path']", text)
+            self.assertIn("steps.sbom.outputs['bundle-path']", text)
+            self.assertIn("steps.assured_downstream.outputs['bundle-path']", text)
+            self.assertIn("created_attestation_paths.txt", text)
             self.assertIn(FULL_SHA, text)
             self.assertIn("workflow_dispatch:", text)
             self.assertNotIn("push:", text)
+            self.assertIn("jobs", parse_workflow_yaml(text))
 
     def test_confirmed_profile_renders_tag_trigger(self) -> None:
         confirmed = profile()

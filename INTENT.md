@@ -5,7 +5,8 @@ social contract before the automation is mature enough for production use.
 
 ## Mission
 
-Build a public, security-first maintenance network for open source software.
+Build a public, security-first, agentic DevOps maintenance network for open
+source software.
 
 The organization should continuously track upstream projects, produce hardened
 downstream releases, publish verifiable build and runtime evidence, and provide
@@ -28,8 +29,8 @@ repeatably.
 It should:
 
 - help users consume safer versions of important open source software
-- help maintainers fetch or merge hardening work without adopting the whole
-  system
+- make hardening work publicly inspectable and fetchable from the downstream
+  fork without requiring maintainer outreach
 - preserve upstream as the source of truth when upstream is active
 - become a custodian only when maintainers opt in or upstream maintenance has
   meaningfully disappeared
@@ -45,6 +46,7 @@ The system should not become:
 - a substitute for active, legitimate upstream ownership
 - fork squatting
 - a noisy pull-request bot
+- an outreach or notification service
 - a vanity scorecard farm
 - a release channel that hides downstream patches
 - a project that claims "secure" without inspectable evidence
@@ -135,4 +137,4 @@ For each supported project and release, the org should make the following clear:
 - reproducibility status
 - validation status
 - remaining risks
-- fetch instructions for maintainers
+- downstream fork location, upstream lineage, and optional fetch instructions

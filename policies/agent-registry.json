@@ -5,7 +5,7 @@
   "control_plane": {
     "mode": "event-driven human-gated assurance pipeline",
     "state_store": "catalog, run index, lifecycle state, evidence manifests, release evaluations",
-    "mutation_policy": "observe-first by default; repository, GitHub, release, and outreach mutations require explicit gates"
+    "mutation_policy": "observe-first by default; repository, GitHub, and release mutations require explicit gates; outbound maintainer contact is disabled"
   },
   "required_agent_ids": [
     "source-discovery",
@@ -22,7 +22,7 @@
     "attestation",
     "repro",
     "release",
-    "liaison",
+    "fork-publisher",
     "watch"
   ],
   "agents": [
@@ -100,7 +100,7 @@
       "id": "patch",
       "name": "Patch Agent",
       "purpose": "Render approved overlays and repository-specific changes while keeping diffs small and reviewable.",
-      "owns": ["proposal branches", "render results", "patch summaries"],
+      "owns": ["secure branch patches", "render results", "patch summaries"],
       "input_events": ["OverlayProposed", "ReleaseProfileDrafted"],
       "output_events": ["PatchRendered", "PatchNeedsReview"],
       "tools": ["render-overlay", "render-release-workflow", "git"],
@@ -167,14 +167,14 @@
       "human_gates": ["first release per project", "public release claim wording"]
     },
     {
-      "id": "liaison",
-      "name": "Upstream Liaison Agent",
-      "purpose": "Prepare optional maintainer fetch instructions, proposal summaries, and respectful outreach drafts.",
-      "owns": ["liaison packets", "maintainer preferences", "outreach suppression"],
-      "input_events": ["PatchRendered", "ReleaseEvidenceReady", "MaintainerPreferenceUpdated"],
-      "output_events": ["LiaisonPacketReady", "OutreachSuppressed"],
-      "tools": ["create-liaison-packet", "proposal branch summary"],
-      "human_gates": ["automatic PR creation", "repeat outreach", "custodian language"]
+      "id": "fork-publisher",
+      "name": "Fork Publication Agent",
+      "purpose": "Publish upstream lineage, overlay summaries, evidence links, and optional fetch instructions inside the downstream fork without outbound contact.",
+      "owns": ["project publication packets", "fork landing metadata", "evidence index links"],
+      "input_events": ["PatchRendered", "ReleaseEvidenceReady"],
+      "output_events": ["ForkPresentationReady", "ForkPresentationFailed"],
+      "tools": ["create-project-packet", "fork metadata renderer"],
+      "human_gates": ["custodian language", "official ownership language"]
     },
     {
       "id": "watch",
@@ -192,6 +192,6 @@
     "Every agent must write machine-readable artifacts before human-readable summaries.",
     "Every mutation-capable agent must support dry-run planning.",
     "Every release claim must be backed by evidence and a Governor Agent decision.",
-    "Maintainer outreach must respect suppression and preference state."
+    "Fork publication must never create pull requests, issues, comments, email, or other outbound maintainer contact."
   ]
 }

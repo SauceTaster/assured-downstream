@@ -61,7 +61,7 @@ Outputs:
 - overlay plans
 - release profiles
 - dry-run render results
-- liaison packet drafts
+- passive fork publication packet drafts
 
 Pass condition: every selected candidate has a clear agent-owned next action:
 renderable, blocked-with-reason, or human-review-required. No candidate should
@@ -81,11 +81,11 @@ Inputs:
 Outputs:
 
 - discovery, catalog, triage, governor, fork/sync, recon, patch, build,
-  attestation, release, liaison, and watch agent handoffs
+  attestation, release, fork publication, and watch agent handoffs
 - idempotent fork or existing-fork detection
 - idempotent sync state
 - hardened overlay branch
-- draft maintainer fetch instructions
+- passive fork metadata and optional secure-branch fetch instructions
 - completed attested-release workflow
 - artifacts, SBOM, attestations, evidence manifest, and verification guide
 - release evaluation showing `Attested` pass
@@ -102,7 +102,7 @@ Purpose: learn whether this is useful and socially acceptable.
 Inputs:
 
 - one case-study report
-- one maintainer-facing liaison packet
+- one public fork publication packet
 - one downstream-user verification guide
 
 Pass condition: at least one outside reviewer can answer what changed, what was
@@ -119,7 +119,7 @@ The first case study should be intentionally boring:
 - one primary language from the first-lane set
 - deterministic or close-to-deterministic build output
 - no production secrets or release credentials needed
-- maintainers can fetch the proposal branch without being asked to trust it
+- reviewers can fetch the secure branch without being asked to trust it
 
 Good candidates are simple CLI tools, small libraries, or applications with
 plain GitHub Actions releases. More complex projects like large .NET desktop
@@ -139,7 +139,7 @@ Every validated case study should include:
 - attestation references
 - local verification command output
 - release gate decision
-- maintainer fetch commands
+- optional secure-branch fetch commands
 - known limitations
 - what broke or needed human review
 - time and cost to refresh after an upstream update
@@ -156,7 +156,7 @@ Track these per case study:
 - number of evidence verification failures
 - artifact reproducibility pass/fail once WP11 exists
 - behavior reproducibility pass/fail once WP12 exists
-- maintainer or external reviewer comprehension issues
+- external reviewer comprehension issues
 
 ## Claim Discipline
 

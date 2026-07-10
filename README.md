@@ -1,7 +1,7 @@
 # Assured Downstream
 
-Assured Downstream is an early-stage idea/dev project for an agent-driven assured
-downstream for open source software.
+Assured Downstream is an early-stage idea/dev project for an agentic DevOps
+assured downstream for open source software.
 
 Status: design prototype. Not production-ready. Expect names, schemas, command
 interfaces, and trust boundaries to change while the core automation takes
@@ -86,9 +86,9 @@ assured-downstream verify-evidence --manifest evidence.json
 assured-downstream write-verification-guide --evidence evidence.json --output VERIFY.md
 assured-downstream evaluate-release --evidence evidence.json --target Attested \
   --output release-evaluation.json
-assured-downstream create-liaison-packet --fork-plan fork-plan.json --source owner/repo \
+assured-downstream create-project-packet --fork-plan fork-plan.json --source owner/repo \
   --checkout-analysis recon.json --overlay-plan overlay-plan.json --render-result render-result.json \
-  --release-profile release-profile.json --output liaison.json --markdown-output LIAISON.md
+  --release-profile release-profile.json --output project.json --markdown-output PROJECT.md
 assured-downstream compare-evidence --left host-a-evidence.json --right host-b-evidence.json
 assured-downstream normalize-trace --trace raw-trace.json --workspace-root /workspace \
   --output behavior.json
@@ -118,8 +118,14 @@ or release workflow files into the checkout when `--render` is passed.
 `plan-release` and `render-release-workflow` are the current attested-release
 MVP path. They draft a human-review-required release profile and render a pinned
 GitHub Actions workflow that builds artifacts, generates an SBOM, uses
-`actions/attest`, and uploads evidence. Draft release workflows are manual-only
-until the release workflow and artifact paths are confirmed in the profile.
+`actions/attest` for SLSA provenance, SBOM, and a custom Assured Downstream
+in-toto predicate, and uploads the resulting Sigstore bundles with the evidence.
+Draft release workflows are manual-only until the release workflow and artifact
+paths are confirmed in the profile.
+
+`create-project-packet` produces passive fork metadata, lineage, an overlay
+summary, and optional fetch commands. Assured Downstream does not create pull
+requests, issues, comments, email, or other outbound maintainer contact.
 
 ## North Star
 

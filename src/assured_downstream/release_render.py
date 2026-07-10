@@ -6,6 +6,11 @@ from typing import Any
 from assured_downstream.overlay_render import RenderResult, normalize_pin_map, require_pins
 
 
+ASSURED_DOWNSTREAM_PREDICATE_TYPE = (
+    "https://assured-downstream.dev/attestation/release/v1"
+)
+
+
 def render_release_workflow(
     profile: dict[str, Any],
     *,
@@ -101,17 +106,34 @@ jobs:
           upload-release-assets: "false"
 
       - name: Attest build provenance
+        id: provenance
         uses: actions/attest@{pins['actions/attest']}
         with:
           subject-path: |
 {indent_commands(artifact_paths, 12)}
 
       - name: Attest SBOM
+        id: sbom
         uses: actions/attest@{pins['actions/attest']}
         with:
           subject-path: |
 {indent_commands(artifact_paths, 12)}
           sbom-path: {sbom_path}
+
+      - name: Attest Assured Downstream policy
+        id: assured_downstream
+        uses: actions/attest@{pins['actions/attest']}
+        with:
+          subject-path: |
+{indent_commands(artifact_paths, 12)}
+          predicate-type: {ASSURED_DOWNSTREAM_PREDICATE_TYPE}
+          predicate: |
+            {{
+              "policyVersion": "assured-downstream-attested-v1",
+              "repository": "${{{{ github.repository }}}}",
+              "commit": "${{{{ github.sha }}}}",
+              "workflowRef": "${{{{ github.workflow_ref }}}}"
+            }}
 
       - name: Upload release evidence
         uses: actions/upload-artifact@{pins['actions/upload-artifact']}
@@ -119,6 +141,10 @@ jobs:
           name: assured-downstream-release-evidence
           path: |
 {indent_commands(artifact_paths + [sbom_path], 12)}
+            ${{{{ steps.provenance.outputs['bundle-path'] }}}}
+            ${{{{ steps.sbom.outputs['bundle-path'] }}}}
+            ${{{{ steps.assured_downstream.outputs['bundle-path'] }}}}
+            ${{{{ runner.temp }}}}/created_attestation_paths.txt
           if-no-files-found: error
 """
 

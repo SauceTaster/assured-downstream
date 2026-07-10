@@ -3,11 +3,12 @@ from __future__ import annotations
 import unittest
 
 from assured_downstream.liaison import create_liaison_packet
+from assured_downstream.publication import create_project_packet
 
 
-class LiaisonTests(unittest.TestCase):
+class PublicationTests(unittest.TestCase):
     def test_builds_packet_with_fetch_instructions_and_summary(self) -> None:
-        packet = create_liaison_packet(
+        packet = create_project_packet(
             fork_plan_entry=fork_plan_entry(),
             checkout_analysis={
                 "path": "/tmp/project",
@@ -59,9 +60,11 @@ class LiaisonTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(packet["status"], "draft-local-only")
+        self.assertEqual(packet["status"], "passive-publication-ready")
         self.assertFalse(packet["mutation_policy"]["network_mutation"])
         self.assertFalse(packet["mutation_policy"]["automatic_pr_creation"])
+        self.assertFalse(packet["mutation_policy"]["outbound_contact"])
+        self.assertEqual(packet["publication"]["discoverability"], "github-fork-network")
         self.assertEqual(packet["source_analysis"]["package_managers"], ["python"])
         self.assertIn(".github/dependabot.yml", packet["proposal_summary"]["affected_paths"])
         self.assertIn(
@@ -84,16 +87,16 @@ class LiaisonTests(unittest.TestCase):
             "git remote add assured-downstream https://github.com/assured-oss/project.git",
             commands,
         )
-        self.assertIn("git fetch assured-downstream proposal/main", commands)
+        self.assertIn("git fetch assured-downstream secure/main", commands)
         self.assertIn(
-            "git switch -c review/assured-oss-project assured-downstream/proposal/main",
+            "git switch -c review/assured-oss-project assured-downstream/secure/main",
             commands,
         )
-        self.assertIn("Upstream remains authoritative", packet["fetch_instructions_markdown"])
-        self.assertIn("Upstream remains authoritative", packet["pr_description_draft"])
+        self.assertIn("upstream remains authoritative", packet["fetch_instructions_markdown"])
+        self.assertNotIn("pr_description_draft", packet)
 
-    def test_suppressed_repo_omits_outreach_drafts(self) -> None:
-        packet = create_liaison_packet(
+    def test_outbound_contact_is_disabled_regardless_of_legacy_preferences(self) -> None:
+        packet = create_project_packet(
             fork_plan_entry=fork_plan_entry(),
             suppression_state={
                 "suppressed_repos": [
@@ -106,35 +109,19 @@ class LiaisonTests(unittest.TestCase):
             },
         )
 
-        self.assertEqual(packet["status"], "outreach-suppressed")
-        self.assertTrue(packet["outreach"]["suppressed"])
-        self.assertEqual(
-            packet["outreach"]["reason"],
-            "maintainer requested no repeated outreach",
-        )
-        self.assertIsNone(packet["fetch_instructions"])
-        self.assertIsNone(packet["fetch_instructions_markdown"])
-        self.assertIsNone(packet["pr_description_draft"])
+        self.assertEqual(packet["status"], "passive-publication-ready")
+        self.assertNotIn("outreach", packet)
+        self.assertFalse(packet["publication"]["outbound_contact"])
+        self.assertIsNotNone(packet["fetch_instructions"])
+        self.assertNotIn("pr_description_draft", packet)
 
-    def test_preferences_map_can_suppress_repeated_outreach(self) -> None:
+    def test_legacy_liaison_api_returns_passive_packet(self) -> None:
         packet = create_liaison_packet(
             fork_plan_entry=fork_plan_entry(),
-            maintainer_preferences={
-                "repos": {
-                    "owner/project": {
-                        "outreach": "no-outreach",
-                        "reason": "maintainer prefers manual fetch only",
-                    }
-                }
-            },
         )
 
-        self.assertEqual(packet["status"], "outreach-suppressed")
-        self.assertEqual(packet["outreach"]["preference_source"], "maintainer_preferences")
-        self.assertEqual(
-            packet["preference_controls"]["suppression_key"],
-            "owner/project",
-        )
+        self.assertEqual(packet["status"], "passive-publication-ready")
+        self.assertFalse(packet["mutation_policy"]["outbound_contact"])
 
 
 def fork_plan_entry() -> dict:
@@ -145,9 +132,7 @@ def fork_plan_entry() -> dict:
         "metadata": {
             "default_branch": "main",
         },
-        "branch_model": {
-            "proposal_prefix": "proposal/",
-        },
+        "branch_model": {"secure_default": "secure/<default>"},
     }
 
 

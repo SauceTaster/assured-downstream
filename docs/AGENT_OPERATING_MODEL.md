@@ -8,9 +8,9 @@ the prototype CLI should grow into.
 Assured Downstream is not a single command-line tool.
 
 The CLI in this repository is a local harness and tool adapter layer. The actual
-system is a network of agents, policies, queues, evidence stores, tools,
-schedulers, and human gates working together to maintain an assured downstream
-organization.
+system is an agentic DevOps network of reconcilers, model-assisted agents,
+policies, queues, evidence stores, tools, schedulers, and human gates working
+together to maintain an assured downstream organization.
 
 The important unit is not "run one command." The important unit is "move a
 project through an evidence-backed lifecycle without losing provenance, safety,
@@ -28,7 +28,7 @@ The system includes:
 - overlay planning and patch rendering
 - approved tooling curation
 - build, trace, attestation, release, and reproducibility agents
-- maintainer liaison and custodian review agents
+- passive fork publication and custodian review agents
 - watch agents for upstream changes, advisories, and tool refreshes
 - governor gates that decide what can advance
 - public evidence stores and human-readable reports
@@ -36,6 +36,18 @@ The system includes:
 The CLI should eventually be one of several tool surfaces. Other surfaces may
 include scheduled workers, GitHub Apps, queue consumers, dashboards, policy
 engines, workflow runners, and human review UIs.
+
+## Agentic DevOps Thesis
+
+Most agents are DevOps reconcilers, not chat personas. They observe GitHub and
+evidence state, compare it with policy, plan a change, execute through scoped
+tools, verify the result, and record a handoff. Model reasoning is most useful
+for ambiguous triage, repository-specific recon, patch planning, and failure
+analysis. Deterministic tools and Governor decisions remain authoritative.
+
+The fork organization is the managed environment. Agents continuously reconcile
+upstream default branches, security overlays, workflow definitions, build
+outputs, attestations, releases, and watch state.
 
 ## Machine-Readable Registry
 
@@ -95,6 +107,7 @@ DiscoveryRequested
   -> ReleaseEvidenceReady
   -> GatePassed | GateBlocked
   -> ReleasePublished
+  -> ForkPresentationReady
   -> ProjectWatched
 ```
 
@@ -105,7 +118,6 @@ UpstreamChanged
 AdvisoryFound
 ToolRefreshDue
 PolicyRefreshDue
-MaintainerPreferenceUpdated
 RebuildRequested
 ```
 
@@ -120,7 +132,7 @@ TracePolicyFailed
 EvidenceVerificationFailed
 RebuildMismatch
 BehaviorMismatch
-OutreachSuppressed
+ForkPresentationFailed
 ```
 
 ## Agent Lanes
@@ -215,26 +227,26 @@ Core artifacts:
 The lane answers: "What was built, from what, by whom, under what controls, and
 can the claim be independently checked?"
 
-### Stewardship Lane
+### Publication And Stewardship Lane
 
 Agents:
 
-- Upstream Liaison Agent
+- Fork Publication Agent
 - Watch Agent
 - Governor Agent
 - Triage Agent
 
 Core artifacts:
 
-- maintainer fetch instructions
-- proposal summaries
-- outreach suppression state
+- fork landing metadata
+- upstream lineage and overlay summaries
+- evidence links and optional fetch instructions
 - custodian review packet
-- maintainer contact evidence
+- externally supplied custody contact evidence when applicable
 - naming and trademark review
 
-The lane answers: "How do we make the work useful without becoming noisy or
-overclaiming authority?"
+The lane answers: "How do we make the fork self-explanatory and useful without
+contacting maintainers or overclaiming authority?"
 
 ## Tool Surfaces
 
@@ -250,7 +262,7 @@ Current local CLI tools are early adapters:
 - `create-evidence`, `create-attestation`, `verify-evidence`
 - `evaluate-release`
 - `compare-evidence`, `normalize-trace`, `compare-behavior`
-- `custodian-review`, `create-liaison-packet`
+- `custodian-review`, `create-project-packet`
 - `self-test`
 
 Future system tools should include:
@@ -261,7 +273,6 @@ Future system tools should include:
 - policy evaluation service
 - evidence indexer
 - public report renderer
-- maintainer preference service
 - sandbox org smoke runner
 - independent rebuild runner manager
 - trace collector integrations
@@ -289,7 +300,7 @@ The local self-test should grow in layers:
 1. Agent registry validation.
 2. Fixture ecosystem validation.
 3. Evidence gate validation.
-4. Local multi-agent replay from seed to liaison packet.
+4. Local multi-agent replay from seed to passive fork publication packet.
 5. Sandbox org replay from project discovery to attested release.
 6. Upstream update replay to prove resync and rerun behavior.
 
@@ -315,7 +326,8 @@ Minimum case-study path:
 10. Build, Trace, and Attestation Agents produce evidence.
 11. Governor Agent evaluates `Attested`.
 12. Release Agent publishes only if the gate passes.
-13. Liaison Agent produces maintainer fetch instructions.
+13. Fork Publication Agent writes lineage, overlay, evidence, and optional fetch
+    metadata into the downstream fork without outbound contact.
 14. Watch Agent detects a simulated or real upstream update and requeues the
     project.
 

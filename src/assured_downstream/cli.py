@@ -19,13 +19,13 @@ from assured_downstream.evidence import (
 from assured_downstream.fork_apply import apply_fork_plan
 from assured_downstream.fork_plan import create_fork_plan
 from assured_downstream.github_api import GitHubClient
-from assured_downstream.liaison import create_liaison_packet
 from assured_downstream.lifecycle import StateStore
 from assured_downstream.overlay import plan_overlay
 from assured_downstream.overlay_render import render_overlay
 from assured_downstream.pin_resolver import resolve_tooling_pins
 from assured_downstream.policy_eval import evaluate_release
 from assured_downstream.pipeline import run_pilot_pipeline
+from assured_downstream.publication import create_project_packet
 from assured_downstream.recon import inspect_repository
 from assured_downstream.release_profile import plan_release_profile
 from assured_downstream.release_render import render_release_workflow
@@ -153,25 +153,26 @@ def build_parser() -> argparse.ArgumentParser:
     custody.add_argument("--maintainer-contacts", type=Path)
     custody.set_defaults(func=command_custodian_review)
 
-    liaison = subparsers.add_parser(
-        "create-liaison-packet",
-        help="Create a local maintainer liaison packet from fork and checkout outputs.",
+    publication = subparsers.add_parser(
+        "create-project-packet",
+        aliases=["create-liaison-packet"],
+        help="Create passive downstream fork metadata from fork and checkout outputs.",
     )
-    liaison.add_argument("--fork-plan", required=True, type=Path)
-    liaison.add_argument(
+    publication.add_argument("--fork-plan", required=True, type=Path)
+    publication.add_argument(
         "--source",
         help="Source repository full name to select from the fork plan. Required when the plan has multiple forks.",
     )
-    liaison.add_argument("--target", help="Target repository full name to select from the fork plan.")
-    liaison.add_argument("--checkout-analysis", type=Path)
-    liaison.add_argument("--overlay-plan", type=Path)
-    liaison.add_argument("--render-result", type=Path)
-    liaison.add_argument("--release-profile", type=Path)
-    liaison.add_argument("--maintainer-preferences", type=Path)
-    liaison.add_argument("--suppression-state", type=Path)
-    liaison.add_argument("--output", required=True, type=Path)
-    liaison.add_argument("--markdown-output", type=Path)
-    liaison.set_defaults(func=command_create_liaison_packet)
+    publication.add_argument("--target", help="Target repository full name to select from the fork plan.")
+    publication.add_argument("--checkout-analysis", type=Path)
+    publication.add_argument("--overlay-plan", type=Path)
+    publication.add_argument("--render-result", type=Path)
+    publication.add_argument("--release-profile", type=Path)
+    publication.add_argument("--maintainer-preferences", type=Path, help=argparse.SUPPRESS)
+    publication.add_argument("--suppression-state", type=Path, help=argparse.SUPPRESS)
+    publication.add_argument("--output", required=True, type=Path)
+    publication.add_argument("--markdown-output", type=Path)
+    publication.set_defaults(func=command_create_project_packet)
 
     self_test = subparsers.add_parser(
         "self-test",
@@ -546,10 +547,10 @@ def command_custodian_review(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_create_liaison_packet(args: argparse.Namespace) -> int:
+def command_create_project_packet(args: argparse.Namespace) -> int:
     fork_plan = read_json(args.fork_plan)
     entry = select_fork_plan_entry(fork_plan, source=args.source, target=args.target)
-    packet = create_liaison_packet(
+    packet = create_project_packet(
         entry,
         checkout_analysis=read_optional_json(args.checkout_analysis),
         overlay_plan=read_optional_json(args.overlay_plan),
@@ -559,14 +560,19 @@ def command_create_liaison_packet(args: argparse.Namespace) -> int:
         suppression_state=read_optional_json(args.suppression_state),
     )
     write_json_file(args.output, packet)
-    print(f"wrote liaison packet: {args.output}")
+    print(f"wrote project publication packet: {args.output}")
     print(f"status: {packet['status']}")
 
     if args.markdown_output:
         args.markdown_output.parent.mkdir(parents=True, exist_ok=True)
-        args.markdown_output.write_text(liaison_packet_markdown(packet), encoding="utf-8")
-        print(f"wrote liaison markdown: {args.markdown_output}")
+        args.markdown_output.write_text(project_packet_markdown(packet), encoding="utf-8")
+        print(f"wrote project publication markdown: {args.markdown_output}")
     return 0
+
+
+def command_create_liaison_packet(args: argparse.Namespace) -> int:
+    """Compatibility alias for callers of the former command function."""
+    return command_create_project_packet(args)
 
 
 def command_self_test(args: argparse.Namespace) -> int:
@@ -938,30 +944,25 @@ def select_fork_plan_entry(
     return matches[0]
 
 
-def liaison_packet_markdown(packet: dict) -> str:
+def project_packet_markdown(packet: dict) -> str:
     lines = [
-        "# Assured Downstream Liaison Packet",
+        "# Assured Downstream Fork Publication",
         "",
         f"Status: `{packet.get('status', 'unknown')}`",
+        f"Upstream: `{packet.get('source_full_name', 'unknown')}`",
+        f"Downstream: `{packet.get('target_full_name', 'unknown')}`",
         "",
     ]
-    outreach = packet.get("outreach") or {}
-    if outreach.get("suppressed"):
-        lines.extend(
-            [
-                "Outreach is suppressed for this repository.",
-                "",
-                f"Reason: {outreach.get('reason') or 'No reason recorded.'}",
-                "",
-            ]
-        )
-        return "\n".join(lines)
-
-    for key in ("fetch_instructions_markdown", "proposal_summary_markdown", "pr_description_draft"):
+    for key in ("proposal_summary_markdown", "fetch_instructions_markdown"):
         value = packet.get(key)
         if value:
             lines.extend([str(value).strip(), ""])
     return "\n".join(lines).rstrip() + "\n"
+
+
+def liaison_packet_markdown(packet: dict) -> str:
+    """Compatibility alias for the former Markdown renderer."""
+    return project_packet_markdown(packet)
 
 
 def command_apply_fork_plan(args: argparse.Namespace) -> int:

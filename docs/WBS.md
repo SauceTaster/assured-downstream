@@ -67,7 +67,8 @@ Status: first pass built.
 - 2.2.2 Plan attestation/reproducibility overlays
 - 2.2.3 Emit human-review-required markers
 - 2.2.4 Add policy reasons for skipped or blocked patches
-- 2.2.5 Split maintainer-friendly proposal overlays from downstream-only overlays
+- 2.2.5 Keep the MVP overlay on `secure/<default>`; add proposal branches only
+  when a project requires them
 
 ### 2.3 Overlay Rendering
 
@@ -171,15 +172,16 @@ remain human-gated.
 - 5.1.5 Add naming/trademark review checklist
 - 5.1.6 Add human approval gate before custodian claims
 
-### 5.2 Upstream Liaison
+### 5.2 Passive Fork Publication
 
-Status: local packet generation built; outreach automation remains pending.
+Status: local publication packet generation built; outbound contact is disabled
+by design.
 
-- 5.2.1 Generate maintainer fetch instructions
-- 5.2.2 Generate proposal branch summaries
-- 5.2.3 Draft respectful PR descriptions
-- 5.2.4 Track maintainer preferences
-- 5.2.5 Suppress noisy repeat outreach
+- 5.2.1 Generate fork landing metadata
+- 5.2.2 Publish upstream lineage and overlay summaries
+- 5.2.3 Publish evidence and verification links
+- 5.2.4 Generate optional secure-branch fetch instructions
+- 5.2.5 Assert that no outbound contact operations exist
 
 ## 6. Operations
 

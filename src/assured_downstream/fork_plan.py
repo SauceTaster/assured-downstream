@@ -52,10 +52,9 @@ def create_fork_plan(
                 ),
                 "metadata": fork_metadata_summary(repo),
                 "branch_model": {
+                    "default_branch": (repo.get("github") or {}).get("default_branch") or "main",
                     "upstream_default": "upstream/<default>",
                     "secure_default": "secure/<default>",
-                    "proposal_prefix": "proposal/",
-                    "secure_release_prefix": "secure/release/",
                 },
             }
         )

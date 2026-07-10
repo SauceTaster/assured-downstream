@@ -7,7 +7,7 @@ from pathlib import Path
 
 from assured_downstream.cli import (
     build_parser,
-    command_create_liaison_packet,
+    command_create_project_packet,
     select_fork_plan_entry,
 )
 
@@ -65,13 +65,13 @@ class CliTests(unittest.TestCase):
         selected = select_fork_plan_entry(fork_plan, source="owner/b")
         self.assertEqual(selected["target_full_name"], "org/b")
 
-    def test_create_liaison_packet_command_writes_json_and_markdown(self) -> None:
+    def test_create_project_packet_command_writes_json_and_markdown(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             fork_plan = root / "fork-plan.json"
             overlay_plan = root / "overlay-plan.json"
-            output = root / "liaison.json"
-            markdown = root / "LIAISON.md"
+            output = root / "project-publication.json"
+            markdown = root / "PROJECT.md"
             fork_plan.write_text(
                 json.dumps(
                     {
@@ -80,7 +80,7 @@ class CliTests(unittest.TestCase):
                                 "source_full_name": "owner/project",
                                 "target_full_name": "assured-oss/project",
                                 "metadata": {"default_branch": "main"},
-                                "branch_model": {"proposal_prefix": "proposal/"},
+                                "branch_model": {"secure_default": "secure/<default>"},
                             }
                         ]
                     }
@@ -103,7 +103,7 @@ class CliTests(unittest.TestCase):
             )
             args = build_parser().parse_args(
                 [
-                    "create-liaison-packet",
+                    "create-project-packet",
                     "--fork-plan",
                     str(fork_plan),
                     "--overlay-plan",
@@ -115,11 +115,12 @@ class CliTests(unittest.TestCase):
                 ]
             )
 
-            code = command_create_liaison_packet(args)
+            code = command_create_project_packet(args)
 
             self.assertEqual(code, 0)
             packet = json.loads(output.read_text(encoding="utf-8"))
-            self.assertEqual(packet["status"], "draft-local-only")
+            self.assertEqual(packet["status"], "passive-publication-ready")
+            self.assertFalse(packet["publication"]["outbound_contact"])
             self.assertIn("git fetch", markdown.read_text(encoding="utf-8"))
 
 

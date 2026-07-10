@@ -5,8 +5,9 @@ automation system, not a claim that every control already exists.
 
 ## System Shape
 
-The system is an agent-driven control plane for a public assured downstream
-organization.
+The system is an agentic DevOps control plane for a public assured downstream
+organization. Agents continuously reconcile the desired security policy with
+the actual state of repositories, builds, releases, and evidence in the org.
 
 It ingests project seeds, selects candidates, creates and syncs forks, applies
 security overlays, builds in quarantined environments, publishes hardened
@@ -65,15 +66,19 @@ The target GitHub organization should contain:
 
 ## Fork Branch Model
 
-Each fork should use a predictable branch and tag scheme:
+The MVP follows the upstream default branch, usually `main` or `master`, and
+keeps one downstream security branch. Reconciliation must be safe to rerun, but
+the first case study does not need a general-purpose branch management system.
+
+MVP branch and tag scheme:
 
 - `upstream/<default>`: exact mirror of the upstream default branch
 - `secure/<default>`: upstream plus the current security overlay
-- `secure/release/<version>`: hardened release branch
-- `proposal/<topic>`: maintainer-friendly branch that upstream can fetch or
-  cherry-pick
 - `upstream-vX.Y.Z`: tag matching the upstream release
 - `secure-vX.Y.Z+org.N`: tag for the downstream hardened release
+
+Release and proposal branches may be added later when a project's release shape
+requires them.
 
 ## Assurance Levels
 
@@ -216,11 +221,12 @@ release notes describing upstream source and downstream overlay.
 
 Writes human-readable and machine-readable reports for each project and release.
 
-### Upstream Liaison Agent
+### Fork Publication Agent
 
-Prepares optional pull requests, issue comments, fetch instructions, and small
-proposal branches. It must avoid noisy automation and respect maintainer
-preferences.
+Publishes upstream lineage, overlay summaries, evidence links, and optional
+fetch instructions inside the downstream fork. It does not open pull requests,
+post issues, or contact maintainers. GitHub's fork network is the discovery
+mechanism.
 
 ### Watch Agent
 

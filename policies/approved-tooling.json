@@ -12,7 +12,7 @@
     {
       "name": "actions/attest",
       "ref": "v4",
-      "usage": "GitHub artifact provenance, SBOM, and custom attestations",
+      "usage": "Signed in-toto/Sigstore bundles for SLSA provenance, SBOM, and Assured Downstream custom predicates",
       "requires_full_sha_pin": true
     },
     {

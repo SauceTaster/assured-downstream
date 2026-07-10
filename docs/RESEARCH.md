@@ -35,7 +35,16 @@ MVP implication:
 - Mark generated release workflows as human-review-required.
 - Require full SHA pins for `actions/checkout`, `actions/attest`,
   `actions/upload-artifact`, and `anchore/sbom-action`.
+- Treat `actions/attest` as the first attestation backend instead of building a
+  separate signing service. It already emits signed in-toto statements in
+  Sigstore bundles, uploads them to GitHub, and supports SLSA provenance, SBOM,
+  and custom predicate modes.
+- Capture each generated bundle through the action's `bundle-path` output and
+  upload it with the release evidence.
+- Add an Assured Downstream custom predicate for the applied release policy.
 - Do not publish releases automatically in this slice.
+- Do not claim SLSA Build L3 in this slice. Builder/attester isolation and
+  reusable workflow hardening remain a separate assurance improvement.
 
 Sources:
 
@@ -55,4 +64,3 @@ Sources:
   https://github.com/anchore/sbom-action
 - Sigstore Cosign quickstart:
   https://docs.sigstore.dev/quickstart/quickstart-cosign/
-

@@ -135,7 +135,7 @@ Build:
 - dependency review workflow
 - workflow lint workflow
 - safe pull request workflow patterns
-- maintainer-fetchable proposal branch generation
+- passive fork publication metadata and optional secure-branch fetch instructions
 
 Exit criteria:
 
@@ -183,7 +183,9 @@ Current prototype status:
 - Markdown verification guide generation exists for release evidence manifests
 - draft release profile planning exists for first-lane Go, Rust, Python, Java,
   and .NET checkouts
-- pinned attested-release workflow rendering exists using `actions/attest`
+- pinned attested-release workflow rendering exists using `actions/attest` for
+  SLSA provenance, SBOM, and a custom Assured Downstream in-toto predicate
+- rendered workflows capture local Sigstore bundle outputs for evidence upload
 - live CI execution of SBOM/provenance/signature generation is still pending
 
 ## Phase 6: Reproducible Release

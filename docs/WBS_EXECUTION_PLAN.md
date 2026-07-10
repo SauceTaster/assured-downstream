@@ -9,7 +9,7 @@ Synthesized from four read-only Codex worker reviews on 2026-07-09:
 - control plane and operations
 - recon, overlay, and release rendering
 - reproducibility and behavior evidence
-- stewardship and upstream liaison
+- passive fork publication and stewardship
 
 ## Implementation Snapshot
 
@@ -24,15 +24,15 @@ As of the 2026-07-09 prototype pass:
   until review fields confirm workflow and artifact paths.
 - WP7 is partially implemented: the Attested gate requires local evidence
   verification plus artifact, SBOM, and attestation evidence.
-- WP8/WP9 are implemented locally: liaison packets, fetch instructions,
-  suppression-aware outreach drafts, and custodian governance fields exist.
+- WP8/WP9 are implemented locally: passive fork publication packets, optional
+  fetch instructions, and custodian governance fields exist.
 - A local `self-test` command now exercises first-lane fixtures plus Attested
   evidence verification without network access.
 
 Current critical path:
 
-1. Local multi-agent replay from discovery through liaison packet.
-2. WP1 and WP2: live fork/sync idempotence against a sandbox org.
+1. Local multi-agent replay from discovery through passive fork publication.
+2. WP1 and WP2: repeat-safe default-branch fork/sync against a sandbox org.
 3. WP6: workflow-produced evidence bundle, attestation metadata capture, and
    verification guide upload.
 4. WP10: full sandbox MVP run.
@@ -56,17 +56,18 @@ Current critical path:
 | Lane | Primary scope | First success signal |
 | --- | --- | --- |
 | Governor/Safety Agent | Policy gates, approved tooling, suppression state, run index | A blocked release or mutation exits nonzero with clear reasons |
-| Control-Plane Agent | Candidate intake, fork lifecycle, sync lifecycle, run management | Repeated sandbox runs are idempotent and auditable |
+| Control-Plane Agent | Candidate intake, default-branch fork/sync reconciliation, run management | Repeated sandbox runs are safe and auditable |
 | Patch/Release Agent | Structural recon, overlays, release profiles, workflow rendering | Go/Rust/Python/Java/.NET fixtures render pinned draft workflows safely |
 | Evidence/Repro Agent | Evidence manifests, verification, artifact comparison, trace normalization | Attested gate passes only after local manifest verification |
-| Stewardship/Liaison Agent | Custodian packets, maintainer fetch instructions, proposal summaries | Maintainers get respectful optional adoption packets |
+| Publication/Stewardship Agent | Fork metadata, evidence links, optional fetch instructions, custodian packets | Each fork explains itself without outbound contact |
 
 ## Critical Path
 
 1. Add persistent run index and candidate allow/suppress controls.
-2. Make fork creation idempotent with org/auth preflight and existing-fork
+2. Reconcile an existing or new fork with org/auth preflight and existing-fork
    detection.
-3. Make sync execution idempotent without clobbering secure branches.
+3. Follow the detected upstream `main` or `master` branch without clobbering the
+   corresponding `secure/<default>` branch.
 4. Replace regex-only workflow recon with structural YAML parsing.
 5. Harden approved tooling pin locks with coverage, expiry, and full-SHA
    enforcement.
@@ -76,7 +77,7 @@ Current critical path:
    attestations, and verification guides.
 8. Make `evaluate-release --target Attested` require verified local evidence and
    recorded attestation evidence.
-9. Generate maintainer-facing liaison packets and fetch instructions.
+9. Generate passive fork publication packets and optional fetch instructions.
 10. Run the full sandbox MVP on one Go, one Rust, and one Python candidate.
 11. Add artifact reproducibility as the next gate after Attested is real.
 12. Add behavior trace collection only after artifact reproducibility is stable.
@@ -125,13 +126,14 @@ Do not scope creep:
 - no dashboard
 - no live GitHub mutation in this package
 
-### WP1 - Fork Lifecycle Idempotence
+### WP1 - Default-Branch Fork Reconciliation
 
 Owner: Control-Plane Agent.
 
 WBS refs: 1.2.4, 1.2.5, 1.2.6, 1.2.7.
 
-Purpose: make fork creation safe to re-run against a sandbox org.
+Purpose: create or detect one fork safely against a sandbox org. This is a
+repeat-safe reconciliation operation, not a general branch-management service.
 
 Inputs:
 
@@ -164,14 +166,14 @@ Do not scope creep:
 - no org-wide branch protection rollout until sandbox fork lifecycle works
 - no production org execution path
 
-### WP2 - Sync Lifecycle Idempotence
+### WP2 - Default-Branch Sync Reconciliation
 
 Owner: Control-Plane Agent.
 
 WBS refs: 1.3.4, 1.3.5, 1.3.6, 1.3.7.
 
-Purpose: keep downstream forks tracking upstream without overwriting security
-branches or losing conflict evidence.
+Purpose: keep the detected upstream default branch, normally `main` or `master`,
+and its `secure/<default>` counterpart current without losing conflict evidence.
 
 Inputs:
 
@@ -190,7 +192,7 @@ Acceptance:
 
 - Existing checkouts fetch and update remotes cleanly.
 - Secure overlay branches are never force-reset or recreated.
-- Upstream tag/release detection is recorded.
+- Upstream default-branch and tag/release detection is recorded.
 - Conflicts route to human review with repo, branch, command, and stderr.
 
 Tests:
@@ -203,6 +205,7 @@ Do not scope creep:
 
 - no auto-conflict resolution
 - no merge bot behavior
+- no generalized multi-branch synchronization in the MVP
 
 ### WP3 - Structural Recon And Fixtures
 
@@ -334,6 +337,7 @@ Inputs:
 - build outputs
 - SBOM output
 - GitHub attestation metadata
+- local Sigstore bundle paths emitted by `actions/attest`
 
 Outputs:
 
@@ -347,8 +351,10 @@ Outputs:
 
 Acceptance:
 
-- Workflow uploads artifacts, SBOM, manifest, attestations, and verification
-  guide.
+- Workflow uploads artifacts, SBOM, manifest, signed in-toto/Sigstore bundles,
+  and verification guide.
+- Workflow creates SLSA provenance, SBOM, and Assured Downstream policy
+  attestations through the pinned `actions/attest` backend.
 - Evidence manifest records upstream ref, overlay ref, release tag, artifact
   digests, SBOM digests, and attestation references.
 - Verification guide can be generated from downloaded evidence alone.
@@ -362,7 +368,7 @@ Tests:
 Do not scope creep:
 
 - no public release asset publishing yet
-- no release signing UX beyond existing attestation path
+- no separate signing service beyond the GitHub/Sigstore attestation path
 
 ### WP7 - Attested Gate Enforcement
 
@@ -405,14 +411,14 @@ Do not scope creep:
 - no Reproducible target changes until Attested is enforced
 - no external transparency log policy yet
 
-### WP8 - Maintainer Liaison Packet
+### WP8 - Passive Fork Publication Packet
 
-Owner: Stewardship/Liaison Agent.
+Owner: Fork Publication Agent.
 
 WBS refs: 2.2.5, 5.2.1, 5.2.2, 5.2.3, 5.2.4, 5.2.5.
 
-Purpose: make downstream work easy and respectful for upstream maintainers to
-fetch, inspect, and adopt.
+Purpose: make each downstream fork self-explanatory and independently useful
+without contacting upstream maintainers.
 
 Inputs:
 
@@ -421,39 +427,40 @@ Inputs:
 - overlay plan
 - render results
 - release profile notes
-- maintainer preference or suppression state
 
 Outputs:
 
-- liaison JSON packet
-- Markdown maintainer fetch instructions
-- proposal summary
-- respectful PR description draft
+- project publication JSON packet
+- Markdown fork landing content
+- upstream lineage and proposal summary
+- evidence links and optional secure-branch fetch instructions
 
 Acceptance:
 
-- Packet generation is pure local output with no network mutation.
+- Packet generation is pure local output with no network mutation or outbound
+  contact.
 - Fetch instructions include concrete `git remote add`, `git fetch`, and local
   review branch commands.
 - Proposal summary lists affected paths, rationale, skipped items, and
   human-review-required notes.
-- PR draft states upstream remains authoritative.
-- Suppressed repos do not get outreach drafts.
+- Packet states upstream remains authoritative and GitHub's fork network is the
+  discovery mechanism.
+- No PR, issue, comment, email, or other outreach draft is produced.
 
 Tests:
 
 - fixture packet tests
-- suppression/preference tests
+- no-outbound-contact tests
 - Markdown command rendering tests
 
 Do not scope creep:
 
-- no automatic PR creation
-- no repeated outreach automation
+- no automatic PR or issue creation
+- no maintainer contact or notification service
 
 ### WP9 - Custodian Governance Packet
 
-Owner: Stewardship/Liaison Agent with Governor/Safety Agent.
+Owner: Publication/Stewardship Agent with Governor/Safety Agent.
 
 WBS refs: 5.1.4, 5.1.5, 5.1.6.
 
@@ -513,7 +520,7 @@ Outputs:
 - rendered overlays and draft release workflows
 - at least one completed attested release evidence bundle
 - release evaluation
-- liaison packet
+- passive fork publication packet
 
 Acceptance:
 
@@ -537,7 +544,7 @@ Tests:
 Do not scope creep:
 
 - no production org rollout
-- no maintainer outreach by default
+- no maintainer outreach
 
 ### WP11 - Artifact Reproducibility Stage 1
 
@@ -633,7 +640,7 @@ primary files should overlap only at CLI registration and docs.
 | A | WP0 | pipeline/run index, catalog selection, tests | none |
 | B | WP3 | recon parser, fixtures, recon tests | none |
 | C | WP4 and WP5 | pin locks, release profile, release renderer tests | B for best artifact hints, but can start now |
-| D | WP8 and WP9 | custody, liaison module, liaison tests | WP0 suppression shape |
+| D | WP8 and WP9 | custody, fork publication module, publication tests | WP0 catalog shape |
 | E | WP6 and WP7 | evidence, release evaluation, workflow evidence upload | C |
 | F | WP1 and WP2 | GitHub client, fork/sync lifecycle, temp git tests | WP0 useful but not blocking |
 | G | WP11 | reproducibility renderer and mismatch packets | E |
@@ -641,7 +648,8 @@ primary files should overlap only at CLI registration and docs.
 
 ## Next Implementation Tasks
 
-1. Implement WP1 and WP2: sandbox-safe fork and sync idempotence.
+1. Implement WP1 and WP2: sandbox-safe default-branch fork and sync
+   reconciliation.
 2. Finish WP6: release workflow evidence bundle and attestation metadata
    capture.
 3. Finish WP7: add tooling/workflow risk inputs to release gate evaluation.
@@ -659,7 +667,7 @@ Control-Plane Agent:
 You are working in Assured Downstream. Implement WP0 from docs/WBS_EXECUTION_PLAN.md:
 persistent run index plus candidate allow/suppress controls. Keep mutations
 behind existing flags, add focused unittest coverage, and avoid touching release
-or liaison code except for CLI/docs wiring that is required.
+or fork publication code except for CLI/docs wiring that is required.
 ```
 
 Patch/Release Agent:
@@ -680,13 +688,13 @@ profile confirmation gates. Rendering must fail on stale or incomplete pins, and
 draft release workflows must remain manual-only until confirmed.
 ```
 
-Stewardship/Liaison Agent:
+Publication/Stewardship Agent:
 
 ```text
 You are working in Assured Downstream. Implement WP8 and WP9 from
-docs/WBS_EXECUTION_PLAN.md: local maintainer liaison packets, fetch instructions,
-proposal summaries, and safer custodian governance fields. No network mutation,
-no automatic PR creation, and no ownership claims.
+docs/WBS_EXECUTION_PLAN.md: passive fork publication packets, optional fetch
+instructions, evidence summaries, and safer custodian governance fields. No
+outbound maintainer contact, network mutation, or ownership claims.
 ```
 
 Evidence/Repro Agent:
