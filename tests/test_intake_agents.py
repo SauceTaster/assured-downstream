@@ -110,6 +110,31 @@ class IntakeAgentTests(unittest.TestCase):
             self.assertEqual(len(fork_plan["forks"]), 1)
             self.assertEqual(fork_plan["org"], "assured-example")
 
+    def test_personal_target_survives_all_agent_handoffs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            seed = root / "seed.md"
+            seed.write_text("https://github.com/securego/gosec\n", encoding="utf-8")
+            run_dir = root / "run"
+
+            result = run_intake_agent_system(
+                seed_sources=[seed],
+                target_owner="SauceTaster",
+                target_owner_type="user",
+                name_prefix="assured-",
+                run_dir=run_dir,
+                run_id="personal-target",
+                codex_mode="off",
+            )
+
+            self.assertEqual(result["status"], "succeeded")
+            fork_plan = json.loads((run_dir / "fork-plan.json").read_text(encoding="utf-8"))
+            self.assertEqual(fork_plan["target"]["owner_type"], "user")
+            self.assertEqual(
+                fork_plan["forks"][0]["target_full_name"],
+                "SauceTaster/assured-gosec",
+            )
+
     def test_enqueue_and_worker_execution_are_separable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

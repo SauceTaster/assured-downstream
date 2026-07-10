@@ -32,6 +32,25 @@ class CliTests(unittest.TestCase):
         self.assertFalse(args.enrich)
         self.assertEqual(args.token_env, "GITHUB_TOKEN")
 
+    def test_agent_run_parser_accepts_personal_prefixed_target(self) -> None:
+        args = build_parser().parse_args(
+            [
+                "agent-run",
+                "--seed",
+                "awesome.md",
+                "--user",
+                "SauceTaster",
+                "--name-prefix",
+                "assured-",
+                "--run-dir",
+                "runs/intake-001",
+            ]
+        )
+
+        self.assertIsNone(args.org)
+        self.assertEqual(args.target_user, "SauceTaster")
+        self.assertEqual(args.name_prefix, "assured-")
+
     def test_pilot_parser_accepts_selection_policy_args(self) -> None:
         args = build_parser().parse_args(
             [

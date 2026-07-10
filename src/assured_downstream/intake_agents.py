@@ -28,6 +28,7 @@ from assured_downstream.enrichment import enrich_catalog
 from assured_downstream.fork_apply import apply_fork_plan
 from assured_downstream.fork_plan import (
     create_fork_plan,
+    resolve_fork_target,
     select_repositories_with_reasons,
     selection_counts,
 )
@@ -280,6 +281,7 @@ class GovernorHandler:
     def handle(self, context: AgentContext) -> AgentResult:
         require_producer(context, "triage")
         config = require_run_config(context.event.payload)
+        target = fork_target_from_config(config)
         selected = require_selected_repositories(context.event.payload)
         checks = [
             {
@@ -288,9 +290,9 @@ class GovernorHandler:
                 "detail": f"selected={len(selected)}",
             },
             {
-                "check": "target-org-declared",
-                "passed": bool(config.get("org")),
-                "detail": str(config.get("org") or "missing"),
+                "check": "target-owner-declared",
+                "passed": bool(target["owner"]),
+                "detail": f"{target['owner_type']}:{target['owner']}",
             },
             {
                 "check": "observe-first",
@@ -371,9 +373,12 @@ class ForkSyncPlanHandler:
         catalog_path = Path(context.event.payload["catalog_path"])
         catalog = load_catalog(catalog_path)
         policy = candidate_policy_from_snapshot(context.event.payload)
+        target = fork_target_from_config(config)
         fork_plan = create_fork_plan(
             catalog,
-            org=config["org"],
+            target_owner=target["owner"],
+            target_owner_type=target["owner_type"],
+            name_prefix=target["name_prefix"],
             min_score=config.get("min_score"),
             limit=config.get("limit"),
             selection_policy=policy,
@@ -451,8 +456,11 @@ def first_lane_handlers() -> list[AgentHandler]:
 def run_intake_agent_system(
     *,
     seed_sources: list[str | Path],
-    org: str,
     run_dir: Path,
+    org: str | None = None,
+    target_owner: str | None = None,
+    target_owner_type: str | None = None,
+    name_prefix: str = "",
     database_path: Path | None = None,
     run_id: str | None = None,
     limit: int | None = None,
@@ -468,12 +476,16 @@ def run_intake_agent_system(
     max_items: int = 100,
     enqueue_only: bool = False,
 ) -> dict[str, Any]:
+    target = resolve_fork_target(
+        org=org,
+        target_owner=target_owner,
+        target_owner_type=target_owner_type,
+        name_prefix=name_prefix,
+    )
     if codex_mode not in CODEX_MODES:
         raise ValueError(f"Unsupported Codex mode: {codex_mode}")
     if not seed_sources:
         raise ValueError("At least one seed source is required")
-    if not org.strip():
-        raise ValueError("A target GitHub organization is required")
     if limit is not None and limit < 1:
         raise ValueError("Candidate limit must be at least 1")
     if codex_timeout_seconds <= 0:
@@ -492,7 +504,8 @@ def run_intake_agent_system(
     )
     config = {
         "seed_sources": [str(source) for source in seed_sources],
-        "org": org,
+        "org": target["owner"] if target["owner_type"] == "organization" else None,
+        "target": target,
         "limit": limit,
         "min_score": min_score,
         "allowlist_path": resolved_string(allowlist_path),
@@ -548,8 +561,7 @@ def require_run_config(payload: dict[str, Any]) -> dict[str, Any]:
         isinstance(source, str) for source in seed_sources
     ):
         raise ValueError("Agent run config has invalid seed_sources")
-    if not isinstance(config.get("org"), str) or not config["org"].strip():
-        raise ValueError("Agent run config has no target org")
+    fork_target_from_config(config)
     mode = config.get("codex_mode", "off")
     if mode not in CODEX_MODES:
         raise ValueError(f"Agent run config has invalid codex_mode: {mode!r}")
@@ -567,6 +579,17 @@ def require_run_config(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(config.get("token_env", "GITHUB_TOKEN"), str):
         raise ValueError("Agent run config has an invalid token environment name")
     return config
+
+
+def fork_target_from_config(config: dict[str, Any]) -> dict[str, str]:
+    target = config.get("target")
+    if isinstance(target, dict):
+        return resolve_fork_target(
+            target_owner=target.get("owner"),
+            target_owner_type=target.get("owner_type"),
+            name_prefix=target.get("name_prefix", ""),
+        )
+    return resolve_fork_target(org=config.get("org"))
 
 
 def require_producer(context: AgentContext, expected_agent_id: str) -> None:

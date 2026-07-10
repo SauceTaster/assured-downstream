@@ -112,6 +112,18 @@ assured-downstream agent-run \
   --enrich
 ```
 
+Target the currently authenticated personal account with prefixed repository
+names:
+
+```text
+assured-downstream agent-run \
+  --seed awesome-security.md \
+  --user <github-user> \
+  --name-prefix assured- \
+  --run-dir ./runs/intake-personal \
+  --enrich
+```
+
 Separate enqueueing from workers:
 
 ```text

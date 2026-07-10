@@ -63,6 +63,8 @@ tools from queues, schedulers, GitHub App events, and human review workflows.
 assured-downstream codex-preflight
 assured-downstream agent-run --seed awesome-security.md --org <org> \
   --run-dir ./runs/intake-001 --enrich
+assured-downstream agent-run --seed awesome-security.md --user <github-user> \
+  --name-prefix assured- --run-dir ./runs/intake-personal --enrich
 assured-downstream agent-run --seed awesome-security.md --org <org> \
   --run-dir ./runs/intake-002 --enqueue-only
 assured-downstream agent-worker \
@@ -89,6 +91,8 @@ assured-downstream plan-overlay --recon recon.json --target Attested --output ov
 assured-downstream resolve-pins --tooling policies/approved-tooling.json --output pins.json
 assured-downstream render-overlay --plan overlay-plan.json --path /path/to/checkout --pins pins.json
 assured-downstream plan-forks --catalog catalog.json --org <org>
+assured-downstream plan-forks --catalog catalog.json --user <github-user> \
+  --name-prefix assured-
 assured-downstream apply-fork-plan --plan fork-plan.json --state state.json
 assured-downstream plan-sync --fork-plan fork-plan.json --workspace ./worktrees
 assured-downstream apply-sync-plan --plan sync-plan.json --state state.json
@@ -111,7 +115,11 @@ assured-downstream compare-behavior --left host-a-behavior.json --right host-b-b
 ```
 
 `enrich` uses public GitHub API access by default and reads `GITHUB_TOKEN` when
-available. `apply-fork-plan` is dry-run unless `--execute` is passed. Overlay
+available. Fork targets may be an organization (`--org`) or the personal
+account authenticated in `gh` (`--user`), with an optional `--name-prefix`.
+`apply-fork-plan` is dry-run unless `--execute` is passed. Before personal
+account mutation it verifies the active GitHub identity; existing targets are
+accepted only when GitHub confirms the requested upstream parent. Overlay
 planning is also non-mutating; it turns recon evidence into a structured set of
 proposed hardening changes. Overlay rendering is dry-run unless `--execute` is
 passed, and generated workflows require full commit SHA pins supplied through

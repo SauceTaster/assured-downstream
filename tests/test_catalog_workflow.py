@@ -32,6 +32,37 @@ class CatalogWorkflowTests(unittest.TestCase):
         self.assertIn("assured-oss/example-yara", targets)
         self.assertIn("recommended_mode", plan["forks"][0])
 
+    def test_personal_namespace_plan_prefixes_target_names(self) -> None:
+        findings = parse_seed_text(
+            "https://github.com/securego/gosec\n",
+            source="seed.md",
+        )
+        catalog = empty_catalog()
+        upsert_findings(catalog, findings)
+        score_catalog(catalog)
+
+        plan = create_fork_plan(
+            catalog,
+            target_owner="SauceTaster",
+            target_owner_type="user",
+            name_prefix="assured-",
+        )
+
+        self.assertIsNone(plan["org"])
+        self.assertEqual(
+            plan["target"],
+            {
+                "owner": "SauceTaster",
+                "owner_type": "user",
+                "name_prefix": "assured-",
+            },
+        )
+        self.assertEqual(
+            plan["forks"][0]["target_full_name"],
+            "SauceTaster/assured-gosec",
+        )
+        self.assertNotIn("--org", plan["forks"][0]["dry_run_command"])
+
 
 if __name__ == "__main__":
     unittest.main()

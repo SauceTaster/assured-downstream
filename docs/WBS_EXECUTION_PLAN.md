@@ -139,7 +139,7 @@ Inputs:
 
 - fork plan
 - lifecycle state file
-- GitHub org and token
+- GitHub organization or authenticated personal owner and token
 
 Outputs:
 
@@ -149,8 +149,9 @@ Outputs:
 
 Acceptance:
 
-- Missing auth or org access fails before mutation.
-- Existing forks record `ForkExists` instead of failing.
+- Missing auth or target-owner access fails before mutation.
+- Personal targets require the authenticated `gh` user to match the plan.
+- Existing forks record `ForkVerified` only after direct-parent verification.
 - `--execute` is still required for mutation.
 - Dry runs never call mutating GitHub APIs.
 - Sandbox smoke path proves one fork can be created or detected repeatedly.

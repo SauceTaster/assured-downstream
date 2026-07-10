@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import re
 from collections import Counter
 from datetime import UTC, datetime
 from typing import Any
 
+from assured_downstream.command_runner import display_command
 from assured_downstream.selection import (
     CandidateSelectionPolicy,
     repo_full_name,
@@ -11,21 +13,36 @@ from assured_downstream.selection import (
 )
 
 
+FORK_PLAN_SCHEMA_VERSION = 2
+TARGET_OWNER_TYPES = {"organization", "user"}
+GITHUB_NAME_PATTERN = re.compile(r"[A-Za-z0-9._-]+")
+GITHUB_OWNER_PATTERN = re.compile(r"[A-Za-z0-9-]+")
+
+
 def create_fork_plan(
     catalog: dict[str, Any],
     *,
-    org: str,
+    org: str | None = None,
+    target_owner: str | None = None,
+    target_owner_type: str | None = None,
+    name_prefix: str = "",
     min_score: int | None = None,
     limit: int | None = None,
     selection_policy: CandidateSelectionPolicy | None = None,
 ) -> dict[str, Any]:
+    target = resolve_fork_target(
+        org=org,
+        target_owner=target_owner,
+        target_owner_type=target_owner_type,
+        name_prefix=name_prefix,
+    )
     selected, selection_reasons = select_repositories_with_reasons(
         catalog,
         min_score=min_score,
         limit=limit,
         selection_policy=selection_policy,
     )
-    target_names = choose_target_names(selected)
+    target_names = choose_target_names(selected, name_prefix=target["name_prefix"])
     reasons_by_repo = {
         reason["source_full_name"].lower(): reason
         for reason in selection_reasons
@@ -35,7 +52,13 @@ def create_fork_plan(
     for repo in selected:
         source_full_name = f"{repo['owner']}/{repo['name']}"
         target_name = target_names[source_full_name]
-        target_full_name = f"{org}/{target_name}"
+        target_full_name = f"{target['owner']}/{target_name}"
+        command = fork_command(
+            source_full_name,
+            target_owner=target["owner"],
+            target_owner_type=target["owner_type"],
+            target_repo_name=target_name,
+        )
         forks.append(
             {
                 "source_full_name": source_full_name,
@@ -46,10 +69,7 @@ def create_fork_plan(
                 "recommended_mode": repo.get("recommended_mode", "DownstreamAssured"),
                 "selection_reason": reasons_by_repo[source_full_name.lower()],
                 "status": "dry_run",
-                "dry_run_command": (
-                    f"gh repo fork {source_full_name} "
-                    f"--org {org} --clone=false"
-                ),
+                "dry_run_command": display_command(command),
                 "metadata": fork_metadata_summary(repo),
                 "branch_model": {
                     "default_branch": (repo.get("github") or {}).get("default_branch") or "main",
@@ -60,8 +80,10 @@ def create_fork_plan(
         )
 
     return {
+        "schema_version": FORK_PLAN_SCHEMA_VERSION,
         "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
-        "org": org,
+        "org": target["owner"] if target["owner_type"] == "organization" else None,
+        "target": target,
         "mode": "dry_run",
         "selection_counts": selection_counts(selection_reasons),
         "selection_reasons": selection_reasons,
@@ -188,18 +210,103 @@ def selection_counts(selection_reasons: list[dict[str, Any]]) -> dict[str, int]:
     }
 
 
-def choose_target_names(repositories: list[dict[str, Any]]) -> dict[str, str]:
+def choose_target_names(
+    repositories: list[dict[str, Any]],
+    *,
+    name_prefix: str = "",
+) -> dict[str, str]:
+    validate_name_prefix(name_prefix)
     repo_name_counts = Counter(repo["name"].lower() for repo in repositories)
     target_names = {}
 
     for repo in repositories:
         source_full_name = f"{repo['owner']}/{repo['name']}"
         if repo_name_counts[repo["name"].lower()] > 1:
-            target_names[source_full_name] = f"{repo['owner']}-{repo['name']}"
+            base_name = f"{repo['owner']}-{repo['name']}"
         else:
-            target_names[source_full_name] = repo["name"]
+            base_name = repo["name"]
+        target_name = f"{name_prefix}{base_name}"
+        validate_github_name(target_name, field="target repository name")
+        target_names[source_full_name] = target_name
 
     return target_names
+
+
+def resolve_fork_target(
+    *,
+    org: str | None = None,
+    target_owner: str | None = None,
+    target_owner_type: str | None = None,
+    name_prefix: str = "",
+) -> dict[str, str]:
+    if org and target_owner and org.casefold() != target_owner.casefold():
+        raise ValueError("org and target_owner must identify the same GitHub owner")
+
+    owner = (target_owner or org or "").strip()
+    if not owner:
+        raise ValueError("A target GitHub owner is required")
+    if GITHUB_OWNER_PATTERN.fullmatch(owner) is None:
+        raise ValueError(
+            "Invalid target GitHub owner: use only ASCII letters, digits, and '-'"
+        )
+
+    owner_type = target_owner_type or "organization"
+    if owner_type not in TARGET_OWNER_TYPES:
+        raise ValueError(f"Unsupported target owner type: {owner_type!r}")
+    if org and owner_type != "organization" and target_owner is None:
+        raise ValueError("The legacy org argument can only target an organization")
+
+    validate_name_prefix(name_prefix)
+    return {
+        "owner": owner,
+        "owner_type": owner_type,
+        "name_prefix": name_prefix,
+    }
+
+
+def fork_target_from_plan(plan: dict[str, Any]) -> dict[str, str]:
+    target = plan.get("target")
+    if isinstance(target, dict):
+        return resolve_fork_target(
+            target_owner=target.get("owner"),
+            target_owner_type=target.get("owner_type"),
+            name_prefix=target.get("name_prefix", ""),
+        )
+    return resolve_fork_target(org=plan.get("org"), name_prefix=plan.get("name_prefix", ""))
+
+
+def fork_command(
+    source_full_name: str,
+    *,
+    target_owner: str,
+    target_owner_type: str,
+    target_repo_name: str,
+) -> list[str]:
+    target = resolve_fork_target(
+        target_owner=target_owner,
+        target_owner_type=target_owner_type,
+    )
+    validate_github_name(target_repo_name, field="target repository name")
+
+    command = ["gh", "repo", "fork", source_full_name]
+    if target["owner_type"] == "organization":
+        command.extend(["--org", target["owner"]])
+    command.extend(["--fork-name", target_repo_name, "--clone=false"])
+    return command
+
+
+def validate_name_prefix(name_prefix: str) -> None:
+    if not isinstance(name_prefix, str):
+        raise ValueError("Repository name prefix must be a string")
+    if name_prefix:
+        validate_github_name(name_prefix, field="repository name prefix")
+
+
+def validate_github_name(value: str, *, field: str) -> None:
+    if value in {"", ".", ".."} or GITHUB_NAME_PATTERN.fullmatch(value) is None:
+        raise ValueError(
+            f"Invalid {field}: use only ASCII letters, digits, '.', '-', and '_'"
+        )
 
 
 def fork_metadata_summary(repo: dict[str, Any]) -> dict[str, Any]:

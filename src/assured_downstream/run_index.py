@@ -87,12 +87,13 @@ def create_pilot_run_record(
     run_id: str,
     started_at: str,
     seed_refs: list[str],
-    org: str,
+    org: str | None,
     run_dir: Path,
     output_paths: dict[str, str | None],
     counts: dict[str, int],
     status: str,
     failures: list[dict[str, Any]] | None = None,
+    target: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     return {
         "run_id": run_id,
@@ -102,6 +103,11 @@ def create_pilot_run_record(
         "status": status,
         "seed_refs": seed_refs,
         "org": org,
+        "target": target or {
+            "owner": org,
+            "owner_type": "organization",
+            "name_prefix": "",
+        },
         "run_dir": str(run_dir),
         "output_paths": output_paths,
         "counts": counts,

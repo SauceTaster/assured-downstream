@@ -1,13 +1,18 @@
 {
-  "schema_version": 1,
-  "status": "vetted-awaiting-organization",
-  "generated_at": "2026-07-10T05:10:00Z",
+  "schema_version": 2,
+  "status": "forked-personal-namespace-awaiting-hardening",
+  "generated_at": "2026-07-10T05:43:01Z",
   "target": {
     "account_owner": "SauceTaster",
-    "organization": "assured-downstream-labs",
-    "organization_exists": false,
-    "organization_creation": "manual-github-web-step-required",
-    "forks_created": false
+    "namespace": "SauceTaster",
+    "namespace_type": "user",
+    "name_prefix": "assured-",
+    "migration_target": "assured-downstream-labs",
+    "migration_status": "deferred-until-organization-exists",
+    "forks_created": true,
+    "fork_count": 5,
+    "lineage_verified": true,
+    "verified_at": "2026-07-10T05:43:01Z"
   },
   "discovery": {
     "awesome_list": "https://github.com/sbilly/awesome-security",
@@ -28,17 +33,38 @@
     "pending_work": 0,
     "artifact_verification": "passed"
   },
+  "personal_target_replay": {
+    "run_id": "case-001-personal-target",
+    "status": "succeeded",
+    "target_owner_type": "user",
+    "name_prefix": "assured-",
+    "github_enrichment": "succeeded",
+    "governor_gate": "passed",
+    "selected": 5,
+    "suppressed": 3,
+    "fork_apply_succeeded": 0,
+    "fork_apply_failed": 0,
+    "fork_apply_verified_skips": 5
+  },
   "qualification": {
-    "mode": "shallow-clone and non-executing structural analysis",
+    "mode": "shallow-clone, non-executing structural analysis, and reviewed fork creation",
     "workflow_count": 19,
     "workflow_parse_errors": 0,
     "builds_executed": false,
-    "fork_mutations_executed": false
+    "fork_mutations_executed": true,
+    "fork_mutation_count": 5,
+    "fork_lineage_verified": true
   },
   "repositories": [
     {
       "source_full_name": "securego/gosec",
       "source_commit": "849570622f56a251c015c0e2417aebafc0216e17",
+      "target_full_name": "SauceTaster/assured-gosec",
+      "target_url": "https://github.com/SauceTaster/assured-gosec",
+      "fork_parent": "securego/gosec",
+      "fork_commit": "849570622f56a251c015c0e2417aebafc0216e17",
+      "fork_created_at": "2026-07-10T05:30:31Z",
+      "fork_lineage_verified": true,
       "default_branch": "master",
       "ecosystem": "go",
       "license_spdx_id": "Apache-2.0",
@@ -59,6 +85,12 @@
     {
       "source_full_name": "epi052/feroxbuster",
       "source_commit": "378d75964c45db9c92826316ff631d34d59396c7",
+      "target_full_name": "SauceTaster/assured-feroxbuster",
+      "target_url": "https://github.com/SauceTaster/assured-feroxbuster",
+      "fork_parent": "epi052/feroxbuster",
+      "fork_commit": "378d75964c45db9c92826316ff631d34d59396c7",
+      "fork_created_at": "2026-07-10T05:30:32Z",
+      "fork_lineage_verified": true,
       "default_branch": "main",
       "ecosystem": "rust",
       "license_spdx_id": "MIT",
@@ -78,6 +110,12 @@
     {
       "source_full_name": "PyCQA/bandit",
       "source_commit": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+      "target_full_name": "SauceTaster/assured-bandit",
+      "target_url": "https://github.com/SauceTaster/assured-bandit",
+      "fork_parent": "PyCQA/bandit",
+      "fork_commit": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+      "fork_created_at": "2026-07-10T05:30:36Z",
+      "fork_lineage_verified": true,
       "default_branch": "main",
       "ecosystem": "python",
       "license_spdx_id": "Apache-2.0",
@@ -97,6 +135,12 @@
     {
       "source_full_name": "google/tsunami-security-scanner",
       "source_commit": "363ba87b3543f8ae8e4304d3416818f03da7f262",
+      "target_full_name": "SauceTaster/assured-tsunami-security-scanner",
+      "target_url": "https://github.com/SauceTaster/assured-tsunami-security-scanner",
+      "fork_parent": "google/tsunami-security-scanner",
+      "fork_commit": "363ba87b3543f8ae8e4304d3416818f03da7f262",
+      "fork_created_at": "2026-07-10T05:30:37Z",
+      "fork_lineage_verified": true,
       "default_branch": "master",
       "ecosystem": "java",
       "license_spdx_id": "Apache-2.0",
@@ -117,6 +161,12 @@
     {
       "source_full_name": "microsoft/DevSkim",
       "source_commit": "17706a84717a082984090f34621834e6aeff2925",
+      "target_full_name": "SauceTaster/assured-DevSkim",
+      "target_url": "https://github.com/SauceTaster/assured-DevSkim",
+      "fork_parent": "microsoft/DevSkim",
+      "fork_commit": "17706a84717a082984090f34621834e6aeff2925",
+      "fork_created_at": "2026-07-10T05:30:38Z",
+      "fork_lineage_verified": true,
       "default_branch": "main",
       "ecosystem": "dotnet",
       "license_spdx_id": "MIT",

@@ -1,21 +1,23 @@
 # Case Study 001: Pilot Cohort
 
-Status: vetted and ready to fork after GitHub organization creation.
+Status: five pilot forks created and lineage-verified in the temporary
+`SauceTaster/assured-*` namespace.
 
 ## Objective
 
 Validate Assured Downstream against real security projects across Go, Rust,
-Python, Java, and .NET before enabling build or repository mutation agents.
+Python, Java, and .NET before enabling autonomous build or repository mutation
+agents.
 
 ## Cohort
 
-| Repository | Ecosystem | Role | License |
-| --- | --- | --- | --- |
-| `securego/gosec` | Go | Compact release canary | Apache-2.0 |
-| `epi052/feroxbuster` | Rust | Multi-platform release stress | MIT |
-| `PyCQA/bandit` | Python | Package publication canary | Apache-2.0 |
-| `google/tsunami-security-scanner` | Java | Mixed-repository Gradle canary | Apache-2.0 |
-| `microsoft/DevSkim` | .NET | CLI and extension release canary | MIT |
+| Upstream | Downstream | Ecosystem | Role | License |
+| --- | --- | --- | --- | --- |
+| `securego/gosec` | [`SauceTaster/assured-gosec`](https://github.com/SauceTaster/assured-gosec) | Go | Compact release canary | Apache-2.0 |
+| `epi052/feroxbuster` | [`SauceTaster/assured-feroxbuster`](https://github.com/SauceTaster/assured-feroxbuster) | Rust | Multi-platform release stress | MIT |
+| `PyCQA/bandit` | [`SauceTaster/assured-bandit`](https://github.com/SauceTaster/assured-bandit) | Python | Package publication canary | Apache-2.0 |
+| `google/tsunami-security-scanner` | [`SauceTaster/assured-tsunami-security-scanner`](https://github.com/SauceTaster/assured-tsunami-security-scanner) | Java | Mixed-repository Gradle canary | Apache-2.0 |
+| `microsoft/DevSkim` | [`SauceTaster/assured-DevSkim`](https://github.com/SauceTaster/assured-DevSkim) | .NET | CLI and extension release canary | MIT |
 
 `dnSpyEx/dnSpy`, `find-sec-bugs/find-sec-bugs`, and
 `security-code-scan/security-code-scan` are stewardship challenge cases. They
@@ -36,7 +38,12 @@ fork-of-a-fork lineage, and copyleft obligation handling.
 - parsed 19 of 19 cohort GitHub Actions workflows successfully
 - identified release profiles for Go, Rust, Python, Java, and .NET
 - found 11 upstream artifact candidates across the cohort
-- executed no upstream code, builds, forks, or GitHub repository mutations
+- created five prefixed public forks under the authenticated `SauceTaster`
+  account and verified each direct upstream parent and initial fork commit
+- replayed the durable agent lane with a personal target and prefix; all five
+  existing forks were lineage-verified and skipped without duplicate mutation
+- executed no upstream code or builds; GitHub mutations were limited to the
+  five reviewed fork creations and one case-only name alignment
 
 The real checkouts exposed and drove fixes for GitHub Actions YAML parsing, Go
 semantic import version names, mixed-language release-profile priority, and
@@ -47,20 +54,20 @@ the durable catalog handoff. After adding `agent-run --enrich`, the final run
 completed with live metadata, a required Luna review with no findings, all
 Governor checks passed, and ten of ten persisted artifacts re-verified.
 
-## Blocker
+## Temporary Namespace
 
-GitHub CLI does not provide organization creation. The authenticated
-`SauceTaster` account has no current organization, and the in-app GitHub web
-session is signed out. Create the free `assured-downstream-labs` organization
-through GitHub's organization setup page, owned by `SauceTaster`. After that,
-the Fork And Sync Agent can create the five forks idempotently.
+The pilot uses the authenticated personal account because organization creation
+was not available in the current GitHub session. The `assured-` prefix reserves
+a coherent downstream namespace and keeps the repositories easy to identify.
+Fork lineage is preserved so transfer into a future organization can be tested
+as a separate governed migration.
 
 ## Next Run
 
-1. Verify `SauceTaster` is an owner of `assured-downstream-labs`.
-2. Re-run the cohort seed with that organization as the target.
-3. Detect any existing forks before mutation.
-4. Apply the reviewed fork plan.
-5. Verify fork lineage, default branches, and upstream remotes.
-6. Start checkout recon and overlay planning from the fork SHAs recorded in
-   `cohort.json`.
+1. Bootstrap managed checkouts from the fork SHAs recorded in `cohort.json`.
+2. Add explicit `upstream` remotes and verify fast-forward sync planning.
+3. Generate per-project hardening overlays without enabling release mutation.
+4. Run the first isolated builds and capture in-toto, SLSA, Sigstore, SBOM, and
+   syscall evidence.
+5. Compare reproducibility and normalized behavior across two independent
+   builders before promoting any hardened release.

@@ -7,7 +7,7 @@ from typing import Any
 from assured_downstream.catalog import empty_catalog, save_catalog, upsert_findings, utc_now
 from assured_downstream.enrichment import enrich_catalog
 from assured_downstream.fork_apply import apply_fork_plan
-from assured_downstream.fork_plan import create_fork_plan
+from assured_downstream.fork_plan import create_fork_plan, resolve_fork_target
 from assured_downstream.lifecycle import StateStore
 from assured_downstream.pin_resolver import resolve_tooling_pins
 from assured_downstream.run_index import append_run_record, create_pilot_run_record
@@ -20,9 +20,12 @@ from assured_downstream.sync_plan import create_sync_plan
 def run_pilot_pipeline(
     *,
     seed_paths: list[Path | str],
-    org: str,
     run_dir: Path,
     client: Any,
+    org: str | None = None,
+    target_owner: str | None = None,
+    target_owner_type: str | None = None,
+    name_prefix: str = "",
     limit: int | None = None,
     enrich: bool = False,
     resolve_pins: bool = False,
@@ -33,6 +36,12 @@ def run_pilot_pipeline(
     allowlist_path: Path | None = None,
     suppression_path: Path | None = None,
 ) -> dict[str, Any]:
+    target = resolve_fork_target(
+        org=org,
+        target_owner=target_owner,
+        target_owner_type=target_owner_type,
+        name_prefix=name_prefix,
+    )
     run_dir.mkdir(parents=True, exist_ok=True)
     catalog_path = run_dir / "catalog.json"
     fork_plan_path = run_dir / "fork-plan.json"
@@ -98,7 +107,9 @@ def run_pilot_pipeline(
 
         fork_plan = create_fork_plan(
             catalog,
-            org=org,
+            target_owner=target["owner"],
+            target_owner_type=target["owner_type"],
+            name_prefix=target["name_prefix"],
             limit=limit,
             selection_policy=effective_policy,
         )
@@ -153,6 +164,7 @@ def run_pilot_pipeline(
             "added_repositories": added_repositories,
             "added_seed_refs": added_seed_refs,
             "selection_counts": fork_plan["selection_counts"],
+            "target": target,
             "enrichment": enrichment_result.__dict__ if enrichment_result else None,
             "fork_apply": fork_apply_result.__dict__,
         }
@@ -163,12 +175,13 @@ def run_pilot_pipeline(
                 run_id=effective_run_id,
                 started_at=started_at,
                 seed_refs=seed_refs,
-                org=org,
+                org=(target["owner"] if target["owner_type"] == "organization" else None),
                 run_dir=run_dir,
                 output_paths=output_paths,
                 counts=counts,
                 status="succeeded",
                 failures=[],
+                target=target,
             ),
         )
         return summary
@@ -179,7 +192,7 @@ def run_pilot_pipeline(
                 run_id=effective_run_id,
                 started_at=started_at,
                 seed_refs=seed_refs,
-                org=org,
+                org=(target["owner"] if target["owner_type"] == "organization" else None),
                 run_dir=run_dir,
                 output_paths=output_paths,
                 counts=counts,
@@ -190,6 +203,7 @@ def run_pilot_pipeline(
                         "message": str(exc),
                     }
                 ],
+                target=target,
             ),
         )
         raise

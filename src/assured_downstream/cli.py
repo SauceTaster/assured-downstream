@@ -53,6 +53,38 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
 
+def add_fork_target_arguments(parser: argparse.ArgumentParser) -> None:
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument(
+        "--org",
+        help="Target GitHub organization.",
+    )
+    target.add_argument(
+        "--user",
+        dest="target_user",
+        help="Target GitHub user account; must match the account authenticated in gh.",
+    )
+    parser.add_argument(
+        "--name-prefix",
+        default="",
+        help="Prefix added to every downstream repository name.",
+    )
+
+
+def fork_target_kwargs(args: argparse.Namespace) -> dict[str, str]:
+    if getattr(args, "target_user", None):
+        return {
+            "target_owner": args.target_user,
+            "target_owner_type": "user",
+            "name_prefix": args.name_prefix,
+        }
+    return {
+        "org": args.org,
+        "target_owner_type": "organization",
+        "name_prefix": args.name_prefix,
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="assured-downstream",
@@ -78,7 +110,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run an observe-first Assured Downstream pilot pipeline from seed files.",
     )
     pilot.add_argument("--seed", action="append", required=True)
-    pilot.add_argument("--org", required=True)
+    add_fork_target_arguments(pilot)
     pilot.add_argument("--run-dir", required=True, type=Path)
     pilot.add_argument("--limit", type=int, default=None)
     pilot.add_argument("--run-index", type=Path)
@@ -119,7 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Start the durable discovery-to-fork-plan agent workflow.",
     )
     agent_run.add_argument("--seed", action="append", required=True)
-    agent_run.add_argument("--org", required=True)
+    add_fork_target_arguments(agent_run)
     agent_run.add_argument("--run-dir", required=True, type=Path)
     agent_run.add_argument("--database", type=Path)
     agent_run.add_argument("--run-id")
@@ -480,7 +512,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Create a dry-run fork plan for selected catalog entries.",
     )
     plan_forks.add_argument("--catalog", required=True, type=Path)
-    plan_forks.add_argument("--org", required=True)
+    add_fork_target_arguments(plan_forks)
     plan_forks.add_argument("--min-score", type=int, default=None)
     plan_forks.add_argument("--limit", type=int, default=None)
     plan_forks.add_argument("--allowlist", type=Path)
@@ -561,7 +593,6 @@ def command_pilot(args: argparse.Namespace) -> int:
     client = GitHubClient.from_environment(token_env=args.token_env)
     summary = run_pilot_pipeline(
         seed_paths=args.seed,
-        org=args.org,
         run_dir=args.run_dir,
         limit=args.limit,
         enrich=args.enrich,
@@ -572,6 +603,7 @@ def command_pilot(args: argparse.Namespace) -> int:
         allowlist_path=args.allowlist,
         suppression_path=args.suppression,
         client=client,
+        **fork_target_kwargs(args),
     )
     print(f"pilot run complete: {args.run_dir}")
     print(f"summary: {summary['summary_path']}")
@@ -582,7 +614,6 @@ def command_pilot(args: argparse.Namespace) -> int:
 def command_agent_run(args: argparse.Namespace) -> int:
     result = run_intake_agent_system(
         seed_sources=args.seed,
-        org=args.org,
         run_dir=args.run_dir,
         database_path=args.database,
         run_id=args.run_id,
@@ -597,6 +628,7 @@ def command_agent_run(args: argparse.Namespace) -> int:
         token_env=args.token_env,
         max_items=args.max_items,
         enqueue_only=args.enqueue_only,
+        **fork_target_kwargs(args),
     )
     print(f"agent run: {result['run_id']}")
     print(f"status: {result['status']}")
@@ -1019,10 +1051,10 @@ def command_plan_forks(args: argparse.Namespace) -> int:
     )
     plan = create_fork_plan(
         catalog,
-        org=args.org,
         min_score=args.min_score,
         limit=args.limit,
         selection_policy=selection_policy,
+        **fork_target_kwargs(args),
     )
 
     if args.output:
