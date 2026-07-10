@@ -1,8 +1,8 @@
 # Agent Runtime
 
-Status: executable dev/idea-stage runtime. It supports dry-run intake plus
-guarded local checkout reconciliation. It is not ready for production GitHub
-branch mutation.
+Status: executable dev/idea-stage runtime. It supports dry-run intake, guarded
+checkout reconciliation, and governed local secure-branch commits. It is not
+ready for production GitHub branch mutation.
 
 ## What Exists
 
@@ -42,6 +42,32 @@ pass. It preserves `secure/<default>`, mirrors the fetched upstream commit at
 remote pushes. Recon inspects a detached analysis worktree pinned to the SHA in
 the sync handoff. Every downstream consumer verifies the producer artifact
 digest before reading it.
+
+The governed patch-publication lane is a separate run so approval can bind the
+already-produced analysis:
+
+```text
+PatchApprovalRecorded
+  -> Patch Agent -> PatchReady
+  -> Secure Branch Publisher Agent
+       -> SecureBranchPublicationPlanned | SecureBranchPublished
+```
+
+The approval binds the analysis index, nested overlay digest, fresh pin lock,
+tooling-policy digest, repository, upstream SHA, secure base, exact change IDs,
+expiration, and publication decision. Both agents verify the lock's complete
+action/ref coverage against the supplied digest-verified tooling-policy file.
+Automated policy approval is limited to known additive templates with exact
+action/path contracts and no review marker; it cannot authorize a push. The
+Patch Agent writes Git objects through a
+temporary index, creates a deterministic single-parent commit, and advances
+`secure/<default>` with compare-and-swap. It never checks out or executes
+upstream files. The Publisher defaults to planning and uses an exact ref plus an
+explicit expected remote SHA when separately authorized. It revalidates approval
+and freshness at the handoff, isolates system/global Git configuration, rejects
+repository URL rewrites, and pushes the approved object ID rather than a mutable
+local ref. Production execution remains disabled until external authorization
+can be authenticated.
 
 ## Why Custom SQLite First
 
@@ -172,6 +198,32 @@ assured-downstream checkout-run \
 Repeating the command with the same run id and exact configuration resumes the
 durable run. A completed run claims no new work.
 
+Prepare and apply a policy-approved additive patch locally:
+
+```text
+assured-downstream prepare-patch-approval \
+  --analysis-index ./runs/checkout-sync-001/analysis-index.json \
+  --pins ./runs/pins.json \
+  --tooling-policy ./policies/approved-tooling.json \
+  --repository <owner/repo> \
+  --output ./runs/patch-approval.json \
+  --auto-approve-safe
+
+assured-downstream patch-run \
+  --analysis-index ./runs/checkout-sync-001/analysis-index.json \
+  --pins ./runs/pins.json \
+  --tooling-policy ./policies/approved-tooling.json \
+  --approval ./runs/patch-approval.json \
+  --workspace ./worktrees \
+  --run-dir ./runs/patch-001 \
+  --execute-patch
+```
+
+Omitting `--execute-patch` plans without moving the local secure ref.
+`--execute-publish` currently records a blocked publication request: a local
+human record is not authentication. The exact-lease push adapter is enabled only
+by the local test harness until an authenticated approval backend is connected.
+
 Inspect the durable state or verify the model profile:
 
 ```text
@@ -183,20 +235,23 @@ assured-downstream codex-preflight
 
 ## Current Limits
 
-- intake plus fork-sync/recon/overlay-planning lanes are hosted by the runtime;
-  patch rendering, build, trace, attestation, release, and watch lanes remain
+- intake, fork-sync/recon/overlay-planning, and governed additive patch lanes
+  are hosted by the runtime; repository-specific patching, build, trace,
+  attestation, release, and watch lanes remain
 - discovery currently accepts local or HTTPS awesome-list style sources;
   remote responses are size-bounded and obvious local/private targets are
   rejected
 - GitHub metadata enrichment can run inside the Catalog Ingestion handoff with
   `--enrich`; tokens are read from an environment variable and never persisted
 - live fork creation remains a separately guarded adapter; managed checkout
-  reconciliation is live locally, while remote branch pushes remain disabled
+  and local secure commits are live, while production remote publication still
+  lacks an authenticated approval backend
 - SQLite is single-host orchestration
-- Luna advisory is implemented for triage; later patch agents will
+- deterministic policy owns additive patch approval; Luna remains advisory and
+  later repository-specific patch agents will
   use the same driver where deterministic tools cannot resolve ambiguity
 
-The next runtime increment is governed overlay rendering and remote fork branch
-publication, followed by scheduled upstream-change ingestion. Both remain
-behind explicit mutation policy and human review until the pilot release path
-is proven.
+The next runtime increment is authenticated human approval plus the first live
+secure-branch publication, followed immediately by an isolated attested Bandit
+build. Scheduled upstream-change ingestion follows once that pilot path is
+proven.

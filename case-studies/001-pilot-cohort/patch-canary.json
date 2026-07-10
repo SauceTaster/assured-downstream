@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "status": "local-secure-commit-not-published",
+  "verified_at": "2026-07-10T20:52:12Z",
+  "repository": {
+    "source_full_name": "PyCQA/bandit",
+    "target_full_name": "SauceTaster/assured-bandit",
+    "default_branch": "main",
+    "secure_branch": "secure/main"
+  },
+  "inputs": {
+    "analysis_run_id": "case-001-checkout-5",
+    "analysis_index_sha256": "d14b8bc28c900f3e33516206d99fe9e092bc46c659903214e3508b1f76987fa2",
+    "overlay_plan_sha256": "485067cf79397f38709d88cd3b20ba60eefb0ef0cd5061960055c16e3efd4cf8",
+    "pin_lock_sha256": "d6e987a2a8bfa8a37271e550438926ea8b3b4771da11d6481d9590bc53d5634a",
+    "tooling_policy_sha256": "0416a69ac539db8cce409e307be7637d5dc2a639edbec0013aba18a7782647bb",
+    "tooling_policy_action_ref_coverage_verified": true,
+    "pin_lock_status": "complete",
+    "pin_lock_expires_at": "2026-08-09T20:09:50+00:00"
+  },
+  "approval": {
+    "type": "policy",
+    "policy": "policy:additive-baseline-v1",
+    "authentication": "deterministic-policy",
+    "approval_sha256": "cc9cdacad1e939fd23cffafe8cb03fdc0461efbb05574fc21669702aa582e0ff",
+    "approved_at": "2026-07-10T20:10:19+00:00",
+    "expires_at": "2026-07-17T20:10:19+00:00",
+    "approved_change_ids": [
+      "dependency-review",
+      "in-toto-evidence",
+      "scorecard-evidence"
+    ],
+    "remote_publication_authorized": false
+  },
+  "patch": {
+    "base_sha": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+    "patch_sha": "a509063a8b80b9c04e6bec990a0108b2f9a0043c",
+    "sole_parent_verified": true,
+    "ordinary_checkout_head_unchanged": true,
+    "creation_method": "git-object-database-and-update-ref-compare-and-swap",
+    "files": [
+      {
+        "change_id": "dependency-review",
+        "path": ".github/workflows/assured-downstream-dependency-review.yml",
+        "sha256": "19e6492410b18a8bf1c93f04b671333d342c199244861fb1b00afce1b6daed56",
+        "size": 410
+      },
+      {
+        "change_id": "scorecard-evidence",
+        "path": ".github/workflows/assured-downstream-scorecard.yml",
+        "sha256": "88409915492b5cdc4dfbbd609ba2c6cdb2def5a000dac7bd94117827d2278a98",
+        "size": 518
+      },
+      {
+        "change_id": "in-toto-evidence",
+        "path": "evidence/assured-downstream/README.md",
+        "sha256": "f003bd3d3ada9a990df07ec0297be0b76a42315f7385c8d63c39ecc06a06a5b9",
+        "size": 367
+      }
+    ],
+    "unapproved_change_ids": [
+      "gha-minimal-permissions",
+      "gha-pin-actions",
+      "harden-runner-audit",
+      "sbom-generation",
+      "slsa-provenance"
+    ]
+  },
+  "durable_run": {
+    "run_id": "case-001-bandit-patch-apply",
+    "status": "succeeded",
+    "agent_handoffs": 2,
+    "artifact_count": 4,
+    "artifact_verification": "passed",
+    "completed_run_resume_processed_work": 0,
+    "fresh_run_reconciliation": "reused-approved-commit",
+    "final_security_revalidation_run_id": "case-001-bandit-policy-root-reconcile",
+    "final_security_revalidation": "reused-approved-commit"
+  },
+  "publication": {
+    "status": "not-authorized",
+    "executed": false,
+    "production_execution_enabled": false,
+    "approval_revalidated_at_publisher": true,
+    "push_source_contract": "approved-object-id",
+    "github_secure_branch_present": false,
+    "verified_at": "2026-07-10T20:52:12Z"
+  },
+  "claim_limit": "This validates governed local patch mechanics only. It is not a published branch, executed build, security validation, or hardened release."
+}

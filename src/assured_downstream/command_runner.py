@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from dataclasses import dataclass
 
@@ -21,13 +22,22 @@ class CommandRunner:
     def __init__(self, *, execute: bool) -> None:
         self.execute = execute
 
-    def run(self, command: list[str], *, cwd: str | None = None) -> CommandResult:
+    def run(
+        self,
+        command: list[str],
+        *,
+        cwd: str | None = None,
+        env: dict[str, str] | None = None,
+        input_text: str | None = None,
+    ) -> CommandResult:
         if not self.execute:
             return CommandResult(command=command, executed=False, returncode=0)
 
         completed = subprocess.run(
             command,
             cwd=cwd,
+            env=None if env is None else {**os.environ, **env},
+            input=input_text,
             check=False,
             text=True,
             capture_output=True,
@@ -49,4 +59,3 @@ def shell_quote(value: str) -> str:
     if value and all(character.isalnum() or character in "-_./:=@" for character in value):
         return value
     return "'" + value.replace("'", "'\"'\"'") + "'"
-

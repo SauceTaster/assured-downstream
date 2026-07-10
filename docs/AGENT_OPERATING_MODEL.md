@@ -252,12 +252,13 @@ contacting maintainers or overclaiming authority?"
 
 Current local CLI tools are early adapters:
 
-- `agent-run`, `checkout-run`, `agent-worker`, `agent-status`
+- `agent-run`, `checkout-run`, `patch-run`, `agent-worker`, `agent-status`
 - `ingest`, `enrich`, `score`, `pilot`
 - `plan-forks`, `apply-fork-plan`
 - `plan-sync`, `apply-sync-plan`
 - `recon`, `analyze-checkout`
 - `plan-overlay`, `render-overlay`
+- `prepare-patch-approval`
 - `resolve-pins`
 - `plan-release`, `render-release-workflow`
 - `create-evidence`, `create-attestation`, `verify-evidence`
@@ -290,6 +291,7 @@ Every agent handoff should include:
 - output artifact paths
 - policy decision or next required gate
 - human-review-required notes
+- immutable approval scope and expected old ref for every mutation
 
 Mutation-capable agents must support dry-run planning. Release-claim agents must
 produce evidence before publishing language that implies assurance.
@@ -308,8 +310,11 @@ The local self-test should grow in layers:
 The current `self-test` covers the first three and replays the durable intake
 lane. Case Study 001 separately proves repeat-safe live fork detection plus the
 durable Fork And Sync -> Recon -> Overlay Planner lane over five repositories.
-The next self-test increment should bring managed-checkout update replay into
-the no-network suite before the first governed build case study.
+It also proves the Patch -> Secure Branch Publisher lane locally on Bandit,
+including policy scope, deterministic commit creation, CAS, artifact
+verification, and unauthorized-publication refusal. The next self-test
+increment should bring both update and patch replay into the no-network bundle
+before the first governed build case study.
 
 ## Validated Case Study
 

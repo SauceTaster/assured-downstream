@@ -24,6 +24,7 @@
     "recon",
     "overlay-planner",
     "patch",
+    "secure-branch-publisher",
     "tooling-curator",
     "build",
     "trace",
@@ -109,10 +110,20 @@
       "name": "Patch Agent",
       "purpose": "Render approved overlays and repository-specific changes while keeping diffs small and reviewable.",
       "owns": ["secure branch patches", "render results", "patch summaries"],
-      "input_events": ["OverlayProposed", "ReleaseProfileDrafted"],
-      "output_events": ["PatchRendered", "PatchNeedsReview"],
+      "input_events": ["OverlayProposed", "ReleaseProfileDrafted", "PatchApprovalRecorded"],
+      "output_events": ["PatchRendered", "PatchNeedsReview", "PatchReady"],
       "tools": ["render-overlay", "render-release-workflow", "git"],
       "human_gates": ["non-additive patch", "existing workflow overwrite", "release profile confirmation"]
+    },
+    {
+      "id": "secure-branch-publisher",
+      "name": "Secure Branch Publisher Agent",
+      "purpose": "Publish an approved local secure branch with an exact refspec and expected remote commit guard.",
+      "owns": ["secure branch publication plan", "remote ref transition", "publication verification"],
+      "input_events": ["PatchReady"],
+      "output_events": ["SecureBranchPublicationPlanned", "SecureBranchPublished", "SecureBranchPublicationBlocked"],
+      "tools": ["git push", "git ls-remote", "approval policy"],
+      "human_gates": ["all remote branch creation or update", "remote ref mismatch"]
     },
     {
       "id": "tooling-curator",

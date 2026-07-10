@@ -25,9 +25,14 @@ As of the 2026-07-10 prototype pass:
   exact-SHA recon and overlay planning.
 - WP3 is implemented: recon parses GitHub Actions workflows structurally without
   a runtime YAML dependency and has Go/Rust/Python/Java/.NET fixture coverage.
+- WP3A is implemented locally: digest-bound policy approval selected three
+  exact additive Bandit files, the Patch Agent created a deterministic
+  single-parent secure commit by CAS, and the Publisher correctly refused an
+  unauthorized remote mutation.
 - WP4/WP5 are partially implemented: pin locks carry freshness metadata, stale
-  lock entries block rendering, and draft release workflows remain manual-only
-  until review fields confirm workflow and artifact paths.
+  lock entries block rendering, locks bind the source tooling-policy digest,
+  and draft release workflows remain manual-only until review fields confirm
+  workflow and artifact paths.
 - WP7 is partially implemented: the Attested gate requires local evidence
   verification plus artifact, SBOM, and attestation evidence.
 - WP8/WP9 are implemented locally: passive fork publication packets, optional
@@ -37,9 +42,11 @@ As of the 2026-07-10 prototype pass:
 
 Current critical path:
 
-1. Governed overlay rendering and reviewed secure-branch publication.
-2. Organization replay, branch protection, and scheduled upstream detection.
-3. WP6: workflow-produced evidence bundle, attestation metadata capture, and
+1. Add authenticated human approval and publish the Bandit secure canary with
+   an exact expected-remote-SHA lease.
+2. WP6: run the first isolated Bandit build and capture its workflow-produced
+   evidence bundle, attestation metadata, and verification guide.
+3. Organization replay, branch protection, and scheduled upstream detection.
    verification guide upload.
 4. WP10: full sandbox MVP run.
 5. WP11: artifact reproducibility once Attested has a green sandbox run.
@@ -260,6 +267,64 @@ Do not scope creep:
 
 - no structural editing of existing upstream workflows yet
 - no broad package manager support beyond first-lane fixtures
+
+### WP3A - Governed Additive Patch And Secure Ref
+
+Owner: Patch/Release Agent with Governor/Safety Agent.
+
+Status: implemented locally and validated on the Bandit canary; production
+publication approval remains.
+
+WBS refs: 1.0.8, 1.3.8, 2.3.8, 2.3.9, 2.3.10.
+
+Purpose: turn immutable analysis into the smallest policy-approved local secure
+commit without executing upstream code or silently widening approval.
+
+Inputs:
+
+- analysis index with transitive overlay digests
+- fresh pin lock with action/ref coverage verified against the digest-bound
+  tooling-policy file
+- repository-scoped expiring patch approval
+- managed checkout and recorded secure/upstream SHAs
+
+Outputs:
+
+- patch gate decision
+- exact rendered-file manifest
+- deterministic single-parent patch commit and CAS result
+- secure-branch publication plan or verified exact-ref result
+
+Acceptance:
+
+- Policy approval covers only known additive ID/action/path/template contracts
+  with `human_review_required: false` and cannot authorize a push.
+- Existing paths with different blobs, stale secure bases, wrong remotes,
+  incomplete pins, or artifact drift block before ref mutation.
+- Reduced pin coverage or refs that differ from the supplied tooling policy block
+  automated approval.
+- Patch construction uses Git objects and a temporary index, not a source
+  checkout, hooks, filters, or target-code execution.
+- Local and remote ref changes use compare-and-swap/explicit lease semantics.
+- The Publisher revalidates approval at execution time, isolates Git transport
+  configuration, and names the approved commit object directly.
+- Normal runtime and CLI execution remain blocked until an authenticated
+  publication authorization verifier exists.
+- Retry after local commit or remote push recognizes the exact approved state.
+
+Tests:
+
+- real bare-repository patch and publication tests
+- deterministic commit and fresh-run reconciliation tests
+- stale-upstream ancestry and existing-path conflict tests
+- nested artifact tamper and exact policy-contract tests
+- plan-only and unauthorized-publication tests
+
+Do not scope creep:
+
+- no structural edits to upstream workflows under additive policy
+- no policy-authorized remote push
+- no claim that a local secure commit is a hardened or attested release
 
 ### WP4 - Approved Tooling Pin Hardening
 
@@ -664,12 +729,11 @@ retain these ownership boundaries.
 
 ## Next Implementation Tasks
 
-1. Review and render a minimal overlay for one pilot canary, then add governed
-   secure-branch publication without enabling autonomous release mutation.
-2. Replay WP1 against the eventual organization and add downstream branch
+1. Add authenticated human approval and execute one exact-lease publication of
+   the already-created Bandit secure commit.
+2. Finish WP6 and run the first isolated Bandit build/evidence workflow.
+3. Replay WP1 against the eventual organization and add downstream branch
    protection plus scheduled upstream-change ingestion.
-3. Finish WP6: release workflow evidence bundle and attestation metadata
-   capture.
 4. Finish WP7: add tooling/workflow risk inputs to release gate evaluation.
 5. Run WP10: full sandbox MVP over one first-lane seed and fixture-like real
    candidates across the supported language set.

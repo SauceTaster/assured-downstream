@@ -288,7 +288,9 @@ class ManagedOverlayPlannerHandler:
                 {
                     **repo,
                     "overlay_plan_path": str(overlay_path.resolve()),
+                    "overlay_plan_sha256": sha256_file(overlay_path),
                     "release_profile_path": str(release_path.resolve()),
+                    "release_profile_sha256": sha256_file(release_path),
                     "overlay_summary": overlay.get("summary", {}),
                     "release_language_family": release_profile.get("project", {}).get(
                         "language_family"

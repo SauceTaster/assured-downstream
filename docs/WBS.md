@@ -11,8 +11,8 @@ work packages.
 
 ### 1.0 Durable Agent Runtime
 
-Status: single-host runtime plus intake and managed-checkout lanes built;
-distributed execution and later mutation/evidence lanes remain.
+Status: single-host runtime plus intake, managed-checkout, and governed additive
+patch lanes built; distributed execution and later evidence lanes remain.
 
 - 1.0.1 Persist typed events, work items, attempts, artifacts, and handoffs
 - 1.0.2 Add idempotency keys, leased claims, retries, and dead letters
@@ -21,7 +21,8 @@ distributed execution and later mutation/evidence lanes remain.
 - 1.0.5 Run discovery through dry-run fork planning as five durable agents
 - 1.0.6 Add no-network agent replay to self-test
 - 1.0.7 Add multi-host backend after measured need; evaluate Dapr at that gate
-- 1.0.8 Host recon and overlay planning on the same contracts (built); patch,
+- 1.0.8 Host recon, overlay planning, additive Patch, and Secure Branch
+  Publisher agents on the same contracts (built); repository-specific patch,
   build, trace, attestation, repro, release, and watch remain
 
 ### 1.1 Candidate Intake
@@ -55,8 +56,9 @@ organization bootstrap and branch protection remain.
 
 ### 1.3 Sync Lifecycle
 
-Status: local live reconciliation and durable recon handoff built and validated
-against five forks; remote branch publication and scheduling remain.
+Status: local reconciliation, durable recon, and governed secure commits are
+live. Exact-lease remote publication is implemented and locally tested but
+awaits authenticated approval and a live canary; scheduling remains.
 
 - 1.3.1 Generate clone/sync plans
 - 1.3.2 Record sync lifecycle state
@@ -66,7 +68,7 @@ against five forks; remote branch publication and scheduling remain.
 - 1.3.6 Add upstream release/tag detection (built)
 - 1.3.7 Add conflict routing to human review (built)
 - 1.3.8 Publish reviewed `upstream/<default>` and `secure/<default>` refs to the
-  downstream remote
+  downstream remote (secure-ref implementation built; live approval pending)
 - 1.3.9 Add scheduled and GitHub-event-driven upstream reconciliation
 
 ## 2. Repository Analysis And Overlay
@@ -97,7 +99,8 @@ Status: first pass built and hosted after durable managed-checkout recon.
 
 ### 2.3 Overlay Rendering
 
-Status: safe additive rendering exists.
+Status: governed additive rendering and Git-object commit application are built;
+the Bandit canary passed locally without remote publication.
 
 - 2.3.1 Render Dependabot baseline
 - 2.3.2 Render dependency review workflow
@@ -106,13 +109,18 @@ Status: safe additive rendering exists.
 - 2.3.5 Require full SHA pins for generated workflows
 - 2.3.6 Render Harden-Runner audit mode safely
 - 2.3.7 Add structural workflow editing for existing workflows
+- 2.3.8 Bind patch approval to analysis, overlay, pin-lock, tooling-policy,
+  repository, branch, base SHA, expiration, and exact change IDs (built)
+- 2.3.9 Build deterministic single-parent commits through a temporary Git index
+  and advance `secure/<default>` by compare-and-swap (built)
+- 2.3.10 Add authenticated human approvals before production remote mutation
 
 ## 3. Attested Release MVP
 
 ### 3.1 Approved Tooling
 
-Status: action pin lockfiles built with freshness metadata; binary verification
-and mirroring remain.
+Status: action pin lockfiles carry freshness, coverage, resolved-ref, and source
+tooling-policy digests; binary verification and mirroring remain.
 
 - 3.1.1 Maintain approved tooling policy
 - 3.1.2 Resolve approved GitHub Actions to full commit SHAs

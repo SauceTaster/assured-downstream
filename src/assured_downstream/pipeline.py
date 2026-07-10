@@ -6,6 +6,7 @@ from typing import Any
 
 from assured_downstream.catalog import empty_catalog, save_catalog, upsert_findings, utc_now
 from assured_downstream.enrichment import enrich_catalog
+from assured_downstream.evidence import sha256_file
 from assured_downstream.fork_apply import apply_fork_plan
 from assured_downstream.fork_plan import create_fork_plan, resolve_fork_target
 from assured_downstream.lifecycle import StateStore
@@ -145,7 +146,11 @@ def run_pilot_pipeline(
                 raise ValueError("pins_path could not be prepared")
             with tooling_path.open("r", encoding="utf-8") as handle:
                 tooling_policy = json.load(handle)
-            pins = resolve_tooling_pins(tooling_policy, client=client)
+            pins = resolve_tooling_pins(
+                tooling_policy,
+                client=client,
+                source_policy_sha256=sha256_file(tooling_path),
+            )
             write_json(pins_path, pins)
 
         summary = {

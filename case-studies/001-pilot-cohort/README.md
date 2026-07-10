@@ -1,8 +1,8 @@
 # Case Study 001: Pilot Cohort
 
 Status: five pilot forks created, lineage-verified, locally reconciled, and
-analyzed through durable agents in the temporary `SauceTaster/assured-*`
-namespace.
+analyzed through durable agents. One policy-approved additive Bandit patch now
+exists locally on `secure/main`; it has not been pushed or built.
 
 ## Objective
 
@@ -55,8 +55,26 @@ fork-of-a-fork lineage, and copyleft obligation handling.
   human-review-required
 - resumed the completed managed-checkout run with the same run id and processed
   zero additional work
+- resolved all eight approved GitHub Actions to fresh full-SHA pins bound to the
+  tooling-policy digest
+- policy-approved only three exact additive Bandit templates: dependency
+  review, Scorecard telemetry, and the in-toto evidence directory
+- created local Bandit commit `a509063a8b80b9c04e6bec990a0108b2f9a0043c`
+  directly through Git objects with upstream commit `c45446e...` as its sole
+  parent, then advanced `secure/main` by compare-and-swap
+- replayed the approval in a fresh durable run and reused the exact commit;
+  four patch/publication artifacts re-verified and same-run resume claimed zero
+  work
+- replayed once more after future-time, pin-freshness, actual tooling-policy
+  coverage, and Publisher handoff checks were tightened; the exact commit was
+  reused and publication stayed off
+- recorded remote publication as not authorized and independently confirmed
+  that GitHub has no `secure/main` ref
 - executed no upstream code or builds; GitHub mutations were limited to the
   five reviewed fork creations and one case-only name alignment
+
+The machine-readable patch evidence is in [`patch-canary.json`](./patch-canary.json).
+It deliberately makes no build, runtime, attestation, or hardened-release claim.
 
 The real checkouts exposed and drove fixes for GitHub Actions YAML parsing, Go
 semantic import version names, mixed-language release-profile priority, and
@@ -77,10 +95,11 @@ as a separate governed migration.
 
 ## Next Run
 
-1. Review and render one minimal per-project hardening overlay onto a local
-   `secure/<default>` branch.
-2. Add governed publication of reviewed secure branches to the prefixed forks.
-3. Run the first isolated builds and capture in-toto, SLSA, Sigstore, SBOM, and
-   syscall evidence.
+1. Record an authenticated human publication approval and exercise the exact
+   remote-SHA lease against Bandit's `secure/main`.
+2. Run the first isolated Bandit build from the published secure commit and
+   capture in-toto, SLSA, Sigstore, SBOM, and syscall evidence.
+3. Review the five unapproved Bandit changes separately; no workflow surgery or
+   release logic should inherit the additive policy approval.
 4. Compare reproducibility and normalized behavior across two independent
    builders before promoting any hardened release.

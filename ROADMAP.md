@@ -102,12 +102,12 @@ Current prototype status:
   exact SHAs, tags, divergence, and lifecycle state
 - git sync execution is guarded behind `--execute`
 - `upstream/<default>` advances without resetting `secure/<default>`
-- validated remote transports are fetched with explicit refspecs; remote pushes
-  remain disabled
+- validated remote transports are fetched with explicit refspecs; exact-ref
+  publication exists behind separate approval and execution gates
 - the durable Fork And Sync lane hands exact-SHA snapshots to Recon and Overlay
   Planner agents with digest-verified artifacts
-- remaining: organization replay, branch protection, remote branch
-  publication, and scheduled/event-driven sync
+- remaining: authenticated publication approval, first live secure-ref canary,
+  organization replay, branch protection, and scheduled/event-driven sync
 
 ## Phase 3: Repository Recon
 
@@ -163,7 +163,21 @@ Current prototype status:
 - approved tooling policy scaffold exists at `policies/approved-tooling.json`
 - patch rendering exists for safe additive files
 - workflow rendering requires full commit SHA pins
-- approved GitHub Action refs can be resolved into a pin lockfile
+- approved GitHub Action refs can be resolved into a fresh pin lockfile bound to
+  the tooling-policy digest
+- patch approval verifies the lock's complete action/ref coverage against that
+  actual digest-verified tooling-policy file
+- a separate durable Patch -> Secure Branch Publisher lane consumes expiring,
+  digest-bound, repository-scoped approvals
+- automated approval is limited to exact additive template contracts and cannot
+  authorize remote publication
+- production publication execution is blocked until an authenticated external
+  authorization can be verified at the Publisher handoff
+- patch commits are built through Git objects with one approved parent and move
+  `secure/<default>` only by compare-and-swap
+- the Bandit canary produced a three-file local secure commit, replayed
+  idempotently, and remained absent from GitHub because publication was not
+  authorized
 - repository-specific release patching is still pending
 
 ## Phase 5: Attested Release

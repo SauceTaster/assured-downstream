@@ -1,7 +1,7 @@
 {
-  "schema_version": 3,
-  "status": "managed-checkouts-reconciled-awaiting-hardening",
-  "generated_at": "2026-07-10T18:29:58Z",
+  "schema_version": 4,
+  "status": "local-bandit-secure-patch-awaiting-publication-and-build",
+  "generated_at": "2026-07-10T20:14:12Z",
   "target": {
     "account_owner": "SauceTaster",
     "namespace": "SauceTaster",
@@ -69,6 +69,25 @@
     "release_profiles": 5,
     "release_profiles_human_review_required": 5
   },
+  "governed_patch_canary": {
+    "repository": "SauceTaster/assured-bandit",
+    "analysis_run_id": "case-001-checkout-5",
+    "patch_run_id": "case-001-bandit-patch-apply",
+    "status": "local-secure-commit-not-published",
+    "approval_type": "policy:additive-baseline-v1",
+    "approved_changes": 3,
+    "base_sha": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+    "patch_sha": "a509063a8b80b9c04e6bec990a0108b2f9a0043c",
+    "agent_handoffs": 2,
+    "artifact_count": 4,
+    "artifact_verification": "passed",
+    "completed_run_resume_processed_work": 0,
+    "fresh_run_reconciliation": "reused-approved-commit",
+    "remote_publication_authorized": false,
+    "remote_publication_executed": false,
+    "github_secure_branch_present": false,
+    "evidence_file": "patch-canary.json"
+  },
   "qualification": {
     "mode": "shallow-clone, non-executing structural analysis, reviewed fork creation, and guarded managed-checkout reconciliation",
     "workflow_count": 19,
@@ -78,7 +97,9 @@
     "fork_mutation_count": 5,
     "fork_lineage_verified": true,
     "local_git_reconciliation_executed": true,
-    "remote_branch_mutations_executed": false
+    "remote_branch_mutations_executed": false,
+    "local_secure_patch_executed": true,
+    "local_secure_patch_repository_count": 1
   },
   "repositories": [
     {

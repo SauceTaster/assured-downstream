@@ -26,7 +26,11 @@ class PinResolverTests(unittest.TestCase):
             ],
         }
 
-        lock = resolve_tooling_pins(policy, client=FakeCommitResolver())
+        lock = resolve_tooling_pins(
+            policy,
+            client=FakeCommitResolver(),
+            source_policy_sha256="a" * 64,
+        )
 
         self.assertEqual(lock["pins"]["actions/checkout"], FULL_SHA)
         self.assertEqual(lock["entries"]["actions/checkout"]["status"], "resolved")
@@ -35,6 +39,7 @@ class PinResolverTests(unittest.TestCase):
         self.assertEqual(lock["coverage"]["required_actions"], ["actions/checkout"])
         self.assertEqual(lock["coverage"]["missing_actions"], [])
         self.assertEqual(lock["status"], "complete")
+        self.assertEqual(lock["source_policy_sha256"], "a" * 64)
         self.assertIn("expires_at", lock["entries"]["actions/checkout"])
 
     def test_marks_lock_incomplete_when_required_action_cannot_resolve(self) -> None:

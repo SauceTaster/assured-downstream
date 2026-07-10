@@ -17,6 +17,7 @@ from assured_downstream.enrichment import enrich_catalog
 from assured_downstream.evidence import (
     compare_evidence_manifests,
     create_evidence_manifest,
+    sha256_file,
     verify_evidence_manifest,
 )
 from assured_downstream.fork_apply import apply_fork_plan
@@ -28,9 +29,16 @@ from assured_downstream.managed_checkout_agents import (
     MANAGED_CHECKOUT_WORKFLOW,
     managed_checkout_handlers,
     run_managed_checkout_agent_system,
+    write_json_atomic,
 )
 from assured_downstream.overlay import plan_overlay
 from assured_downstream.overlay_render import render_overlay
+from assured_downstream.patch_agents import (
+    PATCH_PUBLICATION_WORKFLOW,
+    patch_publication_handlers,
+    run_patch_publication_agent_system,
+)
+from assured_downstream.patch_approval import create_patch_approval
 from assured_downstream.pin_resolver import resolve_tooling_pins
 from assured_downstream.policy_eval import evaluate_release
 from assured_downstream.pipeline import run_pilot_pipeline
@@ -227,6 +235,55 @@ def build_parser() -> argparse.ArgumentParser:
     )
     checkout_run.set_defaults(func=command_checkout_run)
 
+    patch_approval = subparsers.add_parser(
+        "prepare-patch-approval",
+        help="Prepare a digest-bound approval record for one analyzed repository.",
+    )
+    patch_approval.add_argument("--analysis-index", required=True, type=Path)
+    patch_approval.add_argument("--pins", required=True, type=Path)
+    patch_approval.add_argument("--tooling-policy", required=True, type=Path)
+    patch_approval.add_argument("--repository", required=True)
+    patch_approval.add_argument("--output", required=True, type=Path)
+    patch_approval.add_argument(
+        "--auto-approve-safe",
+        action="store_true",
+        help="Policy-approve only supported additive, non-overwriting changes.",
+    )
+    patch_approval.set_defaults(func=command_prepare_patch_approval)
+
+    patch_run = subparsers.add_parser(
+        "patch-run",
+        help="Run durable governed patch and secure-branch publication agents.",
+    )
+    patch_run.add_argument("--analysis-index", required=True, type=Path)
+    patch_run.add_argument("--pins", required=True, type=Path)
+    patch_run.add_argument("--tooling-policy", required=True, type=Path)
+    patch_run.add_argument("--approval", required=True, type=Path)
+    patch_run.add_argument("--workspace", required=True, type=Path)
+    patch_run.add_argument("--run-dir", required=True, type=Path)
+    patch_run.add_argument("--database", type=Path)
+    patch_run.add_argument("--run-id")
+    patch_run.add_argument(
+        "--execute-patch",
+        action="store_true",
+        help="Create and compare-and-swap the approved local secure commit.",
+    )
+    patch_run.add_argument(
+        "--execute-publish",
+        action="store_true",
+        help=(
+            "Request secure-ref publication. Execution remains disabled until an "
+            "authenticated approval backend is configured."
+        ),
+    )
+    patch_run.add_argument("--max-items", type=int, default=100)
+    patch_run.add_argument(
+        "--enqueue-only",
+        action="store_true",
+        help="Persist the initial event and leave execution to agent-worker.",
+    )
+    patch_run.set_defaults(func=command_patch_run)
+
     agent_worker = subparsers.add_parser(
         "agent-worker",
         help="Drain leased work for one durable agent run.",
@@ -240,7 +297,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=sorted(
             {
                 handler.agent_id
-                for handler in [*first_lane_handlers(), *managed_checkout_handlers()]
+                for handler in [
+                    *first_lane_handlers(),
+                    *managed_checkout_handlers(),
+                    *patch_publication_handlers(),
+                ]
             }
         ),
         help="Agent id to host. May be repeated; defaults to all implemented agents.",
@@ -704,6 +765,56 @@ def command_checkout_run(args: argparse.Namespace) -> int:
     return 0 if result["status"] in {"running", "succeeded"} else 2
 
 
+def command_prepare_patch_approval(args: argparse.Namespace) -> int:
+    with args.analysis_index.open("r", encoding="utf-8") as handle:
+        analysis = json.load(handle)
+    with args.pins.open("r", encoding="utf-8") as handle:
+        pin_lock = json.load(handle)
+    with args.tooling_policy.open("r", encoding="utf-8") as handle:
+        tooling_policy = json.load(handle)
+    approval = create_patch_approval(
+        analysis_index=analysis,
+        analysis_index_sha256=sha256_file(args.analysis_index),
+        pin_lock=pin_lock,
+        pin_lock_sha256=sha256_file(args.pins),
+        tooling_policy=tooling_policy,
+        tooling_policy_sha256=sha256_file(args.tooling_policy),
+        target_full_name=args.repository,
+        auto_approve_safe=args.auto_approve_safe,
+    )
+    write_json_atomic(args.output, approval)
+    approved = approval["repository"]["approved_change_ids"]
+    print(f"patch approval: {approval['status']}")
+    print(f"repository: {approval['repository']['target_full_name']}")
+    print(f"approved changes: {len(approved)}")
+    print(f"output: {args.output.resolve()}")
+    return 0 if approval["status"] == "approved" else 2
+
+
+def command_patch_run(args: argparse.Namespace) -> int:
+    result = run_patch_publication_agent_system(
+        analysis_index_path=args.analysis_index,
+        pin_lock_path=args.pins,
+        tooling_policy_path=args.tooling_policy,
+        approval_path=args.approval,
+        workspace=args.workspace,
+        run_dir=args.run_dir,
+        execute_patch=args.execute_patch,
+        execute_publish=args.execute_publish,
+        database_path=args.database,
+        run_id=args.run_id,
+        max_items=args.max_items,
+        enqueue_only=args.enqueue_only,
+    )
+    print(f"patch publication run: {result['run_id']}")
+    print(f"status: {result['status']}")
+    print(f"processed work attempts: {result['processed_count']}")
+    print(f"pending work: {result['pending_count']}")
+    print(f"database: {result['database_path']}")
+    print(f"summary: {result['summary_path']}")
+    return 0 if result["status"] in {"running", "succeeded"} else 2
+
+
 def command_agent_worker(args: argparse.Namespace) -> int:
     store = AgentStore(args.database)
     run_id = args.run_id or store.latest_run_id()
@@ -712,6 +823,8 @@ def command_agent_worker(args: argparse.Namespace) -> int:
     workflow = store.get_run(run_id)["metadata"].get("workflow")
     if workflow == MANAGED_CHECKOUT_WORKFLOW:
         available_handlers = managed_checkout_handlers()
+    elif workflow == PATCH_PUBLICATION_WORKFLOW:
+        available_handlers = patch_publication_handlers()
     elif workflow == "discovery-to-fork-plan":
         available_handlers = first_lane_handlers()
     else:
@@ -959,7 +1072,11 @@ def command_resolve_pins(args: argparse.Namespace) -> int:
         tooling_policy = json.load(handle)
 
     client = GitHubClient.from_environment(token_env=args.token_env)
-    lock = resolve_tooling_pins(tooling_policy, client=client)
+    lock = resolve_tooling_pins(
+        tooling_policy,
+        client=client,
+        source_policy_sha256=sha256_file(args.tooling),
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as handle:
         json.dump(lock, handle, indent=2, sort_keys=True)

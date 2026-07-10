@@ -3,10 +3,10 @@
 Assured Downstream is an early-stage idea/dev project for an agentic DevOps
 assured downstream for open source software.
 
-Status: executable design prototype. Durable intake and managed-checkout lanes
-work locally, but this is not production-ready. Expect names, schemas, command
-interfaces, and trust boundaries to change while the core automation takes
-shape.
+Status: executable design prototype. Durable intake, managed-checkout, and
+governed local patch lanes work, but this is not production-ready. Expect
+names, schemas, command interfaces, and trust boundaries to change while the
+core automation takes shape.
 
 The goal is to maintain an organization of hardened forks that continuously
 track upstream projects, rebuild and release them under stronger security
@@ -56,10 +56,10 @@ packages, and applications, the org provides a trusted downstream lane:
 ## Current Prototype Commands
 
 The current CLI defaults to observe-first behavior. Explicit flags can create
-forks or mutate managed local checkouts, but remote branch publication remains
-disabled. The CLI is a local tool adapter for the agent system, not the system
-boundary. Agents should eventually call these tools from queues, schedulers,
-GitHub App events, and human review workflows.
+forks or mutate managed local refs. Exact-lease remote publication is implemented
+and locally tested, but the durable runtime refuses executed publication until
+an authenticated approval backend exists. The CLI is a local tool adapter for
+the agent system, not the system boundary.
 
 ```text
 assured-downstream codex-preflight
@@ -75,6 +75,18 @@ assured-downstream agent-status \
   --database ./runs/intake-002/agent-control-plane.sqlite3
 assured-downstream checkout-run --fork-plan fork-plan.json --state state.json \
   --workspace ./worktrees --run-dir ./runs/checkout-sync-001 --execute-sync
+assured-downstream prepare-patch-approval --analysis-index analysis-index.json \
+  --pins pins.json --tooling-policy policies/approved-tooling.json \
+  --repository org/repo --output patch-approval.json \
+  --auto-approve-safe
+assured-downstream patch-run --analysis-index analysis-index.json --pins pins.json \
+  --tooling-policy policies/approved-tooling.json \
+  --approval patch-approval.json --workspace ./worktrees \
+  --run-dir ./runs/patch-001
+assured-downstream patch-run --analysis-index analysis-index.json --pins pins.json \
+  --tooling-policy policies/approved-tooling.json \
+  --approval patch-approval.json --workspace ./worktrees \
+  --run-dir ./runs/patch-apply-001 --execute-patch
 assured-downstream pilot --seed awesome-security.md --org <org> --run-dir ./runs/pilot-001
 assured-downstream pilot --seed https://example.com/awesome-security.md --org <org> \
   --run-dir ./runs/pilot-remote
@@ -137,11 +149,26 @@ updates only `upstream/<default>`, creates `secure/<default>` once, and never
 pushes a remote branch. Recon runs from a detached worktree pinned to the exact
 synchronized upstream commit, not whichever branch happens to be checked out.
 
+`prepare-patch-approval` creates a digest-bound decision for one repository.
+Its automated policy can select only exact supported additive templates with an
+explicit false review marker, a complete fresh pin lock whose action/ref coverage
+matches the supplied digest-verified tooling policy, and no overwrite.
+`patch-run` then hosts Patch and Secure Branch Publisher agents. The Patch Agent
+constructs a deterministic Git commit through the object database, proves its
+secure base contains the analyzed upstream commit, and advances only
+`secure/<default>` with compare-and-swap. The Publisher plans by default; a
+network push names the approved commit object directly, isolates Git transport
+configuration, revalidates approval at the handoff, and uses an exact expected
+remote SHA lease. That primitive is exercised only against local test remotes;
+the CLI and normal workers block execution until they can verify an externally
+authenticated publication authorization. No outbound maintainer contact is
+created.
+
 Seeds can be local files or URLs. `agent-run` is the current durable
 observe-first entrypoint. It persists typed events, leased work, attempts,
 artifact digests, and agent handoffs in SQLite, and writes `catalog.json`,
 `fork-plan.json`, `selection-reasons.json`, `state.json`, and `sync-plan.json`.
-The intake lane is dry-run only. `agent-worker` can resume either durable lane
+The intake lane is dry-run only. `agent-worker` can resume any durable lane
 from its database. `pilot` remains the single-process tool path and writes a run
 directory with `catalog.json`, `fork-plan.json`,
 `selection-reasons.json`, `state.json`, `sync-plan.json`, and `RUN_SUMMARY.md`,

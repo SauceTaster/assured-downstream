@@ -14,6 +14,7 @@ def resolve_tooling_pins(
     *,
     client: CommitResolver,
     ttl_days: int = 30,
+    source_policy_sha256: str | None = None,
 ) -> dict[str, Any]:
     resolved_at = utc_now()
     expires_at = (datetime.now(UTC) + timedelta(days=ttl_days)).isoformat(timespec="seconds")
@@ -69,6 +70,7 @@ def resolve_tooling_pins(
         "schema_version": 1,
         "generated_at": resolved_at,
         "source_policy_status": tooling_policy.get("status"),
+        "source_policy_sha256": source_policy_sha256,
         "status": "complete" if not missing_actions else "incomplete",
         "coverage": {
             "required_actions": sorted(required_actions),

@@ -93,6 +93,37 @@ finishes with verified artifacts or routes an explicit conflict to review.
 Case Study 001 passed this tier for five Go/Rust/Python/Java/.NET forks on
 2026-07-10. This validates reconciliation mechanics, not build safety.
 
+### T1.75 - Governed Local Secure Patch
+
+Purpose: prove immutable analysis can become a narrowly approved secure commit
+without executing upstream code or widening approval.
+
+Inputs:
+
+- analysis index with transitive artifact digests
+- complete fresh action pin lock whose action/ref coverage matches the supplied,
+  digest-verified tooling-policy file
+- expiring repository/base/change-scoped approval
+- managed secure and synchronized upstream SHAs
+
+Outputs:
+
+- durable Patch and Secure Branch Publisher handoffs
+- gate decision and exact rendered-file manifest
+- single-parent local secure commit and compare-and-swap result
+- publication plan or explicit not-authorized decision
+
+Pass condition: only exact approved files enter the commit, the secure base
+contains the analyzed upstream commit, retries converge on the same commit, all
+artifacts re-verify, and no remote ref changes without an authenticated external
+authorization revalidated at the Publisher handoff. The current production
+runtime blocks all executed publication; exact-lease pushes are tested only
+against local bare remotes.
+
+Case Study 001 passed the local portion for Bandit on 2026-07-10. Commit
+`a509063a8b80b9c04e6bec990a0108b2f9a0043c` contains three policy-approved
+additions and remains unpublished. This is not a build or hardening claim.
+
 ### T2 - Sandbox Owner Attested Case Study
 
 Purpose: prove an end-to-end downstream fork can produce evidence.

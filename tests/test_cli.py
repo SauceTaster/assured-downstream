@@ -107,6 +107,28 @@ class CliTests(unittest.TestCase):
         self.assertFalse(args.execute_sync)
         self.assertEqual(args.target, "Attested")
 
+    def test_patch_run_parser_keeps_both_mutations_explicit(self) -> None:
+        args = build_parser().parse_args(
+            [
+                "patch-run",
+                "--analysis-index",
+                "analysis-index.json",
+                "--pins",
+                "pins.json",
+                "--tooling-policy",
+                "policies/approved-tooling.json",
+                "--approval",
+                "approval.json",
+                "--workspace",
+                "worktrees",
+                "--run-dir",
+                "runs/patch-001",
+            ]
+        )
+
+        self.assertFalse(args.execute_patch)
+        self.assertFalse(args.execute_publish)
+
     def test_select_fork_plan_entry_requires_selector_for_multiple_forks(self) -> None:
         fork_plan = {
             "forks": [
