@@ -24,6 +24,11 @@ from assured_downstream.fork_plan import create_fork_plan
 from assured_downstream.github_api import GitHubClient
 from assured_downstream.intake_agents import first_lane_handlers, run_intake_agent_system
 from assured_downstream.lifecycle import StateStore
+from assured_downstream.managed_checkout_agents import (
+    MANAGED_CHECKOUT_WORKFLOW,
+    managed_checkout_handlers,
+    run_managed_checkout_agent_system,
+)
 from assured_downstream.overlay import plan_overlay
 from assured_downstream.overlay_render import render_overlay
 from assured_downstream.pin_resolver import resolve_tooling_pins
@@ -189,6 +194,39 @@ def build_parser() -> argparse.ArgumentParser:
     )
     agent_run.set_defaults(func=command_agent_run)
 
+    checkout_run = subparsers.add_parser(
+        "checkout-run",
+        help="Run durable fork sync, structural recon, and overlay planning agents.",
+    )
+    checkout_run.add_argument("--fork-plan", required=True, type=Path)
+    checkout_run.add_argument("--state", required=True, type=Path)
+    checkout_run.add_argument("--workspace", required=True, type=Path)
+    checkout_run.add_argument("--run-dir", required=True, type=Path)
+    checkout_run.add_argument("--database", type=Path)
+    checkout_run.add_argument("--run-id")
+    checkout_run.add_argument(
+        "--target",
+        choices=[
+            "Hardened",
+            "Attested",
+            "Reproducible",
+            "Behavior-Reproducible",
+        ],
+        default="Attested",
+    )
+    checkout_run.add_argument(
+        "--execute-sync",
+        action="store_true",
+        help="Clone or reconcile local managed checkouts. Default is planning only.",
+    )
+    checkout_run.add_argument("--max-items", type=int, default=100)
+    checkout_run.add_argument(
+        "--enqueue-only",
+        action="store_true",
+        help="Persist the initial event and leave execution to agent-worker.",
+    )
+    checkout_run.set_defaults(func=command_checkout_run)
+
     agent_worker = subparsers.add_parser(
         "agent-worker",
         help="Drain leased work for one durable agent run.",
@@ -199,7 +237,12 @@ def build_parser() -> argparse.ArgumentParser:
     agent_worker.add_argument(
         "--agent",
         action="append",
-        choices=[handler.agent_id for handler in first_lane_handlers()],
+        choices=sorted(
+            {
+                handler.agent_id
+                for handler in [*first_lane_handlers(), *managed_checkout_handlers()]
+            }
+        ),
         help="Agent id to host. May be repeated; defaults to all implemented agents.",
     )
     agent_worker.add_argument("--lease-seconds", type=int, default=120)
@@ -639,17 +682,48 @@ def command_agent_run(args: argparse.Namespace) -> int:
     return 0 if result["status"] in {"running", "succeeded"} else 2
 
 
+def command_checkout_run(args: argparse.Namespace) -> int:
+    result = run_managed_checkout_agent_system(
+        fork_plan_path=args.fork_plan,
+        state_path=args.state,
+        workspace=args.workspace,
+        run_dir=args.run_dir,
+        assurance_target=args.target,
+        execute_sync=args.execute_sync,
+        database_path=args.database,
+        run_id=args.run_id,
+        max_items=args.max_items,
+        enqueue_only=args.enqueue_only,
+    )
+    print(f"managed checkout run: {result['run_id']}")
+    print(f"status: {result['status']}")
+    print(f"processed work attempts: {result['processed_count']}")
+    print(f"pending work: {result['pending_count']}")
+    print(f"database: {result['database_path']}")
+    print(f"summary: {result['summary_path']}")
+    return 0 if result["status"] in {"running", "succeeded"} else 2
+
+
 def command_agent_worker(args: argparse.Namespace) -> int:
     store = AgentStore(args.database)
     run_id = args.run_id or store.latest_run_id()
     if run_id is None:
         raise ValueError("The agent database contains no runs")
+    workflow = store.get_run(run_id)["metadata"].get("workflow")
+    if workflow == MANAGED_CHECKOUT_WORKFLOW:
+        available_handlers = managed_checkout_handlers()
+    elif workflow == "discovery-to-fork-plan":
+        available_handlers = first_lane_handlers()
+    else:
+        raise ValueError(f"Unsupported agent workflow: {workflow!r}")
     selected_ids = set(args.agent or [])
     handlers = [
         handler
-        for handler in first_lane_handlers()
+        for handler in available_handlers
         if not selected_ids or handler.agent_id in selected_ids
     ]
+    if not handlers:
+        raise ValueError("No selected agents belong to this run's workflow")
     runtime = AgentRuntime(
         backend=store,
         handlers=handlers,
@@ -1190,10 +1264,13 @@ def command_apply_sync_plan(args: argparse.Namespace) -> int:
     print(
         f"{mode} sync plan: "
         f"{result.succeeded} succeeded, "
-        f"{result.failed} failed"
+        f"{result.failed} failed, "
+        f"{result.review_required} need review"
     )
     print(f"state: {args.state}")
-    return 1 if result.failed else 0
+    if result.failed:
+        return 1
+    return 2 if result.review_required else 0
 
 
 def top_repositories(catalog: dict, limit: int) -> list[dict]:

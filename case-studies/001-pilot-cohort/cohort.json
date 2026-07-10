@@ -1,7 +1,7 @@
 {
-  "schema_version": 2,
-  "status": "forked-personal-namespace-awaiting-hardening",
-  "generated_at": "2026-07-10T05:43:01Z",
+  "schema_version": 3,
+  "status": "managed-checkouts-reconciled-awaiting-hardening",
+  "generated_at": "2026-07-10T18:29:58Z",
   "target": {
     "account_owner": "SauceTaster",
     "namespace": "SauceTaster",
@@ -46,14 +46,39 @@
     "fork_apply_failed": 0,
     "fork_apply_verified_skips": 5
   },
+  "managed_checkout_replay": {
+    "run_id": "case-001-checkout-4",
+    "verified_at": "2026-07-10T18:29:58Z",
+    "status": "succeeded",
+    "assurance_target": "Attested",
+    "repositories_reconciled": 5,
+    "agent_handoffs": 3,
+    "artifact_count": 21,
+    "artifact_verification": "passed",
+    "repeat_reconciliation": "passed",
+    "completed_run_resume_processed_work": 0,
+    "fork_defaults_matching_upstream": 5,
+    "secure_branches_preserved": 5,
+    "upstream_mirrors_updated": 0,
+    "sync_review_required": 0,
+    "remote_pushes_executed": false,
+    "analysis_snapshots_pinned_to_sync_sha": 5,
+    "overlay_plans": 5,
+    "overlay_proposed_changes": 46,
+    "overlay_review_items": 1,
+    "release_profiles": 5,
+    "release_profiles_human_review_required": 5
+  },
   "qualification": {
-    "mode": "shallow-clone, non-executing structural analysis, and reviewed fork creation",
+    "mode": "shallow-clone, non-executing structural analysis, reviewed fork creation, and guarded managed-checkout reconciliation",
     "workflow_count": 19,
     "workflow_parse_errors": 0,
     "builds_executed": false,
     "fork_mutations_executed": true,
     "fork_mutation_count": 5,
-    "fork_lineage_verified": true
+    "fork_lineage_verified": true,
+    "local_git_reconciliation_executed": true,
+    "remote_branch_mutations_executed": false
   },
   "repositories": [
     {

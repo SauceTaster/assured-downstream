@@ -89,6 +89,24 @@ class CliTests(unittest.TestCase):
         self.assertIsNone(args.ecosystem)
         self.assertEqual(args.output_dir, Path("runs/self-test"))
 
+    def test_checkout_run_parser_keeps_sync_execution_explicit(self) -> None:
+        args = build_parser().parse_args(
+            [
+                "checkout-run",
+                "--fork-plan",
+                "fork-plan.json",
+                "--state",
+                "state.json",
+                "--workspace",
+                "worktrees",
+                "--run-dir",
+                "runs/checkout-001",
+            ]
+        )
+
+        self.assertFalse(args.execute_sync)
+        self.assertEqual(args.target, "Attested")
+
     def test_select_fork_plan_entry_requires_selector_for_multiple_forks(self) -> None:
         fork_plan = {
             "forks": [

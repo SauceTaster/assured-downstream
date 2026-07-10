@@ -95,9 +95,19 @@ Current prototype status:
 - dry-run fork plans exist
 - fork-plan application records lifecycle state
 - GitHub fork mutation is guarded behind `--execute`
+- personal-owner preflight, direct-parent verification, existing-fork
+  detection, and repeat-safe replay are live against five prefixed pilot forks
 - local clone/sync plan generation exists
-- sync-plan application records lifecycle state
+- sync-plan application performs guarded repeat-safe reconciliation and records
+  exact SHAs, tags, divergence, and lifecycle state
 - git sync execution is guarded behind `--execute`
+- `upstream/<default>` advances without resetting `secure/<default>`
+- validated remote transports are fetched with explicit refspecs; remote pushes
+  remain disabled
+- the durable Fork And Sync lane hands exact-SHA snapshots to Recon and Overlay
+  Planner agents with digest-verified artifacts
+- remaining: organization replay, branch protection, remote branch
+  publication, and scheduled/event-driven sync
 
 ## Phase 3: Repository Recon
 
@@ -124,6 +134,8 @@ Current prototype status:
   control, and risk signal detection exists
 - checkout analysis pipeline exists for recon-to-overlay and recon-to-release
   run artifacts
+- managed recon uses a detached worktree pinned to the synchronized upstream
+  commit, independent of the checkout's selected branch
 
 ## Phase 4: Hardened CI Overlay
 

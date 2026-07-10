@@ -67,13 +67,39 @@ Pass condition: every selected candidate has a clear agent-owned next action:
 renderable, blocked-with-reason, or human-review-required. No candidate should
 fail with an unexplained exception or orphaned handoff.
 
-### T2 - Sandbox Org Attested Case Study
+### T1.5 - Managed Fork Reconciliation
+
+Purpose: prove verified forks can be followed repeat-safely before any build or
+release claim is attempted.
+
+Inputs:
+
+- verified fork plan and lifecycle state
+- sandbox organization or prefixed personal namespace
+- managed local workspace
+
+Outputs:
+
+- durable Fork And Sync, Recon, and Overlay Planner handoffs
+- exact upstream, fork-default, mirror, and secure-branch SHAs
+- namespaced upstream tags and divergence decision
+- exact-SHA recon snapshots, overlay plans, and draft release profiles
+- artifact digest verification and same-run resume evidence
+
+Pass condition: repeated reconciliation preserves secure refs, analyzes the
+synchronized upstream commit, performs no unapproved remote push, and either
+finishes with verified artifacts or routes an explicit conflict to review.
+
+Case Study 001 passed this tier for five Go/Rust/Python/Java/.NET forks on
+2026-07-10. This validates reconciliation mechanics, not build safety.
+
+### T2 - Sandbox Owner Attested Case Study
 
 Purpose: prove an end-to-end downstream fork can produce evidence.
 
 Inputs:
 
-- a sandbox GitHub org
+- a sandbox GitHub organization or temporary prefixed personal namespace
 - one small, permissively licensed project with a simple release shape
 - approved tooling lockfile
 - explicit human confirmation of release workflow and artifact paths

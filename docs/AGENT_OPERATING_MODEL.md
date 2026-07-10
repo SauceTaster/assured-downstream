@@ -252,6 +252,7 @@ contacting maintainers or overclaiming authority?"
 
 Current local CLI tools are early adapters:
 
+- `agent-run`, `checkout-run`, `agent-worker`, `agent-status`
 - `ingest`, `enrich`, `score`, `pilot`
 - `plan-forks`, `apply-fork-plan`
 - `plan-sync`, `apply-sync-plan`
@@ -304,8 +305,11 @@ The local self-test should grow in layers:
 5. Sandbox org replay from project discovery to attested release.
 6. Upstream update replay to prove resync and rerun behavior.
 
-The current `self-test` covers the first three. The next validation work is the
-local multi-agent replay, then the sandbox case study.
+The current `self-test` covers the first three and replays the durable intake
+lane. Case Study 001 separately proves repeat-safe live fork detection plus the
+durable Fork And Sync -> Recon -> Overlay Planner lane over five repositories.
+The next self-test increment should bring managed-checkout update replay into
+the no-network suite before the first governed build case study.
 
 ## Validated Case Study
 

@@ -100,7 +100,7 @@
       "purpose": "Choose the smallest safe hardening overlay for a repository based on recon and target assurance level.",
       "owns": ["overlay-plan.json", "proposal scope", "skipped change reasons"],
       "input_events": ["CheckoutAnalyzed"],
-      "output_events": ["OverlayProposed", "OverlayBlocked"],
+      "output_events": ["OverlayProposed", "OverlayBlocked", "AnalysisBundleReady"],
       "tools": ["plan-overlay", "policy catalog", "approved workflow templates"],
       "human_gates": ["repository-specific workflow surgery", "pull_request_target changes"]
     },

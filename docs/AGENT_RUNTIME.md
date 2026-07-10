@@ -1,11 +1,12 @@
 # Agent Runtime
 
-Status: executable dev/idea-stage runtime. It is safe for local dry-run intake
-and planning, not production GitHub mutation.
+Status: executable dev/idea-stage runtime. It supports dry-run intake plus
+guarded local checkout reconciliation. It is not ready for production GitHub
+branch mutation.
 
 ## What Exists
 
-The first live agent lane is:
+The durable intake lane is:
 
 ```text
 DiscoveryRequested
@@ -22,7 +23,25 @@ its output events, content-addressed artifact records, and a handoff containing
 input and output digests. Failed work is retried up to its declared attempt
 limit and then dead-lettered.
 
-The lane produces dry-run fork and sync plans only. It cannot mutate GitHub.
+The intake lane produces dry-run fork and sync plans only. It cannot mutate
+GitHub.
+
+The managed-checkout lane is:
+
+```text
+UpstreamChanged
+  -> Fork And Sync Agent -> SyncReady
+  -> Recon Agent -> CheckoutAnalyzed
+  -> Overlay Planner Agent -> AnalysisBundleReady
+```
+
+This lane consumes a digest-pinned fork plan and fork lifecycle state. Explicit
+`--execute-sync` permits clone/fetch and local ref mutation after lineage gates
+pass. It preserves `secure/<default>`, mirrors the fetched upstream commit at
+`upstream/<default>`, records tag and divergence evidence, and performs no
+remote pushes. Recon inspects a detached analysis worktree pinned to the SHA in
+the sync handoff. Every downstream consumer verifies the producer artifact
+digest before reading it.
 
 ## Why Custom SQLite First
 
@@ -138,6 +157,21 @@ assured-downstream agent-worker \
   --run-id <run-id>
 ```
 
+Reconcile verified forks and continue through recon and overlay planning:
+
+```text
+assured-downstream checkout-run \
+  --fork-plan ./runs/intake-personal/fork-plan.json \
+  --state ./runs/intake-personal/state.json \
+  --workspace ./worktrees \
+  --run-dir ./runs/checkout-sync-001 \
+  --run-id checkout-sync-001 \
+  --execute-sync
+```
+
+Repeating the command with the same run id and exact configuration resumes the
+durable run. A completed run claims no new work.
+
 Inspect the durable state or verify the model profile:
 
 ```text
@@ -149,17 +183,20 @@ assured-downstream codex-preflight
 
 ## Current Limits
 
-- only the discovery-to-dry-run-fork-plan lane is hosted by the runtime
+- intake plus fork-sync/recon/overlay-planning lanes are hosted by the runtime;
+  patch rendering, build, trace, attestation, release, and watch lanes remain
 - discovery currently accepts local or HTTPS awesome-list style sources;
   remote responses are size-bounded and obvious local/private targets are
   rejected
 - GitHub metadata enrichment can run inside the Catalog Ingestion handoff with
   `--enrich`; tokens are read from an environment variable and never persisted
-- live fork creation, syncing, and repository mutation remain outside this lane
+- live fork creation remains a separately guarded adapter; managed checkout
+  reconciliation is live locally, while remote branch pushes remain disabled
 - SQLite is single-host orchestration
-- Luna advisory is implemented for triage; later recon and patch agents will
+- Luna advisory is implemented for triage; later patch agents will
   use the same driver where deterministic tools cannot resolve ambiguity
 
-The next runtime increment is idempotent sandbox-org fork detection and live
-sync behind a reviewed mutation capability, followed by recon and overlay
-agents over the resulting checkout.
+The next runtime increment is governed overlay rendering and remote fork branch
+publication, followed by scheduled upstream-change ingestion. Both remain
+behind explicit mutation policy and human review until the pilot release path
+is proven.

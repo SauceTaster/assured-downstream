@@ -3,8 +3,8 @@
 Assured Downstream is an early-stage idea/dev project for an agentic DevOps
 assured downstream for open source software.
 
-Status: executable design prototype. The first durable multi-agent intake lane
-works locally, but this is not production-ready. Expect names, schemas, command
+Status: executable design prototype. Durable intake and managed-checkout lanes
+work locally, but this is not production-ready. Expect names, schemas, command
 interfaces, and trust boundaries to change while the core automation takes
 shape.
 
@@ -55,9 +55,11 @@ packages, and applications, the org provides a trusted downstream lane:
 
 ## Current Prototype Commands
 
-The current CLI is intentionally observe-first. It is a local tool adapter for
-the agent system, not the system boundary. Agents should eventually call these
-tools from queues, schedulers, GitHub App events, and human review workflows.
+The current CLI defaults to observe-first behavior. Explicit flags can create
+forks or mutate managed local checkouts, but remote branch publication remains
+disabled. The CLI is a local tool adapter for the agent system, not the system
+boundary. Agents should eventually call these tools from queues, schedulers,
+GitHub App events, and human review workflows.
 
 ```text
 assured-downstream codex-preflight
@@ -71,6 +73,8 @@ assured-downstream agent-worker \
   --database ./runs/intake-002/agent-control-plane.sqlite3
 assured-downstream agent-status \
   --database ./runs/intake-002/agent-control-plane.sqlite3
+assured-downstream checkout-run --fork-plan fork-plan.json --state state.json \
+  --workspace ./worktrees --run-dir ./runs/checkout-sync-001 --execute-sync
 assured-downstream pilot --seed awesome-security.md --org <org> --run-dir ./runs/pilot-001
 assured-downstream pilot --seed https://example.com/awesome-security.md --org <org> \
   --run-dir ./runs/pilot-remote
@@ -125,12 +129,21 @@ proposed hardening changes. Overlay rendering is dry-run unless `--execute` is
 passed, and generated workflows require full commit SHA pins supplied through
 `--pins`.
 
+`checkout-run` is the second durable agent lane: Fork And Sync -> Recon ->
+Overlay Planner. It digest-binds its fork plan, lifecycle state, and every
+handoff artifact in SQLite. With `--execute-sync`, it validates remote identity,
+preserves each validated SSH/HTTPS transport, fetches with explicit refspecs,
+updates only `upstream/<default>`, creates `secure/<default>` once, and never
+pushes a remote branch. Recon runs from a detached worktree pinned to the exact
+synchronized upstream commit, not whichever branch happens to be checked out.
+
 Seeds can be local files or URLs. `agent-run` is the current durable
 observe-first entrypoint. It persists typed events, leased work, attempts,
 artifact digests, and agent handoffs in SQLite, and writes `catalog.json`,
 `fork-plan.json`, `selection-reasons.json`, `state.json`, and `sync-plan.json`.
-The first lane is dry-run only. `pilot` remains the single-process tool path and
-writes a run directory with `catalog.json`, `fork-plan.json`,
+The intake lane is dry-run only. `agent-worker` can resume either durable lane
+from its database. `pilot` remains the single-process tool path and writes a run
+directory with `catalog.json`, `fork-plan.json`,
 `selection-reasons.json`, `state.json`, `sync-plan.json`, and `RUN_SUMMARY.md`,
 and appends to a machine-readable run index.
 

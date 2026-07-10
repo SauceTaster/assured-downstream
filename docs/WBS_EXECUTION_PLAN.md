@@ -4,7 +4,8 @@ Status: dev/idea-stage execution breakout. This turns the high-level WBS into
 agent-sized work packages that can be built in parallel without widening the
 MVP beyond a working assured downstream lane.
 
-Synthesized from four read-only Codex worker reviews on 2026-07-09:
+Synthesized from four read-only Codex worker reviews on 2026-07-09 and updated
+with live pilot evidence on 2026-07-10:
 
 - control plane and operations
 - recon, overlay, and release rendering
@@ -13,10 +14,15 @@ Synthesized from four read-only Codex worker reviews on 2026-07-09:
 
 ## Implementation Snapshot
 
-As of the 2026-07-09 prototype pass:
+As of the 2026-07-10 prototype pass:
 
 - WP0 core is implemented: pilot runs write a run index, selection reasons, and
   allow/suppress policy decisions.
+- WP1 is live in a temporary prefixed personal namespace: five forks were
+  created, direct-parent verified, and then detected repeat-safely.
+- WP2 is implemented locally: five managed checkouts were reconciled repeatedly
+  without moving `secure/<default>` or pushing remotes, then handed durably to
+  exact-SHA recon and overlay planning.
 - WP3 is implemented: recon parses GitHub Actions workflows structurally without
   a runtime YAML dependency and has Go/Rust/Python/Java/.NET fixture coverage.
 - WP4/WP5 are partially implemented: pin locks carry freshness metadata, stale
@@ -31,8 +37,8 @@ As of the 2026-07-09 prototype pass:
 
 Current critical path:
 
-1. Local multi-agent replay from discovery through passive fork publication.
-2. WP1 and WP2: repeat-safe default-branch fork/sync against a sandbox org.
+1. Governed overlay rendering and reviewed secure-branch publication.
+2. Organization replay, branch protection, and scheduled upstream detection.
 3. WP6: workflow-produced evidence bundle, attestation metadata capture, and
    verification guide upload.
 4. WP10: full sandbox MVP run.
@@ -171,6 +177,8 @@ Do not scope creep:
 
 Owner: Control-Plane Agent.
 
+Status: implemented and live-validated locally against the five-fork pilot.
+
 WBS refs: 1.3.4, 1.3.5, 1.3.6, 1.3.7.
 
 Purpose: keep the detected upstream default branch, normally `main` or `master`,
@@ -195,18 +203,24 @@ Acceptance:
 - Secure overlay branches are never force-reset or recreated.
 - Upstream default-branch and tag/release detection is recorded.
 - Conflicts route to human review with repo, branch, command, and stderr.
+- Recon analyzes a detached worktree pinned to the synchronized upstream SHA.
+- Validated remote transports are used directly with explicit refspecs, so Git
+  remote fetch configuration cannot redirect managed refs.
 
 Tests:
 
 - temp git repositories with repeated sync runs
 - existing-branch safety tests
 - conflict packet generation tests
+- stale-default-branch versus synchronized-snapshot regression test
+- five-repository live replay, artifact re-hash, and zero-work resume
 
 Do not scope creep:
 
 - no auto-conflict resolution
 - no merge bot behavior
 - no generalized multi-branch synchronization in the MVP
+- no remote push in this package
 
 ### WP3 - Structural Recon And Fixtures
 
@@ -631,10 +645,11 @@ Do not scope creep:
 - no validated pentest claim
 - no behavior gate before artifact reproducibility is stable
 
-## Immediate Parallel Build Split
+## Parallel Build Split Record
 
-These are safe to run as separate Codex implementation agents because their
-primary files should overlap only at CLI registration and docs.
+This was the initial parallel split. WP0, WP1's personal-owner path, WP2, WP3,
+WP8, and WP9 now have working local implementations; the remaining packages
+retain these ownership boundaries.
 
 | Agent | Package | Primary files | Depends on |
 | --- | --- | --- | --- |
@@ -643,20 +658,22 @@ primary files should overlap only at CLI registration and docs.
 | C | WP4 and WP5 | pin locks, release profile, release renderer tests | B for best artifact hints, but can start now |
 | D | WP8 and WP9 | custody, fork publication module, publication tests | WP0 catalog shape |
 | E | WP6 and WP7 | evidence, release evaluation, workflow evidence upload | C |
-| F | WP1 and WP2 | GitHub client, fork/sync lifecycle, temp git tests | WP0 useful but not blocking |
+| F | WP1 and WP2 follow-up | org replay, branch policy, remote publication, scheduler | local reconciliation complete |
 | G | WP11 | reproducibility renderer and mismatch packets | E |
 | H | WP12 | trace collector and behavior mismatch packets | G |
 
 ## Next Implementation Tasks
 
-1. Implement WP1 and WP2: sandbox-safe default-branch fork and sync
-   reconciliation.
-2. Finish WP6: release workflow evidence bundle and attestation metadata
+1. Review and render a minimal overlay for one pilot canary, then add governed
+   secure-branch publication without enabling autonomous release mutation.
+2. Replay WP1 against the eventual organization and add downstream branch
+   protection plus scheduled upstream-change ingestion.
+3. Finish WP6: release workflow evidence bundle and attestation metadata
    capture.
-3. Finish WP7: add tooling/workflow risk inputs to release gate evaluation.
-4. Run WP10: full sandbox MVP over one first-lane seed and fixture-like real
+4. Finish WP7: add tooling/workflow risk inputs to release gate evaluation.
+5. Run WP10: full sandbox MVP over one first-lane seed and fixture-like real
    candidates across the supported language set.
-5. Start WP11 only after WP10 produces a green Attested run.
+6. Start WP11 only after WP10 produces a green Attested run.
 
 WP12 should still wait until artifact reproducibility is stable.
 

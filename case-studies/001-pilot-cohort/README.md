@@ -1,7 +1,8 @@
 # Case Study 001: Pilot Cohort
 
-Status: five pilot forks created and lineage-verified in the temporary
-`SauceTaster/assured-*` namespace.
+Status: five pilot forks created, lineage-verified, locally reconciled, and
+analyzed through durable agents in the temporary `SauceTaster/assured-*`
+namespace.
 
 ## Objective
 
@@ -42,6 +43,18 @@ fork-of-a-fork lineage, and copyleft obligation handling.
   account and verified each direct upstream parent and initial fork commit
 - replayed the durable agent lane with a personal target and prefix; all five
   existing forks were lineage-verified and skipped without duplicate mutation
+- replayed the durable Fork And Sync -> Recon -> Overlay Planner lane over all
+  five forks; three agent handoffs and 21 artifacts re-verified successfully
+- reconciled the five managed checkouts repeatedly: all fork default SHAs
+  matched upstream, all `secure/<default>` refs were preserved, and no remote
+  pushes were executed
+- analyzed detached worktrees pinned to each synchronized upstream SHA rather
+  than the managed checkout's selected branch
+- produced five Attested overlay plans with 46 proposed changes and five draft
+  release profiles; one gosec overlay item and every release profile remain
+  human-review-required
+- resumed the completed managed-checkout run with the same run id and processed
+  zero additional work
 - executed no upstream code or builds; GitHub mutations were limited to the
   five reviewed fork creations and one case-only name alignment
 
@@ -64,10 +77,10 @@ as a separate governed migration.
 
 ## Next Run
 
-1. Bootstrap managed checkouts from the fork SHAs recorded in `cohort.json`.
-2. Add explicit `upstream` remotes and verify fast-forward sync planning.
-3. Generate per-project hardening overlays without enabling release mutation.
-4. Run the first isolated builds and capture in-toto, SLSA, Sigstore, SBOM, and
+1. Review and render one minimal per-project hardening overlay onto a local
+   `secure/<default>` branch.
+2. Add governed publication of reviewed secure branches to the prefixed forks.
+3. Run the first isolated builds and capture in-toto, SLSA, Sigstore, SBOM, and
    syscall evidence.
-5. Compare reproducibility and normalized behavior across two independent
+4. Compare reproducibility and normalized behavior across two independent
    builders before promoting any hardened release.

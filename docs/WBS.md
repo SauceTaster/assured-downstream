@@ -11,8 +11,8 @@ work packages.
 
 ### 1.0 Durable Agent Runtime
 
-Status: first single-host runtime built; distributed execution and later lanes
-remain.
+Status: single-host runtime plus intake and managed-checkout lanes built;
+distributed execution and later mutation/evidence lanes remain.
 
 - 1.0.1 Persist typed events, work items, attempts, artifacts, and handoffs
 - 1.0.2 Add idempotency keys, leased claims, retries, and dead letters
@@ -21,8 +21,8 @@ remain.
 - 1.0.5 Run discovery through dry-run fork planning as five durable agents
 - 1.0.6 Add no-network agent replay to self-test
 - 1.0.7 Add multi-host backend after measured need; evaluate Dapr at that gate
-- 1.0.8 Host recon, patch, build, trace, attestation, repro, release, and watch
-  lanes on the same contracts
+- 1.0.8 Host recon and overlay planning on the same contracts (built); patch,
+  build, trace, attestation, repro, release, and watch remain
 
 ### 1.1 Candidate Intake
 
@@ -40,33 +40,41 @@ Status: MVP built; live tuning and scheduler integration remain.
 
 ### 1.2 Fork Lifecycle
 
-Status: planned and guarded, live execution still pending.
+Status: live and repeat-safe in the temporary prefixed personal namespace;
+organization bootstrap and branch protection remain.
 
 - 1.2.1 Generate dry-run fork plans
 - 1.2.2 Record lifecycle state
 - 1.2.3 Guard fork creation behind `--execute`
 - 1.2.4 Add GitHub org bootstrap checks
-- 1.2.5 Add live fork creation smoke test against a sandbox org
-- 1.2.6 Add fork existence detection and idempotent re-runs
+- 1.2.5 Add live fork creation smoke test against a sandbox owner (five-fork
+  personal-namespace case built; organization replay remains)
+- 1.2.6 Add fork existence detection and idempotent re-runs (built with direct
+  upstream-parent verification)
 - 1.2.7 Add branch protection/bootstrap policy for downstream forks
 
 ### 1.3 Sync Lifecycle
 
-Status: planned and guarded, live execution still pending.
+Status: local live reconciliation and durable recon handoff built and validated
+against five forks; remote branch publication and scheduling remain.
 
 - 1.3.1 Generate clone/sync plans
 - 1.3.2 Record sync lifecycle state
 - 1.3.3 Guard git execution behind `--execute`
-- 1.3.4 Avoid clobbering secure overlay branches
-- 1.3.5 Add idempotent local workspace sync
-- 1.3.6 Add upstream release/tag detection
-- 1.3.7 Add conflict routing to human review
+- 1.3.4 Avoid clobbering secure overlay branches (built)
+- 1.3.5 Add idempotent local workspace sync (built)
+- 1.3.6 Add upstream release/tag detection (built)
+- 1.3.7 Add conflict routing to human review (built)
+- 1.3.8 Publish reviewed `upstream/<default>` and `secure/<default>` refs to the
+  downstream remote
+- 1.3.9 Add scheduled and GitHub-event-driven upstream reconciliation
 
 ## 2. Repository Analysis And Overlay
 
 ### 2.1 Recon
 
-Status: structural first pass built with first-lane fixtures.
+Status: structural first pass built with fixtures and exact-SHA detached
+analysis worktrees in the durable managed-checkout lane.
 
 - 2.1.1 Detect languages and package managers
 - 2.1.2 Detect CI workflows and release signals
@@ -78,7 +86,7 @@ Status: structural first pass built with first-lane fixtures.
 
 ### 2.2 Overlay Planning
 
-Status: first pass built.
+Status: first pass built and hosted after durable managed-checkout recon.
 
 - 2.2.1 Plan hardened CI overlays
 - 2.2.2 Plan attestation/reproducibility overlays
