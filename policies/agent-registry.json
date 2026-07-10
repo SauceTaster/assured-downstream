@@ -4,8 +4,16 @@
   "note": "Assured Downstream is an agent system. CLI commands are local tool adapters that agents call; they are not the system boundary.",
   "control_plane": {
     "mode": "event-driven human-gated assurance pipeline",
-    "state_store": "catalog, run index, lifecycle state, evidence manifests, release evaluations",
+    "state_store": "SQLite event/work/handoff ledger plus catalog, lifecycle state, evidence manifests, and release evaluations",
     "mutation_policy": "observe-first by default; repository, GitHub, and release mutations require explicit gates; outbound maintainer contact is disabled"
+  },
+  "execution_plane": {
+    "local_backend": "custom FOSS Python and SQLite with leased at-least-once work delivery",
+    "model_profile": "assured-downstream-luna",
+    "model": "gpt-5.6-luna",
+    "model_reasoning_effort": "high",
+    "model_policy": "Codex is constrained and advisory for judgment-heavy work; deterministic tools and policy gates remain authoritative",
+    "distributed_backend_candidate": "Dapr Workflow and pub/sub after multi-host or Kubernetes operation justifies sidecars and control-plane services"
   },
   "required_agent_ids": [
     "source-discovery",
@@ -62,7 +70,7 @@
       "purpose": "Enforce policies, block unsafe transitions, require evidence before claims, and route uncertainty to humans.",
       "owns": ["policy decisions", "release gates", "claim discipline"],
       "input_events": ["CandidateSelected", "OverlayProposed", "ReleaseEvidenceReady", "RebuildCompared", "BehaviorCompared"],
-      "output_events": ["GatePassed", "GateBlocked", "NeedsHumanReview"],
+      "output_events": ["GatePassed:CandidateSelected", "GatePassed:Attested", "GatePassed:Reproducible", "GateBlocked", "NeedsHumanReview"],
       "tools": ["evaluate-release", "approved tooling policy", "pin lock checks", "risk signal checks"],
       "human_gates": ["all blocked release overrides", "custodian claims", "public validation claims"]
     },
@@ -72,7 +80,7 @@
       "purpose": "Create or detect downstream forks, configure remotes, sync upstream, and preserve secure branches.",
       "owns": ["fork plan", "sync plan", "lifecycle state", "branch model"],
       "input_events": ["GatePassed:CandidateSelected", "UpstreamChanged"],
-      "output_events": ["ForkReady", "SyncReady", "SyncConflict"],
+      "output_events": ["ForkPlanReady", "ForkReady", "SyncReady", "SyncConflict"],
       "tools": ["plan-forks", "apply-fork-plan", "plan-sync", "apply-sync-plan", "git", "GitHub API"],
       "human_gates": ["first live org mutation", "sync conflict", "branch protection change"]
     },

@@ -3,7 +3,8 @@
 Assured Downstream is an early-stage idea/dev project for an agentic DevOps
 assured downstream for open source software.
 
-Status: design prototype. Not production-ready. Expect names, schemas, command
+Status: executable design prototype. The first durable multi-agent intake lane
+works locally, but this is not production-ready. Expect names, schemas, command
 interfaces, and trust boundaries to change while the core automation takes
 shape.
 
@@ -37,6 +38,8 @@ packages, and applications, the org provides a trusted downstream lane:
   assurance levels, evidence model, and policy gates.
 - [docs/AGENT_OPERATING_MODEL.md](./docs/AGENT_OPERATING_MODEL.md): full
   project-finding, ingestion, agent, event, tool, and handoff model.
+- [docs/AGENT_RUNTIME.md](./docs/AGENT_RUNTIME.md): implemented SQLite runtime,
+  Luna worker contract, commands, failure semantics, and Dapr migration gate.
 - [ROADMAP.md](./ROADMAP.md): staged implementation plan from catalog and fork
   sync to behavior-reproducible releases.
 - [docs/WBS.md](./docs/WBS.md): work breakdown for what remains before and
@@ -54,6 +57,15 @@ the agent system, not the system boundary. Agents should eventually call these
 tools from queues, schedulers, GitHub App events, and human review workflows.
 
 ```text
+assured-downstream codex-preflight
+assured-downstream agent-run --seed awesome-security.md --org <org> \
+  --run-dir ./runs/intake-001
+assured-downstream agent-run --seed awesome-security.md --org <org> \
+  --run-dir ./runs/intake-002 --enqueue-only
+assured-downstream agent-worker \
+  --database ./runs/intake-002/agent-control-plane.sqlite3
+assured-downstream agent-status \
+  --database ./runs/intake-002/agent-control-plane.sqlite3
 assured-downstream pilot --seed awesome-security.md --org <org> --run-dir ./runs/pilot-001
 assured-downstream pilot --seed https://example.com/awesome-security.md --org <org> \
   --run-dir ./runs/pilot-remote
@@ -102,13 +114,18 @@ proposed hardening changes. Overlay rendering is dry-run unless `--execute` is
 passed, and generated workflows require full commit SHA pins supplied through
 `--pins`.
 
-Seeds can be local files or URLs. `pilot` is the current observe-first
-entrypoint. It writes a run directory with `catalog.json`, `fork-plan.json`,
+Seeds can be local files or URLs. `agent-run` is the current durable
+observe-first entrypoint. It persists typed events, leased work, attempts,
+artifact digests, and agent handoffs in SQLite, and writes `catalog.json`,
+`fork-plan.json`, `selection-reasons.json`, `state.json`, and `sync-plan.json`.
+The first lane is dry-run only. `pilot` remains the single-process tool path and
+writes a run directory with `catalog.json`, `fork-plan.json`,
 `selection-reasons.json`, `state.json`, `sync-plan.json`, and `RUN_SUMMARY.md`,
 and appends to a machine-readable run index.
 
 `self-test` runs local no-network validation against first-lane Go, Rust,
-Python, Java, and .NET fixtures, then verifies an Attested evidence smoke test.
+Python, Java, and .NET fixtures, replays the five-agent intake lane, then
+verifies an Attested evidence smoke test.
 
 `analyze-checkout` is the local Patch Agent cockpit. It writes `recon.json`,
 `overlay-plan.json`, `render-result.json`, `release-profile.json`,

@@ -11,6 +11,7 @@ from assured_downstream.agent_registry import (
 )
 from assured_downstream.catalog import utc_now
 from assured_downstream.evidence import create_evidence_manifest, verify_evidence_manifest
+from assured_downstream.intake_agents import run_intake_agent_system
 from assured_downstream.policy_eval import evaluate_release
 from assured_downstream.recon import inspect_repository
 from assured_downstream.release_profile import plan_release_profile
@@ -96,9 +97,12 @@ def run_agent_system_self_test(output_dir: Path) -> dict[str, Any]:
         summary = {}
         checks = [check("agent registry loads", False, str(exc))]
 
+    replay = run_agent_replay_self_test(system_dir)
+    checks.extend(replay["checks"])
     payload = {
         "registry_path": str(registry_path),
         "summary": summary,
+        "replay": replay,
         "checks": checks,
     }
     write_json(system_dir / "agent-system.json", payload)
@@ -108,6 +112,51 @@ def run_agent_system_self_test(output_dir: Path) -> dict[str, Any]:
         "output_dir": str(system_dir),
         **payload,
     }
+
+
+def run_agent_replay_self_test(system_dir: Path) -> dict[str, Any]:
+    replay_dir = system_dir / "replay"
+    seed_path = system_dir / "self-test-seed.md"
+    seed_path.write_text(
+        "- [cosign](https://github.com/sigstore/cosign) - signing security tooling\n",
+        encoding="utf-8",
+    )
+    try:
+        result = run_intake_agent_system(
+            seed_sources=[seed_path],
+            org="assured-self-test",
+            run_dir=replay_dir,
+            run_id="self-test-agent-replay",
+            limit=1,
+            codex_mode="off",
+        )
+        expected_events = [
+            "DiscoveryRequested",
+            "SeedBatchReady",
+            "CatalogUpdated",
+            "CandidateSelected",
+            "GatePassed:CandidateSelected",
+            "ForkPlanReady",
+        ]
+        checks = [
+            check("agent replay succeeds", result["status"] == "succeeded"),
+            check("agent replay drains all work", result["pending_count"] == 0),
+            check("agent replay artifacts verify", result["artifact_verification"]["ok"]),
+            check("agent replay records five handoffs", result["summary"]["handoff_count"] == 5),
+            check("agent replay follows typed event chain", result["summary"]["event_types"] == expected_events),
+            check("agent replay creates fork plan", (replay_dir / "fork-plan.json").exists()),
+        ]
+        return {
+            "run_id": result["run_id"],
+            "database_path": result["database_path"],
+            "summary_path": result["summary_path"],
+            "checks": checks,
+        }
+    except Exception as exc:  # noqa: BLE001 - self-test records the failure.
+        return {
+            "run_id": "self-test-agent-replay",
+            "checks": [check("agent replay succeeds", False, str(exc))],
+        }
 
 
 def run_ecosystem_self_test(

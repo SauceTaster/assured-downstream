@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import ipaddress
 import re
+import socket
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 
 GITHUB_PATTERNS = [
     re.compile(
-        r"(?:https?://)?github\.com/(?P<owner>[A-Za-z0-9_.-]+)/(?P<repo>[A-Za-z0-9_.-]+)"
+        r"(?<![A-Za-z0-9_.-])(?:https?://)?github\.com/"
+        r"(?P<owner>[A-Za-z0-9_.-]+)/(?P<repo>[A-Za-z0-9_.-]+)"
     ),
     re.compile(
         r"git@github\.com:(?P<owner>[A-Za-z0-9_.-]+)/(?P<repo>[A-Za-z0-9_.-]+)"
@@ -34,6 +38,7 @@ INVALID_OWNERS = {
     "topics",
     "users",
 }
+MAX_SEED_BYTES = 5 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -63,6 +68,7 @@ def is_url(value: str) -> bool:
 
 
 def fetch_seed_url(url: str) -> str:
+    validate_remote_seed_url(url)
     request = Request(
         url,
         headers={
@@ -71,7 +77,46 @@ def fetch_seed_url(url: str) -> str:
         },
     )
     with urlopen(request, timeout=30) as response:
-        return response.read().decode("utf-8")
+        final_url = response.geturl() if hasattr(response, "geturl") else url
+        validate_remote_seed_url(final_url)
+        content_length = None
+        if hasattr(response, "headers"):
+            content_length = response.headers.get("Content-Length")
+        if content_length is not None and int(content_length) > MAX_SEED_BYTES:
+            raise ValueError(f"Remote seed exceeds {MAX_SEED_BYTES} bytes")
+        content = response.read(MAX_SEED_BYTES + 1)
+        if len(content) > MAX_SEED_BYTES:
+            raise ValueError(f"Remote seed exceeds {MAX_SEED_BYTES} bytes")
+        return content.decode("utf-8")
+
+
+def validate_remote_seed_url(url: str) -> None:
+    parsed = urlsplit(url)
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise ValueError(f"Unsupported remote seed URL: {url!r}")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("Remote seed URLs must not contain credentials")
+    hostname = parsed.hostname.rstrip(".").lower()
+    if hostname == "localhost" or hostname.endswith((".localhost", ".local")):
+        raise ValueError(f"Remote seed host is not public: {hostname}")
+    try:
+        address = ipaddress.ip_address(hostname)
+    except ValueError:
+        try:
+            addresses = {
+                ipaddress.ip_address(item[4][0])
+                for item in socket.getaddrinfo(
+                    hostname,
+                    parsed.port or 443,
+                    type=socket.SOCK_STREAM,
+                )
+            }
+        except OSError as exc:
+            raise ValueError(f"Remote seed host could not be resolved: {hostname}") from exc
+    else:
+        addresses = {address}
+    if not addresses or any(not item.is_global for item in addresses):
+        raise ValueError(f"Remote seed host is not globally routed: {hostname}")
 
 
 def parse_seed_text(text: str, *, source: str) -> list[SeedFinding]:
@@ -121,5 +166,7 @@ def is_valid_repo(owner: str, name: str) -> bool:
     if name in {".", ".."}:
         return False
     if len(owner) > 39:
+        return False
+    if len(name) > 100:
         return False
     return True

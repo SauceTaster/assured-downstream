@@ -38,6 +38,14 @@ class SeedParserTests(unittest.TestCase):
 
         self.assertEqual(len(findings), 1)
 
+    def test_ignores_github_subdomain_documentation_urls(self) -> None:
+        findings = parse_seed_text(
+            "https://docs.github.com/en/actions/security-guides\n",
+            source="docs.md",
+        )
+
+        self.assertEqual(findings, [])
+
     def test_parses_url_seed_source(self) -> None:
         class FakeResponse:
             def __enter__(self):
@@ -46,14 +54,22 @@ class SeedParserTests(unittest.TestCase):
             def __exit__(self, *_args):
                 return None
 
-            def read(self):
+            def read(self, *_args):
                 return b"- https://github.com/owner/project\n"
 
-        with patch("assured_downstream.seed.urlopen", return_value=FakeResponse()):
+        public_address = [(2, 1, 6, "", ("93.184.216.34", 443))]
+        with (
+            patch("assured_downstream.seed.urlopen", return_value=FakeResponse()),
+            patch("assured_downstream.seed.socket.getaddrinfo", return_value=public_address),
+        ):
             findings = parse_seed_source("https://example.com/awesome.md")
 
         self.assertEqual(len(findings), 1)
         self.assertEqual(findings[0].source, "https://example.com/awesome.md")
+
+    def test_rejects_private_remote_seed_address(self) -> None:
+        with self.assertRaises(ValueError):
+            parse_seed_source("https://127.0.0.1/awesome.md")
 
 
 if __name__ == "__main__":

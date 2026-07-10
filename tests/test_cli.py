@@ -13,6 +13,23 @@ from assured_downstream.cli import (
 
 
 class CliTests(unittest.TestCase):
+    def test_agent_run_parser_defaults_to_luna_advisory_mode(self) -> None:
+        args = build_parser().parse_args(
+            [
+                "agent-run",
+                "--seed",
+                "awesome.md",
+                "--org",
+                "assured-oss",
+                "--run-dir",
+                "runs/intake-001",
+            ]
+        )
+
+        self.assertEqual(args.codex_mode, "advisory")
+        self.assertEqual(args.codex_profile, "assured-downstream-luna")
+        self.assertEqual(args.codex_timeout, 90)
+
     def test_pilot_parser_accepts_selection_policy_args(self) -> None:
         args = build_parser().parse_args(
             [

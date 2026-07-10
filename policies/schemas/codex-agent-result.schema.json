@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://assured-downstream.dev/schemas/codex-agent-result/v1",
+  "title": "Assured Downstream Codex Agent Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "summary",
+    "findings",
+    "recommendations",
+    "data"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "status": {
+      "enum": ["succeeded", "blocked", "needs_human_review"]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "severity", "message", "path"],
+        "properties": {
+          "code": {"type": "string"},
+          "severity": {"enum": ["info", "low", "medium", "high", "critical"]},
+          "message": {"type": "string"},
+          "path": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "value_json"],
+        "properties": {
+          "key": {"type": "string"},
+          "value_json": {"type": "string"}
+        }
+      }
+    }
+  }
+}

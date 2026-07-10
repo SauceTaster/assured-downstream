@@ -5,11 +5,14 @@ import json
 import sys
 from pathlib import Path
 
+from assured_downstream.agent_runtime import AgentRuntime
+from assured_downstream.agent_store import AgentStore
 from assured_downstream.attestations import create_intoto_statement
 from assured_downstream.behavior import compare_behavior_reports, normalize_trace
 from assured_downstream.catalog import load_catalog, save_catalog, upsert_findings
 from assured_downstream.checkout_pipeline import run_checkout_analysis
 from assured_downstream.custody import create_custodian_review
+from assured_downstream.codex_driver import DEFAULT_CODEX_PROFILE, CodexDriver
 from assured_downstream.enrichment import enrich_catalog
 from assured_downstream.evidence import (
     compare_evidence_manifests,
@@ -19,6 +22,7 @@ from assured_downstream.evidence import (
 from assured_downstream.fork_apply import apply_fork_plan
 from assured_downstream.fork_plan import create_fork_plan
 from assured_downstream.github_api import GitHubClient
+from assured_downstream.intake_agents import first_lane_handlers, run_intake_agent_system
 from assured_downstream.lifecycle import StateStore
 from assured_downstream.overlay import plan_overlay
 from assured_downstream.overlay_render import render_overlay
@@ -109,6 +113,71 @@ def build_parser() -> argparse.ArgumentParser:
         help="Environment variable containing a GitHub token.",
     )
     pilot.set_defaults(func=command_pilot)
+
+    agent_run = subparsers.add_parser(
+        "agent-run",
+        help="Start the durable discovery-to-fork-plan agent workflow.",
+    )
+    agent_run.add_argument("--seed", action="append", required=True)
+    agent_run.add_argument("--org", required=True)
+    agent_run.add_argument("--run-dir", required=True, type=Path)
+    agent_run.add_argument("--database", type=Path)
+    agent_run.add_argument("--run-id")
+    agent_run.add_argument("--limit", type=int, default=None)
+    agent_run.add_argument("--min-score", type=int, default=None)
+    agent_run.add_argument("--allowlist", type=Path)
+    agent_run.add_argument(
+        "--suppress",
+        "--suppression",
+        dest="suppression",
+        type=Path,
+    )
+    agent_run.add_argument(
+        "--codex-mode",
+        choices=["off", "advisory", "required"],
+        default="advisory",
+    )
+    agent_run.add_argument("--codex-profile", default=DEFAULT_CODEX_PROFILE)
+    agent_run.add_argument("--codex-timeout", type=int, default=90)
+    agent_run.add_argument("--max-items", type=int, default=100)
+    agent_run.add_argument(
+        "--enqueue-only",
+        action="store_true",
+        help="Persist the initial event and leave execution to agent-worker.",
+    )
+    agent_run.set_defaults(func=command_agent_run)
+
+    agent_worker = subparsers.add_parser(
+        "agent-worker",
+        help="Drain leased work for one durable agent run.",
+    )
+    agent_worker.add_argument("--database", required=True, type=Path)
+    agent_worker.add_argument("--run-id")
+    agent_worker.add_argument("--worker-id", default="manual-worker")
+    agent_worker.add_argument(
+        "--agent",
+        action="append",
+        choices=[handler.agent_id for handler in first_lane_handlers()],
+        help="Agent id to host. May be repeated; defaults to all implemented agents.",
+    )
+    agent_worker.add_argument("--lease-seconds", type=int, default=120)
+    agent_worker.add_argument("--max-items", type=int, default=100)
+    agent_worker.set_defaults(func=command_agent_worker)
+
+    agent_status = subparsers.add_parser(
+        "agent-status",
+        help="Print a durable agent run summary from the local control plane.",
+    )
+    agent_status.add_argument("--database", required=True, type=Path)
+    agent_status.add_argument("--run-id")
+    agent_status.set_defaults(func=command_agent_status)
+
+    codex_preflight = subparsers.add_parser(
+        "codex-preflight",
+        help="Verify the constrained Codex profile used by cognitive agents.",
+    )
+    codex_preflight.add_argument("--profile", default=DEFAULT_CODEX_PROFILE)
+    codex_preflight.set_defaults(func=command_codex_preflight)
 
     checkout = subparsers.add_parser(
         "analyze-checkout",
@@ -497,6 +566,71 @@ def command_pilot(args: argparse.Namespace) -> int:
     print(f"pilot run complete: {args.run_dir}")
     print(f"summary: {summary['summary_path']}")
     print(f"candidates: {summary['repositories']}")
+    return 0
+
+
+def command_agent_run(args: argparse.Namespace) -> int:
+    result = run_intake_agent_system(
+        seed_sources=args.seed,
+        org=args.org,
+        run_dir=args.run_dir,
+        database_path=args.database,
+        run_id=args.run_id,
+        limit=args.limit,
+        min_score=args.min_score,
+        allowlist_path=args.allowlist,
+        suppression_path=args.suppression,
+        codex_mode=args.codex_mode,
+        codex_profile=args.codex_profile,
+        codex_timeout_seconds=args.codex_timeout,
+        max_items=args.max_items,
+        enqueue_only=args.enqueue_only,
+    )
+    print(f"agent run: {result['run_id']}")
+    print(f"status: {result['status']}")
+    print(f"processed work attempts: {result['processed_count']}")
+    print(f"pending work: {result['pending_count']}")
+    print(f"database: {result['database_path']}")
+    print(f"summary: {result['summary_path']}")
+    return 0 if result["status"] in {"running", "succeeded"} else 2
+
+
+def command_agent_worker(args: argparse.Namespace) -> int:
+    store = AgentStore(args.database)
+    run_id = args.run_id or store.latest_run_id()
+    if run_id is None:
+        raise ValueError("The agent database contains no runs")
+    selected_ids = set(args.agent or [])
+    handlers = [
+        handler
+        for handler in first_lane_handlers()
+        if not selected_ids or handler.agent_id in selected_ids
+    ]
+    runtime = AgentRuntime(
+        backend=store,
+        handlers=handlers,
+        worker_id=args.worker_id,
+        lease_seconds=args.lease_seconds,
+    )
+    result = runtime.drain(run_id=run_id, max_items=args.max_items)
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if result["status"] in {"running", "succeeded"} else 2
+
+
+def command_agent_status(args: argparse.Namespace) -> int:
+    store = AgentStore(args.database)
+    run_id = args.run_id or store.latest_run_id()
+    if run_id is None:
+        raise ValueError("The agent database contains no runs")
+    summary = store.run_summary(run_id)
+    summary["artifact_verification"] = store.verify_artifacts(run_id)
+    print(json.dumps(summary, indent=2, sort_keys=True))
+    return 0
+
+
+def command_codex_preflight(args: argparse.Namespace) -> int:
+    result = CodexDriver(profile=args.profile).preflight()
+    print(json.dumps(result, indent=2, sort_keys=True))
     return 0
 
 

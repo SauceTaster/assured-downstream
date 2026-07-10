@@ -9,6 +9,21 @@ work packages.
 
 ## 1. MVP Control Plane
 
+### 1.0 Durable Agent Runtime
+
+Status: first single-host runtime built; distributed execution and later lanes
+remain.
+
+- 1.0.1 Persist typed events, work items, attempts, artifacts, and handoffs
+- 1.0.2 Add idempotency keys, leased claims, retries, and dead letters
+- 1.0.3 Separate enqueue, worker, status, and replay commands
+- 1.0.4 Add constrained `gpt-5.6-luna` Codex profile and structured driver
+- 1.0.5 Run discovery through dry-run fork planning as five durable agents
+- 1.0.6 Add no-network agent replay to self-test
+- 1.0.7 Add multi-host backend after measured need; evaluate Dapr at that gate
+- 1.0.8 Host recon, patch, build, trace, attestation, repro, release, and watch
+  lanes on the same contracts
+
 ### 1.1 Candidate Intake
 
 Status: MVP built; live tuning and scheduler integration remain.
@@ -187,12 +202,13 @@ by design.
 
 ### 6.1 Run Management
 
-Status: pilot summaries and run index built; scheduler and dashboards remain.
+Status: SQLite event/work/handoff ledger, pilot summaries, run index, and local
+workers built; recurring scheduler and dashboards remain.
 
 - 6.1.1 Produce pilot run directories
 - 6.1.2 Produce checkout analysis run directories
 - 6.1.3 Add machine-readable run index
-- 6.1.4 Add resumable scheduler
+- 6.1.4 Add recurring scheduler on top of resumable leased workers
 - 6.1.5 Add failure dashboards or reports
 
 ### 6.2 Safety Gates
