@@ -49,6 +49,9 @@ packages, and applications, the org provides a trusted downstream lane:
 - [docs/RESEARCH.md](./docs/RESEARCH.md): implementation-shaping research notes.
 - [docs/VALIDATION_PLAN.md](./docs/VALIDATION_PLAN.md): self-test, case-study
   tiers, and proof required before making stronger assurance claims.
+- [case-studies/001-pilot-cohort](./case-studies/001-pilot-cohort/README.md):
+  first real Go/Rust/Python/Java/.NET security-project cohort and exact upstream
+  commits.
 
 ## Current Prototype Commands
 
@@ -59,7 +62,7 @@ tools from queues, schedulers, GitHub App events, and human review workflows.
 ```text
 assured-downstream codex-preflight
 assured-downstream agent-run --seed awesome-security.md --org <org> \
-  --run-dir ./runs/intake-001
+  --run-dir ./runs/intake-001 --enrich
 assured-downstream agent-run --seed awesome-security.md --org <org> \
   --run-dir ./runs/intake-002 --enqueue-only
 assured-downstream agent-worker \

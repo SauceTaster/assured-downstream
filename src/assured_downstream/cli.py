@@ -139,6 +139,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     agent_run.add_argument("--codex-profile", default=DEFAULT_CODEX_PROFILE)
     agent_run.add_argument("--codex-timeout", type=int, default=90)
+    agent_run.add_argument(
+        "--enrich",
+        action="store_true",
+        help="Fetch GitHub metadata before triage and require it at the Governor gate.",
+    )
+    agent_run.add_argument(
+        "--token-env",
+        default="GITHUB_TOKEN",
+        help="Environment variable containing the optional GitHub token.",
+    )
     agent_run.add_argument("--max-items", type=int, default=100)
     agent_run.add_argument(
         "--enqueue-only",
@@ -583,6 +593,8 @@ def command_agent_run(args: argparse.Namespace) -> int:
         codex_mode=args.codex_mode,
         codex_profile=args.codex_profile,
         codex_timeout_seconds=args.codex_timeout,
+        enrich=args.enrich,
+        token_env=args.token_env,
         max_items=args.max_items,
         enqueue_only=args.enqueue_only,
     )

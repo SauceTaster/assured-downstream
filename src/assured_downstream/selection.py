@@ -72,6 +72,7 @@ def load_policy_entries(path: Path, default_reason: str) -> list[dict[str, Any]]
         payload = json.load(handle)
 
     entries = extract_entries(payload)
+    source_label = policy_source_label(path)
     result = []
     for entry in entries:
         if isinstance(entry, str):
@@ -79,17 +80,25 @@ def load_policy_entries(path: Path, default_reason: str) -> list[dict[str, Any]]
                 {
                     "full_name": entry,
                     "reason": default_reason,
-                    "source": str(path),
+                    "source": source_label,
                 }
             )
         elif isinstance(entry, dict):
             candidate = dict(entry)
             candidate.setdefault("reason", default_reason)
-            candidate.setdefault("source", str(path))
+            candidate.setdefault("source", source_label)
             result.append(candidate)
         else:
             raise ValueError(f"Unsupported policy entry in {path}: {entry!r}")
     return result
+
+
+def policy_source_label(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(Path.cwd().resolve()).as_posix()
+    except ValueError:
+        return resolved.name
 
 
 def extract_entries(payload: Any) -> list[Any]:

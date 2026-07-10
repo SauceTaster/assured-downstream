@@ -1,0 +1,16 @@
+{
+  "repositories": [
+    {
+      "full_name": "dnSpyEx/dnSpy",
+      "reason": "Deferred until the first cohort validates Windows isolation and fork-of-a-fork lineage."
+    },
+    {
+      "full_name": "find-sec-bugs/find-sec-bugs",
+      "reason": "Deferred to the stewardship lane for LGPL redistribution review."
+    },
+    {
+      "full_name": "security-code-scan/security-code-scan",
+      "reason": "Deferred to the stewardship lane for stale release and vs2019 default-branch review."
+    }
+  ]
+}

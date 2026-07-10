@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from assured_downstream.agent_runtime import AgentRuntime
 from assured_downstream.agent_store import AgentStore
@@ -21,6 +22,63 @@ EXPECTED_EVENTS = [
 
 
 class IntakeAgentTests(unittest.TestCase):
+    def test_enriched_run_passes_metadata_and_license_governor_checks(self) -> None:
+        class FakeClient:
+            def repository_metadata(self, owner: str, name: str) -> dict:
+                return fake_github_metadata(owner, name, license_id="Apache-2.0")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            seed = root / "seed.md"
+            seed.write_text("https://github.com/example/security-tool\n", encoding="utf-8")
+            with patch(
+                "assured_downstream.intake_agents.GitHubClient.from_environment",
+                return_value=FakeClient(),
+            ):
+                result = run_intake_agent_system(
+                    seed_sources=[seed],
+                    org="assured-example",
+                    run_dir=root / "run",
+                    run_id="enriched-run",
+                    codex_mode="off",
+                    enrich=True,
+                )
+
+            self.assertEqual(result["status"], "succeeded")
+            gate = json.loads(
+                (root / "run" / "agents" / "governor" / "gate-decision.json").read_text(
+                    encoding="utf-8"
+                )
+            )
+            checks = {item["check"]: item["passed"] for item in gate["checks"]}
+            self.assertTrue(checks["metadata-enriched"])
+            self.assertTrue(checks["license-declared"])
+
+    def test_enriched_run_blocks_candidate_without_declared_license(self) -> None:
+        class FakeClient:
+            def repository_metadata(self, owner: str, name: str) -> dict:
+                return fake_github_metadata(owner, name, license_id=None)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            seed = root / "seed.md"
+            seed.write_text("https://github.com/example/security-tool\n", encoding="utf-8")
+            with patch(
+                "assured_downstream.intake_agents.GitHubClient.from_environment",
+                return_value=FakeClient(),
+            ):
+                result = run_intake_agent_system(
+                    seed_sources=[seed],
+                    org="assured-example",
+                    run_dir=root / "run",
+                    run_id="unlicensed-run",
+                    codex_mode="off",
+                    enrich=True,
+                )
+
+            self.assertEqual(result["status"], "blocked")
+            self.assertFalse((root / "run" / "fork-plan.json").exists())
+
     def test_runs_discovery_to_fork_plan_with_durable_handoffs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -144,6 +202,36 @@ class IntakeAgentTests(unittest.TestCase):
             self.assertEqual(result["status"], "succeeded")
             plan = json.loads((run_dir / "fork-plan.json").read_text(encoding="utf-8"))
             self.assertEqual(plan["forks"][0]["source_full_name"], "sigstore/cosign")
+
+
+def fake_github_metadata(
+    owner: str,
+    name: str,
+    *,
+    license_id: str | None,
+) -> dict:
+    return {
+        "fetched_at": "2026-01-01T00:00:00+00:00",
+        "full_name": f"{owner}/{name}",
+        "description": "security tool",
+        "homepage": None,
+        "default_branch": "main",
+        "archived": False,
+        "disabled": False,
+        "fork": False,
+        "private": False,
+        "stargazers_count": 100,
+        "forks_count": 10,
+        "open_issues_count": 1,
+        "pushed_at": "2026-01-01T00:00:00Z",
+        "created_at": "2025-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z",
+        "license_spdx_id": license_id,
+        "topics": ["security"],
+        "languages": {"Python": 100},
+        "has_releases": True,
+        "latest_releases": [],
+    }
 
 
 if __name__ == "__main__":

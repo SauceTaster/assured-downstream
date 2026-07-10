@@ -108,7 +108,8 @@ Run the complete local lane:
 assured-downstream agent-run \
   --seed awesome-security.md \
   --org <org> \
-  --run-dir ./runs/intake-001
+  --run-dir ./runs/intake-001 \
+  --enrich
 ```
 
 Separate enqueueing from workers:
@@ -140,7 +141,8 @@ assured-downstream codex-preflight
 - discovery currently accepts local or HTTPS awesome-list style sources;
   remote responses are size-bounded and obvious local/private targets are
   rejected
-- GitHub metadata enrichment is not yet a runtime agent step
+- GitHub metadata enrichment can run inside the Catalog Ingestion handoff with
+  `--enrich`; tokens are read from an environment variable and never persisted
 - live fork creation, syncing, and repository mutation remain outside this lane
 - SQLite is single-host orchestration
 - Luna advisory is implemented for triage; later recon and patch agents will

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from assured_downstream.fork_plan import create_fork_plan
-from assured_downstream.selection import CandidateSelectionPolicy
+from assured_downstream.selection import CandidateSelectionPolicy, load_candidate_policy
 
 
 def repo(owner: str, name: str, score: int) -> dict[str, object]:
@@ -18,6 +21,21 @@ def repo(owner: str, name: str, score: int) -> dict[str, object]:
 
 
 class SelectionTests(unittest.TestCase):
+    def test_policy_file_source_does_not_expose_absolute_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "suppressions.json"
+            path.write_text(
+                json.dumps({"repositories": ["owner/blocked"]}),
+                encoding="utf-8",
+            )
+            policy = load_candidate_policy(suppression_path=path)
+
+        entry = policy.suppression_entry("owner/blocked")
+        self.assertIsNotNone(entry)
+        assert entry is not None
+        self.assertEqual(entry.source, "suppressions.json")
+        self.assertFalse(Path(entry.source).is_absolute())
+
     def test_suppressed_repo_never_enters_fork_plan(self) -> None:
         catalog = {
             "repositories": [

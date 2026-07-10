@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from assured_downstream.recon import inspect_repository
-from assured_downstream.workflow_yaml import parse_workflow_yaml
+from assured_downstream.workflow_yaml import WorkflowYamlError, parse_workflow_yaml
 
 
 FIXTURES = Path(__file__).parent / "fixtures" / "recon"
@@ -37,6 +37,43 @@ class ReconTests(unittest.TestCase):
         steps = parsed["jobs"]["build"]["steps"]
         self.assertIn("go build", steps[0]["run"])
         self.assertEqual(steps[1]["with"]["path"], "dist/tool")
+
+    def test_workflow_yaml_parser_handles_real_actions_sequence_shapes(self) -> None:
+        parsed = parse_workflow_yaml(
+            """
+            name: Build
+            on:
+              [push, pull_request]
+            jobs:
+              test:
+                strategy:
+                  matrix:
+                    python-version: [
+                      ["3.12", "312"],
+                      ["3.13", "313"],
+                    ]
+                steps:
+                - name: Checkout
+                  uses: actions/checkout@v4
+                - name: Test
+                  run: echo true
+            """
+        )
+
+        self.assertIn("on", parsed)
+        self.assertEqual(parsed["on"], ["push", "pull_request"])
+        steps = parsed["jobs"]["test"]["steps"]
+        self.assertEqual(steps[0]["uses"], "actions/checkout@v4")
+
+    def test_workflow_yaml_parser_rejects_duplicate_keys(self) -> None:
+        with self.assertRaises(WorkflowYamlError):
+            parse_workflow_yaml(
+                """
+                on: push
+                jobs: {}
+                jobs: {}
+                """
+            )
 
     def test_detects_repo_shape_and_workflow_risks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -194,7 +231,7 @@ class ReconTests(unittest.TestCase):
         workflow = report["ci"]["workflows"][0]
         signals = [risk["signal"] for risk in report["risk_signals"]]
         self.assertFalse(workflow["parsed"])
-        self.assertIn("unterminated flow sequence", workflow["parse_error"])
+        self.assertIn("line", workflow["parse_error"])
         self.assertEqual(workflow["actions"][0]["name"], "actions/checkout")
         self.assertTrue(any("could not be parsed" in signal for signal in signals))
         self.assertTrue(any("write-all" in signal for signal in signals))

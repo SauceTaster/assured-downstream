@@ -35,6 +35,8 @@ Status: MVP built; live tuning and scheduler integration remain.
 - 1.1.5 Score candidates with explainable heuristics
 - 1.1.6 Add candidate suppression/allowlist controls
 - 1.1.7 Add persistent run history across pilot runs
+- 1.1.8 Host GitHub metadata and license enrichment in the durable Catalog
+  Ingestion handoff before the Governor selection gate
 
 ### 1.2 Fork Lifecycle
 

@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "status": "vetted-awaiting-organization",
+  "generated_at": "2026-07-10T05:10:00Z",
+  "target": {
+    "account_owner": "SauceTaster",
+    "organization": "assured-downstream-labs",
+    "organization_exists": false,
+    "organization_creation": "manual-github-web-step-required",
+    "forks_created": false
+  },
+  "discovery": {
+    "awesome_list": "https://github.com/sbilly/awesome-security",
+    "candidate_count": 188,
+    "agent_run_id": "repo-scout-20260709",
+    "agent_status": "needs_human_review",
+    "review_reason": "Awesome-list text did not contain sufficient license, stewardship, or provenance metadata. Candidate qualification used live GitHub metadata and local structural recon."
+  },
+  "nomination_run": {
+    "seed": "case-studies/001-pilot-cohort/seed.md",
+    "run_id": "case-001-final-3",
+    "status": "succeeded",
+    "github_enrichment": "succeeded",
+    "luna_advisory": "succeeded-with-no-findings",
+    "governor_gate": "passed",
+    "selected": 5,
+    "suppressed": 3,
+    "pending_work": 0,
+    "artifact_verification": "passed"
+  },
+  "qualification": {
+    "mode": "shallow-clone and non-executing structural analysis",
+    "workflow_count": 19,
+    "workflow_parse_errors": 0,
+    "builds_executed": false,
+    "fork_mutations_executed": false
+  },
+  "repositories": [
+    {
+      "source_full_name": "securego/gosec",
+      "source_commit": "849570622f56a251c015c0e2417aebafc0216e17",
+      "default_branch": "master",
+      "ecosystem": "go",
+      "license_spdx_id": "Apache-2.0",
+      "latest_release": "v2.27.1",
+      "pushed_at": "2026-07-06T12:32:02Z",
+      "role": "compact-release-canary",
+      "recon": {
+        "project_name": "gosec",
+        "workflow_count": 4,
+        "workflow_parse_errors": 0,
+        "artifact_candidates": 1,
+        "risk_counts": {
+          "high": 1,
+          "medium": 2
+        }
+      }
+    },
+    {
+      "source_full_name": "epi052/feroxbuster",
+      "source_commit": "378d75964c45db9c92826316ff631d34d59396c7",
+      "default_branch": "main",
+      "ecosystem": "rust",
+      "license_spdx_id": "MIT",
+      "latest_release": "v2.13.1",
+      "pushed_at": "2026-04-15T12:31:40Z",
+      "role": "multi-platform-release-stress",
+      "recon": {
+        "project_name": "feroxbuster",
+        "workflow_count": 5,
+        "workflow_parse_errors": 0,
+        "artifact_candidates": 10,
+        "risk_counts": {
+          "medium": 50
+        }
+      }
+    },
+    {
+      "source_full_name": "PyCQA/bandit",
+      "source_commit": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+      "default_branch": "main",
+      "ecosystem": "python",
+      "license_spdx_id": "Apache-2.0",
+      "latest_release": "1.9.4",
+      "pushed_at": "2026-07-07T00:02:03Z",
+      "role": "python-package-canary",
+      "recon": {
+        "project_name": "bandit",
+        "workflow_count": 5,
+        "workflow_parse_errors": 0,
+        "artifact_candidates": 0,
+        "risk_counts": {
+          "medium": 14
+        }
+      }
+    },
+    {
+      "source_full_name": "google/tsunami-security-scanner",
+      "source_commit": "363ba87b3543f8ae8e4304d3416818f03da7f262",
+      "default_branch": "master",
+      "ecosystem": "java",
+      "license_spdx_id": "Apache-2.0",
+      "latest_release": "v0.2.0",
+      "pushed_at": "2026-06-23T16:05:00Z",
+      "role": "java-mixed-repository-canary",
+      "recon": {
+        "project_name": "tsunami-security-scanner",
+        "selected_build": "gradle --no-daemon build",
+        "workflow_count": 4,
+        "workflow_parse_errors": 0,
+        "artifact_candidates": 0,
+        "risk_counts": {
+          "medium": 17
+        }
+      }
+    },
+    {
+      "source_full_name": "microsoft/DevSkim",
+      "source_commit": "17706a84717a082984090f34621834e6aeff2925",
+      "default_branch": "main",
+      "ecosystem": "dotnet",
+      "license_spdx_id": "MIT",
+      "latest_release": "v1.0.70",
+      "pushed_at": "2026-07-08T19:08:05Z",
+      "role": "dotnet-release-canary",
+      "recon": {
+        "project_name": "Microsoft.CST.DevSkim.CLI",
+        "selected_project": "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj",
+        "workflow_count": 1,
+        "workflow_parse_errors": 0,
+        "artifact_candidates": 0,
+        "risk_counts": {
+          "medium": 1
+        }
+      }
+    }
+  ],
+  "deferred_challenges": [
+    {
+      "source_full_name": "dnSpyEx/dnSpy",
+      "source_commit": "7c2474f91985f0d000a732db063e5f880af7e6f3",
+      "default_branch": "master",
+      "ecosystem": "dotnet",
+      "license_spdx_id": "GPL-3.0",
+      "reason": "Windows-specific build, larger repository, and fork-of-a-fork lineage should be tested after the first cohort."
+    },
+    {
+      "source_full_name": "find-sec-bugs/find-sec-bugs",
+      "source_commit": "90447f7e39e529c31cf098ebade0a755b944dd91",
+      "default_branch": "master",
+      "ecosystem": "java",
+      "license_spdx_id": "LGPL-3.0",
+      "reason": "Defer LGPL redistribution obligations and multi-module release review to the stewardship lane."
+    },
+    {
+      "source_full_name": "security-code-scan/security-code-scan",
+      "source_commit": "815046d24e49cec43469f4852d19562a916541eb",
+      "default_branch": "vs2019",
+      "ecosystem": "dotnet",
+      "license_spdx_id": "LGPL-3.0",
+      "reason": "Defer stale release history and unusual default-branch validation to the stewardship lane."
+    }
+  ]
+}

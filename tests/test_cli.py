@@ -29,6 +29,8 @@ class CliTests(unittest.TestCase):
         self.assertEqual(args.codex_mode, "advisory")
         self.assertEqual(args.codex_profile, "assured-downstream-luna")
         self.assertEqual(args.codex_timeout, 90)
+        self.assertFalse(args.enrich)
+        self.assertEqual(args.token_env, "GITHUB_TOKEN")
 
     def test_pilot_parser_accepts_selection_policy_args(self) -> None:
         args = build_parser().parse_args(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import shlex
 import tomllib
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -72,7 +73,8 @@ def choose_build(
     languages: dict[str, int],
     project_name: str,
 ) -> dict[str, Any]:
-    if "go" in package_managers or "Go" in languages:
+    preferred_family = preferred_language_family(root, package_managers, languages)
+    if preferred_family == "go":
         return {
             "language_family": "go",
             "commands": [
@@ -84,7 +86,7 @@ def choose_build(
                 "Review whether the Go project builds from repository root or needs package-specific commands.",
             ],
         }
-    if "cargo" in package_managers or "Rust" in languages:
+    if preferred_family == "rust":
         return {
             "language_family": "rust",
             "commands": [
@@ -97,48 +99,7 @@ def choose_build(
                 "Review copied Rust release binaries; examples, test helpers, or build-script outputs may need filtering.",
             ],
         }
-    if "python" in package_managers or "pip" in package_managers or "Python" in languages:
-        return {
-            "language_family": "python",
-            "commands": [
-                "python -m pip install --upgrade build",
-                "python -m build --outdir dist",
-            ],
-            "artifact_paths": ["dist/*.whl", "dist/*.tar.gz"],
-            "review_notes": [
-                "Review whether the Python project needs extra build dependencies or isolated build settings.",
-            ],
-        }
-    if "maven" in package_managers or ("Java" in languages and (root / "pom.xml").exists()):
-        return {
-            "language_family": "java",
-            "commands": [
-                "mvn -B -DskipTests package",
-                "mkdir -p dist",
-                "find target -maxdepth 2 -type f \\( -name '*.jar' -o -name '*.war' \\) -exec cp {} dist/ \\;",
-            ],
-            "artifact_paths": ["dist/*.jar", "dist/*.war"],
-            "review_notes": [
-                "Review whether tests should run before packaging and whether release artifacts include sources or javadocs.",
-                "Confirm Maven repository publishing remains disabled until credentials and provenance policy are reviewed.",
-            ],
-        }
-    if "gradle" in package_managers or (root / "build.gradle").exists() or (root / "build.gradle.kts").exists():
-        gradle_command = "./gradlew --no-daemon build" if (root / "gradlew").exists() else "gradle --no-daemon build"
-        return {
-            "language_family": "java",
-            "commands": [
-                gradle_command,
-                "mkdir -p dist",
-                "find build/libs -maxdepth 1 -type f \\( -name '*.jar' -o -name '*.war' \\) -exec cp {} dist/ \\;",
-            ],
-            "artifact_paths": ["dist/*.jar", "dist/*.war"],
-            "review_notes": [
-                "Review whether this Gradle project is single-module or needs module-specific artifact collection.",
-                "Confirm dependency locking and publishing credentials before enabling release publication.",
-            ],
-        }
-    if "dotnet" in package_managers or any(language in languages for language in ["C#", "F#", "Visual Basic"]):
+    if preferred_family == "dotnet":
         project_arg = dotnet_project_arg(root)
         publish_command = "dotnet publish"
         if project_arg:
@@ -155,6 +116,53 @@ def choose_build(
                 "Confirm package signing and NuGet publishing remain disabled until credentials and provenance policy are reviewed.",
             ],
         }
+    if preferred_family == "java" and (
+        "maven" in package_managers or (root / "pom.xml").exists()
+    ):
+        return {
+            "language_family": "java",
+            "commands": [
+                "mvn -B -DskipTests package",
+                "mkdir -p dist",
+                "find target -maxdepth 2 -type f \\( -name '*.jar' -o -name '*.war' \\) -exec cp {} dist/ \\;",
+            ],
+            "artifact_paths": ["dist/*.jar", "dist/*.war"],
+            "review_notes": [
+                "Review whether tests should run before packaging and whether release artifacts include sources or javadocs.",
+                "Confirm Maven repository publishing remains disabled until credentials and provenance policy are reviewed.",
+            ],
+        }
+    if preferred_family == "java" and (
+        "gradle" in package_managers
+        or (root / "build.gradle").exists()
+        or (root / "build.gradle.kts").exists()
+    ):
+        gradle_command = "./gradlew --no-daemon build" if (root / "gradlew").exists() else "gradle --no-daemon build"
+        return {
+            "language_family": "java",
+            "commands": [
+                gradle_command,
+                "mkdir -p dist",
+                "find build/libs -maxdepth 1 -type f \\( -name '*.jar' -o -name '*.war' \\) -exec cp {} dist/ \\;",
+            ],
+            "artifact_paths": ["dist/*.jar", "dist/*.war"],
+            "review_notes": [
+                "Review whether this Gradle project is single-module or needs module-specific artifact collection.",
+                "Confirm dependency locking and publishing credentials before enabling release publication.",
+            ],
+        }
+    if preferred_family == "python":
+        return {
+            "language_family": "python",
+            "commands": [
+                "python -m pip install --upgrade build",
+                "python -m build --outdir dist",
+            ],
+            "artifact_paths": ["dist/*.whl", "dist/*.tar.gz"],
+            "review_notes": [
+                "Review whether the Python project needs extra build dependencies or isolated build settings.",
+            ],
+        }
     return {
         "language_family": "unknown",
         "commands": [
@@ -167,6 +175,59 @@ def choose_build(
             "No first-lane build profile matched; provide a reviewed build command before enabling this workflow.",
         ],
     }
+
+
+def preferred_language_family(
+    root: Path,
+    package_managers: set[str],
+    languages: dict[str, int],
+) -> str:
+    language_scores = {
+        "go": int(languages.get("Go", 0)),
+        "rust": int(languages.get("Rust", 0)),
+        "dotnet": sum(
+            int(languages.get(language, 0))
+            for language in ("C#", "F#", "Visual Basic")
+        ),
+        "java": sum(
+            int(languages.get(language, 0))
+            for language in ("Java", "Kotlin", "Groovy")
+        ),
+        "python": int(languages.get("Python", 0)),
+    }
+    highest_score = max(language_scores.values(), default=0)
+    leaders: list[str] = []
+    if highest_score > 0:
+        leaders = sorted(
+            family
+            for family, score in language_scores.items()
+            if score == highest_score
+        )
+        if len(leaders) == 1:
+            return leaders[0]
+
+    manifest_families = []
+    if (root / "Cargo.toml").exists() or "cargo" in package_managers:
+        manifest_families.append("rust")
+    if first_dotnet_project(root) is not None or "dotnet" in package_managers:
+        manifest_families.append("dotnet")
+    if any(
+        (root / name).exists()
+        for name in ("pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle")
+    ) or {"maven", "gradle"} & package_managers:
+        manifest_families.append("java")
+    if any(
+        (root / name).exists()
+        for name in ("pyproject.toml", "setup.py", "setup.cfg")
+    ) or {"python", "pip"} & package_managers:
+        manifest_families.append("python")
+    if (root / "go.mod").exists() or "go" in package_managers:
+        manifest_families.append("go")
+
+    for family in manifest_families:
+        if not leaders or family in leaders:
+            return family
+    return leaders[0] if leaders else "unknown"
 
 
 def normalize_artifact_candidates(raw_candidates: Any) -> list[dict[str, Any]]:
@@ -216,7 +277,10 @@ def detect_project_name(root: Path, package_managers: set[str]) -> str:
     if "go" in package_managers and (root / "go.mod").exists():
         module_name = read_go_module(root / "go.mod")
         if module_name:
-            return module_name.rsplit("/", 1)[-1]
+            module_parts = module_name.rstrip("/").split("/")
+            if len(module_parts) > 1 and re.fullmatch(r"v[2-9][0-9]*", module_parts[-1]):
+                return module_parts[-2]
+            return module_parts[-1]
     if "maven" in package_managers and (root / "pom.xml").exists():
         name = read_xml_direct_child(root / "pom.xml", "artifactId")
         if name:
@@ -249,16 +313,61 @@ def read_go_module(path: Path) -> str | None:
 
 
 def first_dotnet_project(root: Path) -> Path | None:
-    for suffix in ("*.csproj", "*.fsproj", "*.vbproj", "*.sln"):
-        matches = sorted(root.glob(suffix))
-        if matches:
-            return matches[0]
+    project_matches = sorted(
+        path
+        for suffix in ("*.csproj", "*.fsproj", "*.vbproj")
+        for path in root.rglob(suffix)
+    )
+    if project_matches:
+        return min(project_matches, key=lambda path: dotnet_project_score(root, path))
+    solution_matches = sorted(root.rglob("*.sln"))
+    if solution_matches:
+        return min(solution_matches, key=lambda path: dotnet_project_score(root, path))
     return None
 
 
 def dotnet_project_arg(root: Path) -> str | None:
     project = first_dotnet_project(root)
-    return project.name if project and project.suffix.lower() != ".sln" else None
+    if project is None or project.suffix.lower() == ".sln":
+        return None
+    return shlex.quote(project.relative_to(root).as_posix())
+
+
+def dotnet_project_score(root: Path, path: Path) -> tuple[int, int, int, str]:
+    relative = path.relative_to(root)
+    normalized_root = re.sub(r"[^a-z0-9]", "", root.name.lower())
+    normalized_stem = re.sub(r"[^a-z0-9]", "", path.stem.lower())
+    ignored_terms = {
+        "benchmark",
+        "benchmarks",
+        "demo",
+        "demos",
+        "example",
+        "examples",
+        "lgtm",
+        "sample",
+        "samples",
+        "test",
+        "tests",
+        "vsix",
+        "website",
+    }
+    terms = {
+        term
+        for part in relative.parts
+        for term in re.split(r"[^a-z0-9]+", part.lower())
+        if term
+    }
+    ignored_penalty = 1 if terms & ignored_terms else 0
+    if normalized_stem == normalized_root:
+        name_rank = 0
+    elif normalized_root and (
+        normalized_root in normalized_stem or normalized_stem in normalized_root
+    ):
+        name_rank = 1
+    else:
+        name_rank = 2
+    return ignored_penalty, name_rank, len(relative.parts), relative.as_posix().lower()
 
 
 def read_dotnet_project_name(path: Path) -> str | None:

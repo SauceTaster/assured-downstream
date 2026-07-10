@@ -12,7 +12,9 @@ license = "Apache-2.0"
 authors = [
   { name = "Assured Downstream Automation" }
 ]
-dependencies = []
+dependencies = [
+  "PyYAML>=6.0.2,<7",
+]
 
 [project.scripts]
 assured-downstream = "assured_downstream.cli:main"
