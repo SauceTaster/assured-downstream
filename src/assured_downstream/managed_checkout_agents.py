@@ -264,6 +264,10 @@ class ManagedOverlayPlannerHandler:
             recon = read_json(recon_path)
             overlay = plan_overlay(recon, target=assurance_target)
             release_profile = plan_release_profile(recon)
+            release_profile["lineage"] = {
+                "source_full_name": repo["source_full_name"],
+                "upstream_ref": repo["analysis_sha"],
+            }
             repository_dir = context.run_dir / "repositories" / safe_repo_dir(
                 repo["target_full_name"]
             )

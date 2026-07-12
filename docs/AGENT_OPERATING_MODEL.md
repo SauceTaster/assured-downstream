@@ -334,17 +334,19 @@ The local self-test should grow in layers:
 5. Sandbox org replay from project discovery to attested release.
 6. Upstream update replay to prove resync and rerun behavior.
 
-The current `self-test` covers the first three and replays the durable intake
-lane. Case Study 001 separately proves repeat-safe live fork detection plus the
+The current `self-test` covers the first three, replays the durable intake lane,
+and drains synthetic build-result evidence through Build, Trace, Attestation,
+and Governor agents without executing upstream code. Case Study 001 separately
+proves repeat-safe live fork detection plus the
 durable Fork And Sync -> Recon -> Overlay Planner lane over five repositories.
 It also proves Patch -> Publication Request and Publication Authorization ->
 Secure Branch Publisher locally on Bandit, including policy scope,
 deterministic commit creation, CAS, artifact verification, invalid-attestation
 refusal, and cross-run replay rejection. Remote authorization is disabled until
 the independent gate can operate without authentication switching or
-cross-account delegation. The next self-test increment should bring both update
-and patch replay into the no-network bundle before the first governed build case
-study.
+cross-account delegation. The next self-test increment should bring update and
+patch replay into the no-network bundle while the first disposable Linux builder
+adapter is developed separately.
 
 ## Validated Case Study
 

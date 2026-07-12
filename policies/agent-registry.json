@@ -74,7 +74,7 @@
       "purpose": "Enforce policies, block unsafe transitions, require evidence before claims, and route uncertainty to humans.",
       "owns": ["policy decisions", "release gates", "claim discipline"],
       "input_events": ["CandidateSelected", "OverlayProposed", "ReleaseEvidenceReady", "RebuildCompared", "BehaviorCompared"],
-      "output_events": ["GatePassed:CandidateSelected", "GatePassed:Attested", "GatePassed:Reproducible", "GateBlocked", "NeedsHumanReview"],
+      "output_events": ["GatePassed:CandidateSelected", "EvidenceCandidateReady", "GatePassed:Attested", "GatePassed:Reproducible", "GateBlocked", "NeedsHumanReview"],
       "tools": ["evaluate-release", "approved tooling policy", "pin lock checks", "risk signal checks"],
       "human_gates": ["all blocked release overrides", "custodian claims", "public validation claims"]
     },
@@ -160,20 +160,20 @@
     },
     {
       "id": "build",
-      "name": "Build Agent",
-      "purpose": "Run target builds in isolated environments with approved tooling and no long-lived secrets.",
-      "owns": ["build logs", "artifact staging", "build environment metadata"],
-      "input_events": ["PatchRendered", "ToolPinsReady", "ReleaseConfirmed"],
+      "name": "Build Result Agent",
+      "purpose": "Coordinate external builders and snapshot their outputs without treating builder declarations as independent proof.",
+      "owns": ["build result intake", "immutable artifact staging", "builder declarations"],
+      "input_events": ["BuildResultRecorded", "ReleaseConfirmed"],
       "output_events": ["BuildArtifactsReady", "BuildFailed"],
-      "tools": ["secure workflows", "runner images", "package managers"],
-      "human_gates": ["secret requirement", "non-hermetic build", "unexpected network requirement"]
+      "tools": ["secure workflows", "runner images", "builder verification adapters"],
+      "human_gates": ["unverified builder identity", "secret requirement", "non-hermetic build", "unexpected network requirement"]
     },
     {
       "id": "trace",
       "name": "Trace Agent",
       "purpose": "Capture process, file, network, syscall, and security-event evidence during builds.",
       "owns": ["raw traces", "normalized behavior reports", "trace retention policy"],
-      "input_events": ["BuildStarted"],
+      "input_events": ["BuildArtifactsReady"],
       "output_events": ["TraceReady", "TracePolicyFailed"],
       "tools": ["normalize-trace", "process tracer", "network monitor", "syscall collector"],
       "human_gates": ["collector blind spot", "sensitive trace retention"]
@@ -183,7 +183,7 @@
       "name": "Attestation Agent",
       "purpose": "Produce SBOMs, SLSA provenance, in-toto statements, signatures, evidence manifests, and verification guides.",
       "owns": ["evidence manifest", "attestation references", "verification guide"],
-      "input_events": ["BuildArtifactsReady", "TraceReady"],
+      "input_events": ["TraceReady"],
       "output_events": ["ReleaseEvidenceReady", "EvidenceVerificationFailed"],
       "tools": ["create-evidence", "create-attestation", "verify-evidence", "write-verification-guide", "actions/attest", "sigstore"],
       "human_gates": ["missing artifact role", "missing attestation role", "signature policy exception"]

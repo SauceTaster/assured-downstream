@@ -4,9 +4,10 @@ Assured Downstream is an early-stage idea/dev project for an agentic DevOps
 assured downstream for open source software.
 
 Status: executable design prototype. Durable intake, managed-checkout, governed
-patch-request, and local publication-verification mechanics work. Remote
-publication authorization is intentionally disabled while its account-isolated
-trust boundary is redesigned. This is not production-ready.
+patch-request, local publication verification, and isolated build-evidence
+ingestion work. Remote publication authorization is intentionally disabled
+while its account-isolated trust boundary is redesigned. This is not
+production-ready.
 
 The goal is to maintain an organization of hardened forks that continuously
 track upstream projects, rebuild and release them under stronger security
@@ -40,6 +41,8 @@ packages, and applications, the org provides a trusted downstream lane:
   project-finding, ingestion, agent, event, tool, and handoff model.
 - [docs/AGENT_RUNTIME.md](./docs/AGENT_RUNTIME.md): implemented SQLite runtime,
   Luna worker contract, commands, failure semantics, and Dapr migration gate.
+- [docs/BUILD_EVIDENCE_CONTRACT.md](./docs/BUILD_EVIDENCE_CONTRACT.md): external
+  builder trust boundary, evidence inputs, durable agent flow, and non-claims.
 - [ROADMAP.md](./ROADMAP.md): staged implementation plan from catalog and fork
   sync to behavior-reproducible releases.
 - [docs/WBS.md](./docs/WBS.md): work breakdown for what remains before and
@@ -106,6 +109,13 @@ assured-downstream publication-run \
   --publication-policy policies/publication-authorization.json \
   --checkout ./worktrees/repository --workspace ./worktrees \
   --run-dir ./runs/publication-001 --execute
+assured-downstream evidence-run \
+  --build-result ./builder/build-result.json \
+  --evidence-root ./builder/evidence \
+  --attestation-verification ./verification/attestation.json \
+  --tooling-verification ./verification/tooling.json \
+  --workflow-risk-verification ./verification/workflow-risk.json \
+  --run-dir ./runs/evidence-001
 assured-downstream pilot --seed awesome-security.md --org <org> --run-dir ./runs/pilot-001
 assured-downstream pilot --seed https://example.com/awesome-security.md --org <org> \
   --run-dir ./runs/pilot-remote
@@ -139,6 +149,9 @@ assured-downstream create-attestation --predicate-type https://assured-downstrea
 assured-downstream verify-evidence --manifest evidence.json
 assured-downstream write-verification-guide --evidence evidence.json --output VERIFY.md
 assured-downstream evaluate-release --evidence evidence.json --target Attested \
+  --attestation-verification attestation-verification.json \
+  --tooling-verification tooling-verification.json \
+  --workflow-risk-verification workflow-risk-verification.json \
   --output release-evaluation.json
 assured-downstream create-project-packet --fork-plan fork-plan.json --source owner/repo \
   --checkout-analysis recon.json --overlay-plan overlay-plan.json --render-result render-result.json \
@@ -152,9 +165,10 @@ assured-downstream compare-behavior --left host-a-behavior.json --right host-b-b
 `enrich` uses public GitHub API access by default and reads `GITHUB_TOKEN` when
 available. Fork targets may be an organization (`--org`) or the personal
 account authenticated in `gh` (`--user`), with an optional `--name-prefix`.
-`apply-fork-plan` is dry-run unless `--execute` is passed. Before personal
-account mutation it verifies the active GitHub identity; existing targets are
-accepted only when GitHub confirms the requested upstream parent. Overlay
+`apply-fork-plan` is dry-run unless `--execute` is passed. Before every GitHub
+mutation it enforces the checked-in account boundary and verifies the active
+identity; existing targets are accepted only when GitHub confirms the requested
+upstream parent. Overlay
 planning is also non-mutating; it turns recon evidence into a structured set of
 proposed hardening changes. Overlay rendering is dry-run unless `--execute` is
 passed, and generated workflows require full commit SHA pins supplied through
@@ -202,8 +216,10 @@ directory with `catalog.json`, `fork-plan.json`,
 and appends to a machine-readable run index.
 
 `self-test` runs local no-network validation against first-lane Go, Rust,
-Python, Java, and .NET fixtures, replays the five-agent intake lane, then
-verifies an Attested evidence smoke test.
+Python, Java, and .NET fixtures, replays the five-agent intake lane, verifies an
+Attested evidence smoke test, and drains the four-agent build-result, trace,
+attestation, and Governor lane with synthetic evidence. It executes no upstream
+build code.
 
 `analyze-checkout` is the local Patch Agent cockpit. It writes `recon.json`,
 `overlay-plan.json`, `render-result.json`, `release-profile.json`,
@@ -217,6 +233,23 @@ GitHub Actions workflow that builds artifacts, generates an SBOM, uses
 in-toto predicate, and uploads the resulting Sigstore bundles with the evidence.
 Draft release workflows are manual-only until the release workflow and artifact
 paths are confirmed in the profile.
+The generated workflow separates untrusted build execution, unprivileged
+artifact inspection and SBOM generation, and privileged attestation. Only the
+last job receives OIDC and attestation permissions, and checkout credentials
+are not persisted into the source mounted by the builder.
+Draft workflows refuse to execute upstream code until a reviewed builder image
+digest and argv-only command are confirmed; confirmed builds use a read-only
+source mount, dropped capabilities, and `--network none`. Before building, the
+workflow fetches the exact configured upstream commit without credentials and
+requires it to be an ancestor of the downstream commit being attested.
+`evidence-run` snapshots outputs from a builder declaring external isolation and
+routes them through Build, Trace, Attestation, and Governor agents. The current
+evidence-candidate input check requires exact artifact subjects represented in
+the supplied Sigstore, tooling, and workflow-risk documents, but does not trust
+or independently verify those documents.
+The lane emits `EvidenceCandidateReady`, which grants no assurance and cannot
+publish a release; code-anchored generation of verification results remains
+next.
 
 `create-project-packet` produces passive fork metadata, lineage, an overlay
 summary, and optional fetch commands. Assured Downstream does not create pull

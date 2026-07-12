@@ -67,6 +67,15 @@ class ManagedCheckoutAgentTests(unittest.TestCase):
             self.assertTrue(Path(repository["overlay_plan_path"]).is_file())
             self.assertTrue(Path(repository["release_profile_path"]).is_file())
             self.assertTrue(repository["release_human_review_required"])
+            release_profile = read_json(Path(repository["release_profile_path"]))
+            self.assertEqual(
+                release_profile["lineage"]["source_full_name"],
+                "owner/upstream",
+            )
+            self.assertEqual(
+                release_profile["lineage"]["upstream_ref"],
+                repository["analysis_sha"],
+            )
 
             resumed = run_managed_checkout_agent_system(
                 fork_plan_path=fork_plan_path,

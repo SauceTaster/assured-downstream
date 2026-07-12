@@ -95,11 +95,20 @@ as a separate governed migration.
 
 ## Next Run
 
-1. Record an authenticated human publication approval and exercise the exact
-   remote-SHA lease against Bandit's `secure/main`.
-2. Run the first isolated Bandit build from the published secure commit and
-   capture in-toto, SLSA, Sigstore, SBOM, and syscall evidence.
-3. Review the five unapproved Bandit changes separately; no workflow surgery or
+1. Export the exact retained Bandit secure commit into a disposable Linux
+   builder without publishing a remote ref or exposing credentials.
+2. Produce artifacts, SBOM, Sigstore/in-toto bundles, a portable evidence
+   manifest, and a trace coverage report. Syscall evidence remains a measured
+   Linux-only collector capability, not a completeness claim.
+3. Ingest the bundle through the durable evidence agents as a non-authoritative
+   `EvidenceCandidateReady` event; caller-supplied verification and builder
+   declarations grant no assurance.
+4. Verify the retained Sigstore bundles, builder identity, source ancestry,
+   tooling, and workflow binding through code before allowing production
+   `Attested` to pass.
+5. Review the five unapproved Bandit changes separately; no workflow surgery or
    release logic should inherit the additive policy approval.
-4. Compare reproducibility and normalized behavior across two independent
+6. Redesign publication authorization inside the single-account boundary before
+   any public `secure/main` mutation.
+7. Compare reproducibility and normalized behavior across two independent
    builders before promoting any hardened release.

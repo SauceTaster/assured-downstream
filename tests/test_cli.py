@@ -8,8 +8,10 @@ from pathlib import Path
 from assured_downstream.cli import (
     build_parser,
     command_create_project_packet,
+    command_evaluate_release,
     select_fork_plan_entry,
 )
+from assured_downstream.evidence import create_evidence_manifest, sha256_file
 
 
 class CliTests(unittest.TestCase):
@@ -223,6 +225,89 @@ class CliTests(unittest.TestCase):
             self.assertEqual(packet["status"], "passive-publication-ready")
             self.assertFalse(packet["publication"]["outbound_contact"])
             self.assertIn("git fetch", markdown.read_text(encoding="utf-8"))
+
+    def test_evaluate_release_cli_blocks_caller_supplied_attested_claims(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = root / "artifact.bin"
+            sbom = root / "sbom.spdx.json"
+            attestation = root / "attestation.sigstore.json"
+            artifact.write_bytes(b"artifact\n")
+            sbom.write_text("{}\n", encoding="utf-8")
+            attestation.write_text("{}\n", encoding="utf-8")
+            manifest = create_evidence_manifest(
+                project="owner/project",
+                target_repo="target/project",
+                upstream_ref="a" * 40,
+                overlay_ref="b" * 40,
+                release_tag="secure-v1",
+                assurance="Evidence-candidate",
+                files={
+                    "artifacts": [artifact],
+                    "sboms": [sbom],
+                    "attestations": [attestation],
+                    "traces": [],
+                    "reports": [],
+                },
+                root=root,
+            )
+            evidence = write_json(root / "evidence.json", manifest)
+            attestation_verification = write_json(
+                root / "attestation-verification.json",
+                {
+                    "ok": True,
+                    "verification_type": "sigstore-bundle",
+                    "issuer": "https://token.actions.githubusercontent.com",
+                    "signer": "caller-supplied",
+                    "verified_subjects": [{"sha256": sha256_file(artifact)}],
+                },
+            )
+            tooling_verification = write_json(
+                root / "tooling-verification.json",
+                {
+                    "ok": True,
+                    "policy_sha256": "1" * 64,
+                    "lock_sha256": "2" * 64,
+                },
+            )
+            workflow_verification = write_json(
+                root / "workflow-verification.json",
+                {
+                    "ok": True,
+                    "analyzed_workflow_sha256": "3" * 64,
+                    "findings": [],
+                },
+            )
+            output = root / "evaluation.json"
+            args = build_parser().parse_args(
+                [
+                    "evaluate-release",
+                    "--evidence",
+                    str(evidence),
+                    "--target",
+                    "Attested",
+                    "--attestation-verification",
+                    str(attestation_verification),
+                    "--tooling-verification",
+                    str(tooling_verification),
+                    "--workflow-risk-verification",
+                    str(workflow_verification),
+                    "--output",
+                    str(output),
+                ]
+            )
+
+            code = command_evaluate_release(args)
+            evaluation = json.loads(output.read_text(encoding="utf-8"))
+
+        self.assertEqual(code, 1)
+        self.assertEqual(evaluation["decision"], "block")
+        self.assertIn("code-anchored", evaluation["failures"][-1])
+
+
+def write_json(path: Path, value: dict) -> Path:
+    path.write_text(json.dumps(value), encoding="utf-8")
+    return path
 
 
 if __name__ == "__main__":

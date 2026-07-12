@@ -21,6 +21,12 @@ from assured_downstream.evidence import (
     sha256_file,
     verify_evidence_manifest,
 )
+from assured_downstream.evidence_agents import (
+    RELEASE_EVIDENCE_WORKFLOW,
+    release_evidence_handlers,
+    release_evidence_routes,
+    run_release_evidence_agent_system,
+)
 from assured_downstream.fork_apply import apply_fork_plan
 from assured_downstream.fork_plan import create_fork_plan
 from assured_downstream.github_api import GitHubClient
@@ -346,6 +352,34 @@ def build_parser() -> argparse.ArgumentParser:
     publication_verify.add_argument("--output", required=True, type=Path)
     publication_verify.set_defaults(func=command_publication_verify)
 
+    evidence_run = subparsers.add_parser(
+        "evidence-run",
+        help="Ingest outputs declaring external isolation through evidence agents.",
+    )
+    evidence_run.add_argument("--build-result", required=True, type=Path)
+    evidence_run.add_argument("--evidence-root", required=True, type=Path)
+    evidence_run.add_argument(
+        "--attestation-verification",
+        required=True,
+        type=Path,
+    )
+    evidence_run.add_argument("--tooling-verification", required=True, type=Path)
+    evidence_run.add_argument(
+        "--workflow-risk-verification",
+        required=True,
+        type=Path,
+    )
+    evidence_run.add_argument("--run-dir", required=True, type=Path)
+    evidence_run.add_argument("--database", type=Path)
+    evidence_run.add_argument("--run-id")
+    evidence_run.add_argument("--max-items", type=int, default=100)
+    evidence_run.add_argument(
+        "--enqueue-only",
+        action="store_true",
+        help="Persist the build-result event and leave execution to agent-worker.",
+    )
+    evidence_run.set_defaults(func=command_evidence_run)
+
     agent_worker = subparsers.add_parser(
         "agent-worker",
         help="Drain leased work for one durable agent run.",
@@ -364,6 +398,7 @@ def build_parser() -> argparse.ArgumentParser:
                     *managed_checkout_handlers(),
                     *patch_publication_handlers(),
                     *authorized_publication_handlers(),
+                    *release_evidence_handlers(),
                 ]
             }
         ),
@@ -666,6 +701,9 @@ def build_parser() -> argparse.ArgumentParser:
     ])
     evaluate.add_argument("--evidence-comparison", type=Path)
     evaluate.add_argument("--behavior-comparison", type=Path)
+    evaluate.add_argument("--attestation-verification", type=Path)
+    evaluate.add_argument("--tooling-verification", type=Path)
+    evaluate.add_argument("--workflow-risk-verification", type=Path)
     evaluate.add_argument(
         "--verification",
         type=Path,
@@ -932,18 +970,44 @@ def command_publication_verify(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_evidence_run(args: argparse.Namespace) -> int:
+    result = run_release_evidence_agent_system(
+        build_result_path=args.build_result,
+        evidence_root=args.evidence_root,
+        attestation_verification_path=args.attestation_verification,
+        tooling_verification_path=args.tooling_verification,
+        workflow_risk_verification_path=args.workflow_risk_verification,
+        run_dir=args.run_dir,
+        database_path=args.database,
+        run_id=args.run_id,
+        max_items=args.max_items,
+        enqueue_only=args.enqueue_only,
+    )
+    print(f"release evidence run: {result['run_id']}")
+    print(f"status: {result['status']}")
+    print(f"processed work attempts: {result['processed_count']}")
+    print(f"pending work: {result['pending_count']}")
+    print(f"database: {result['database_path']}")
+    print(f"summary: {result['summary_path']}")
+    return 0 if result["status"] in {"running", "succeeded"} else 2
+
+
 def command_agent_worker(args: argparse.Namespace) -> int:
     store = AgentStore(args.database)
     run_id = args.run_id or store.latest_run_id()
     if run_id is None:
         raise ValueError("The agent database contains no runs")
     workflow = store.get_run(run_id)["metadata"].get("workflow")
+    routes = None
     if workflow == MANAGED_CHECKOUT_WORKFLOW:
         available_handlers = managed_checkout_handlers()
     elif workflow == PATCH_PUBLICATION_WORKFLOW:
         available_handlers = patch_publication_handlers()
     elif workflow == AUTHORIZED_PUBLICATION_WORKFLOW:
         available_handlers = authorized_publication_handlers()
+    elif workflow == RELEASE_EVIDENCE_WORKFLOW:
+        available_handlers = release_evidence_handlers()
+        routes = release_evidence_routes()
     elif workflow == "discovery-to-fork-plan":
         available_handlers = first_lane_handlers()
     else:
@@ -959,6 +1023,7 @@ def command_agent_worker(args: argparse.Namespace) -> int:
     runtime = AgentRuntime(
         backend=store,
         handlers=handlers,
+        routes=routes,
         worker_id=args.worker_id,
         lease_seconds=args.lease_seconds,
     )
@@ -1221,6 +1286,7 @@ def command_create_evidence(args: argparse.Namespace) -> int:
             "traces": args.trace,
             "reports": args.report,
         },
+        root=args.output.parent,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as handle:
@@ -1251,7 +1317,10 @@ def command_create_attestation(args: argparse.Namespace) -> int:
 def command_verify_evidence(args: argparse.Namespace) -> int:
     with args.manifest.open("r", encoding="utf-8") as handle:
         manifest = json.load(handle)
-    result = verify_evidence_manifest(manifest)
+    result = verify_evidence_manifest(
+        manifest,
+        base_dir=args.manifest.resolve().parent,
+    )
     if result["ok"]:
         print(f"verified evidence manifest: {args.manifest}")
         return 0
@@ -1322,9 +1391,15 @@ def command_compare_behavior(args: argparse.Namespace) -> int:
 def command_evaluate_release(args: argparse.Namespace) -> int:
     with args.evidence.open("r", encoding="utf-8") as handle:
         evidence = json.load(handle)
-    evidence_verification = verify_evidence_manifest(evidence)
+    evidence_verification = verify_evidence_manifest(
+        evidence,
+        base_dir=args.evidence.resolve().parent,
+    )
     evidence_comparison = None
     behavior_comparison = None
+    attestation_verification = None
+    tooling_verification = None
+    workflow_risk_verification = None
     if args.verification:
         with args.verification.open("r", encoding="utf-8") as handle:
             evidence_verification = json.load(handle)
@@ -1334,11 +1409,23 @@ def command_evaluate_release(args: argparse.Namespace) -> int:
     if args.behavior_comparison:
         with args.behavior_comparison.open("r", encoding="utf-8") as handle:
             behavior_comparison = json.load(handle)
+    if args.attestation_verification:
+        with args.attestation_verification.open("r", encoding="utf-8") as handle:
+            attestation_verification = json.load(handle)
+    if args.tooling_verification:
+        with args.tooling_verification.open("r", encoding="utf-8") as handle:
+            tooling_verification = json.load(handle)
+    if args.workflow_risk_verification:
+        with args.workflow_risk_verification.open("r", encoding="utf-8") as handle:
+            workflow_risk_verification = json.load(handle)
 
     result = evaluate_release(
         evidence=evidence,
         target=args.target,
         evidence_verification=evidence_verification,
+        attestation_verification=attestation_verification,
+        tooling_verification=tooling_verification,
+        workflow_risk_verification=workflow_risk_verification,
         evidence_comparison=evidence_comparison,
         behavior_comparison=behavior_comparison,
     )

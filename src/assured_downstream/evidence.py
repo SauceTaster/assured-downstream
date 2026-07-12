@@ -19,7 +19,9 @@ def create_evidence_manifest(
     release_tag: str,
     assurance: str,
     files: dict[str, list[Path]],
+    root: Path | None = None,
 ) -> dict[str, Any]:
+    bundle_root = None if root is None else root.resolve()
     return {
         "schema_version": 1,
         "generated_at": utc_now(),
@@ -32,19 +34,35 @@ def create_evidence_manifest(
             "assurance": assurance,
         },
         "evidence": {
-            role: [file_entry(path, role=role) for path in paths]
+            role: [file_entry(path, role=role, root=bundle_root) for path in paths]
             for role, paths in files.items()
         },
     }
 
 
-def verify_evidence_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+def verify_evidence_manifest(
+    manifest: dict[str, Any],
+    *,
+    base_dir: Path | None = None,
+) -> dict[str, Any]:
     failures = []
+    root = None if base_dir is None else base_dir.resolve()
     for role, entries in manifest.get("evidence", {}).items():
         for entry in entries:
-            path = Path(entry["path"])
+            recorded_path = Path(entry["path"])
+            candidate = recorded_path if recorded_path.is_absolute() else (root or Path.cwd()) / recorded_path
+            if candidate.is_symlink():
+                failures.append(f"{role}: symlink evidence is forbidden: {recorded_path}")
+                continue
+            path = candidate.resolve()
+            if root is not None and not path.is_relative_to(root):
+                failures.append(f"{role}: path escapes evidence bundle: {recorded_path}")
+                continue
             if not path.exists():
                 failures.append(f"{role}: missing {path}")
+                continue
+            if not path.is_file() or path.is_symlink():
+                failures.append(f"{role}: evidence is not a regular file: {path}")
                 continue
             actual = sha256_file(path)
             expected = entry.get("sha256")
@@ -121,15 +139,28 @@ def evidence_index(manifest: dict[str, Any]) -> dict[tuple[str, str], dict[str, 
     return index
 
 
-def file_entry(path: Path, *, role: str) -> dict[str, Any]:
+def file_entry(
+    path: Path,
+    *,
+    role: str,
+    root: Path | None = None,
+) -> dict[str, Any]:
+    if path.is_symlink():
+        raise ValueError(f"Evidence path is a symlink: {path}")
     resolved = path.resolve()
     if not resolved.exists():
         raise FileNotFoundError(resolved)
     if not resolved.is_file():
         raise ValueError(f"Evidence path is not a file: {resolved}")
+    if root is not None:
+        if not resolved.is_relative_to(root):
+            raise ValueError(f"Evidence path escapes bundle root: {resolved}")
+        recorded_path = resolved.relative_to(root).as_posix()
+    else:
+        recorded_path = str(resolved)
     return {
         "role": role,
-        "path": str(resolved),
+        "path": recorded_path,
         "name": resolved.name,
         "size": resolved.stat().st_size,
         "sha256": sha256_file(resolved),

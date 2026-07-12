@@ -31,25 +31,37 @@ As of the 2026-07-10 prototype pass:
   unauthorized remote mutation.
 - WP4/WP5 are partially implemented: pin locks carry freshness metadata, stale
   lock entries block rendering, locks bind the source tooling-policy digest,
-  and draft release workflows remain manual-only until review fields confirm
-  workflow and artifact paths.
-- WP7 is partially implemented: the Attested gate requires local evidence
-  verification plus artifact, SBOM, and attestation evidence.
+  and draft release workflows remain manual-only until workflow, artifact,
+  isolated-builder, and lineage review fields are confirmed. Renderer-level
+  validation rejects path traversal and profile-to-YAML injection.
+- WP7 is partially implemented: the evidence-candidate validator requires local
+  consistency, exact represented Sigstore subject coverage, approved-tooling
+  digests, and workflow-risk input shape. All external verification and builder
+  claims remain untrusted. Production `Attested` remains deliberately blocked
+  pending code-anchored verification.
+- WP6 now renders separate build, unprivileged inspection/SBOM, and privileged
+  attestation jobs, portable evidence bundles, and a durable four-agent
+  ingestion lane. Real isolated execution and post-run GitHub bundle
+  verification remain.
 - WP8/WP9 are implemented locally: passive fork publication packets, optional
   fetch instructions, and custodian governance fields exist.
-- A local `self-test` command now exercises first-lane fixtures plus Attested
-  evidence verification without network access.
+- A local `self-test` command now exercises first-lane fixtures, Attested
+  candidate evidence verification, and the four-agent durable evidence lane
+  without network access or upstream-code execution.
 
 Current critical path:
 
-1. Add authenticated human approval and publish the Bandit secure canary with
-   an exact expected-remote-SHA lease.
-2. WP6: run the first isolated Bandit build and capture its workflow-produced
-   evidence bundle, attestation metadata, and verification guide.
-3. Organization replay, branch protection, and scheduled upstream detection.
-   verification guide upload.
-4. WP10: full sandbox MVP run.
-5. WP11: artifact reproducibility once Attested has a green sandbox run.
+1. WP7: implement code-anchored Sigstore and builder verifiers that derive
+   subject, signer, issuer, workflow identity, and builder identity from retained
+   evidence instead of accepting caller-authored claims.
+2. Run the first isolated Bandit build from the exact retained local commit in a
+   disposable Linux builder and ingest its evidence bundle.
+3. Turn that run into the first honest case study, including blocked and
+   tampered-evidence controls.
+4. Redesign remote authorization inside the single-account boundary, then test
+   public secure-ref publication separately from build safety.
+5. Add organization replay, branch protection, and scheduled upstream detection.
+6. Run WP10, then start WP11 only after a green Attested sandbox run.
 
 ## Operating Rules
 
@@ -71,7 +83,7 @@ Current critical path:
 | Governor/Safety Agent | Policy gates, approved tooling, suppression state, run index | A blocked release or mutation exits nonzero with clear reasons |
 | Control-Plane Agent | Candidate intake, default-branch fork/sync reconciliation, run management | Repeated sandbox runs are safe and auditable |
 | Patch/Release Agent | Structural recon, overlays, release profiles, workflow rendering | Go/Rust/Python/Java/.NET fixtures render pinned draft workflows safely |
-| Evidence/Repro Agent | Evidence manifests, verification, artifact comparison, trace normalization | Attested gate passes only after local manifest verification |
+| Evidence/Repro Agent | Evidence manifests, verification, artifact comparison, trace normalization | A non-authoritative evidence candidate is emitted only after local consistency checks |
 | Publication/Stewardship Agent | Fork metadata, evidence links, optional fetch instructions, custodian packets | Each fork explains itself without outbound contact |
 
 ## Critical Path
@@ -88,12 +100,14 @@ Current critical path:
    tag-triggered release.
 7. Ensure rendered release workflows upload artifacts, SBOMs, manifests,
    attestations, and verification guides.
-8. Make `evaluate-release --target Attested` require verified local evidence and
-   recorded attestation evidence.
-9. Generate passive fork publication packets and optional fetch instructions.
-10. Run the full sandbox MVP on one Go, one Rust, and one Python candidate.
-11. Add artifact reproducibility as the next gate after Attested is real.
-12. Add behavior trace collection only after artifact reproducibility is stable.
+8. Make the evidence-candidate validator require locally consistent evidence
+   and recorded attestation input shape without granting assurance.
+9. Add a code-anchored Sigstore verifier before the production `Attested` gate
+   or any release route can pass.
+10. Generate passive fork publication packets and optional fetch instructions.
+11. Run the full sandbox MVP on one Go, one Rust, and one Python candidate.
+12. Add artifact reproducibility as the next gate after Attested is real.
+13. Add behavior trace collection only after artifact reproducibility is stable.
 
 ## Work Packages
 
@@ -379,8 +393,8 @@ Inputs:
 
 Outputs:
 
-- release profile fields for review status, artifact path confirmation, and
-  unresolved notes
+- release profile fields for review status, artifact path confirmation,
+  digest-pinned isolated builder confirmation, and unresolved notes
 - draft workflow mode until confirmed
 
 Acceptance:
@@ -388,6 +402,11 @@ Acceptance:
 - Draft profiles render manual-only workflows.
 - Tag triggers are emitted only after explicit confirmation.
 - Artifact paths must be confirmed before Attested release promotion.
+- Source repository and exact upstream lineage must be confirmed before tag
+  triggers are rendered.
+- Upstream code is never rendered as a host-run shell command. Execution
+  requires a reviewed builder image digest, argv-only command, read-only source
+  mount, dropped capabilities, and network-disabled container.
 - Review notes survive render and appear in summaries.
 
 Tests:
@@ -399,7 +418,7 @@ Tests:
 Do not scope creep:
 
 - no GitHub release publishing in this package
-- no container release path
+- no container-image release publishing path
 
 ### WP6 - Attested Workflow Evidence Production
 
@@ -456,7 +475,8 @@ Owner: Governor/Safety Agent with Evidence/Repro Agent.
 
 WBS refs: 3.4.2, 3.4.5, 6.2.1, 6.2.4, 6.2.5.
 
-Purpose: make `Attested` mean something enforceable.
+Purpose: make evidence-candidate completeness enforceable without confusing
+caller-supplied claims with verified assurance or release authorization.
 
 Inputs:
 
@@ -472,11 +492,13 @@ Outputs:
 
 Acceptance:
 
-- `evaluate-release --target Attested` passes only after local manifest
-  verification succeeds.
+- the evidence-candidate event is emitted only after local manifest consistency
+  checks succeed, and it grants no promoted assurance.
 - Required artifact, SBOM, and attestation evidence must be present.
 - Unapproved tooling and unsafe workflow signals block promotion.
-- CLI exits nonzero on block decisions.
+- the production `evaluate-release --target Attested` CLI remains blocked until
+  its code-anchored Sigstore verifier is implemented.
+- CLI exits nonzero on production block decisions.
 
 Tests:
 
@@ -488,7 +510,7 @@ Tests:
 
 Do not scope creep:
 
-- no Reproducible target changes until Attested is enforced
+- no Reproducible target changes until production Attested is enforced
 - no external transparency log policy yet
 
 ### WP8 - Passive Fork Publication Packet
@@ -729,15 +751,18 @@ retain these ownership boundaries.
 
 ## Next Implementation Tasks
 
-1. Add authenticated human approval and execute one exact-lease publication of
-   the already-created Bandit secure commit.
-2. Finish WP6 and run the first isolated Bandit build/evidence workflow.
-3. Replay WP1 against the eventual organization and add downstream branch
+1. Implement code-anchored Sigstore bundle and builder verification, binding the
+   result to artifact subjects, exact workflow identity, and the builder
+   execution identity.
+2. Run the first isolated Bandit build without requiring a public secure ref.
+3. Ingest and independently verify the Bandit bundle, then publish the case
+   study with tamper and policy-block controls.
+4. Redesign publication approval inside the GitHub account boundary.
+5. Replay WP1 against the eventual organization and add downstream branch
    protection plus scheduled upstream-change ingestion.
-4. Finish WP7: add tooling/workflow risk inputs to release gate evaluation.
-5. Run WP10: full sandbox MVP over one first-lane seed and fixture-like real
+6. Run WP10: full sandbox MVP over one first-lane seed and fixture-like real
    candidates across the supported language set.
-6. Start WP11 only after WP10 produces a green Attested run.
+7. Start WP11 only after WP10 produces a green Attested run.
 
 WP12 should still wait until artifact reproducibility is stable.
 

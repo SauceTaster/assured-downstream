@@ -22,6 +22,12 @@
       "requires_full_sha_pin": true
     },
     {
+      "name": "actions/download-artifact",
+      "ref": "v8.0.1",
+      "usage": "isolated handoff from untrusted build jobs to privileged evidence jobs",
+      "requires_full_sha_pin": true
+    },
+    {
       "name": "actions/upload-artifact",
       "ref": "v7.0.1",
       "usage": "workflow artifact retention for release evidence",

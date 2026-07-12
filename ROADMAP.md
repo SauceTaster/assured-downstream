@@ -219,7 +219,14 @@ Current prototype status:
 - pinned attested-release workflow rendering exists using `actions/attest` for
   SLSA provenance, SBOM, and a custom Assured Downstream in-toto predicate
 - rendered workflows capture local Sigstore bundle outputs for evidence upload
-- live CI execution of SBOM/provenance/signature generation is still pending
+- generated workflows now separate untrusted build execution, unprivileged
+  artifact inspection/SBOM generation, and privileged OIDC attestation; artifact
+  inventories are checked across both handoffs
+- the durable Build-result -> Trace -> Attestation -> Governor lane snapshots
+  external evidence and validates represented subject, tooling, and workflow-risk
+  input shape without granting assurance
+- live isolated Bandit execution of SBOM/provenance/signature generation is
+  still pending
 
 ## Phase 6: Reproducible Release
 

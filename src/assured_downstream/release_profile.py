@@ -13,6 +13,7 @@ from assured_downstream.catalog import utc_now
 REQUIRED_RELEASE_ACTIONS = [
     "actions/checkout",
     "actions/attest",
+    "actions/download-artifact",
     "actions/upload-artifact",
     "anchore/sbom-action",
 ]
@@ -35,6 +36,8 @@ def plan_release_profile(recon_report: dict[str, Any]) -> dict[str, Any]:
             "status": "human-review-required",
             "release_workflow_confirmed": False,
             "artifact_paths_confirmed": False,
+            "isolated_builder_confirmed": False,
+            "lineage_confirmed": False,
             "confirmed_by": None,
             "confirmed_at": None,
         },
@@ -47,6 +50,10 @@ def plan_release_profile(recon_report: dict[str, Any]) -> dict[str, Any]:
             "language_family": build["language_family"],
             "package_managers": sorted(package_managers),
         },
+        "lineage": {
+            "source_full_name": None,
+            "upstream_ref": None,
+        },
         "release": {
             "workflow_path": ".github/workflows/assured-downstream-attested-release.yml",
             "trigger": "workflow_dispatch until release workflow and artifact paths are confirmed",
@@ -55,12 +62,21 @@ def plan_release_profile(recon_report: dict[str, Any]) -> dict[str, Any]:
             "build_commands": build["commands"],
             "artifact_paths": build["artifact_paths"],
             "artifact_candidates": artifact_candidates,
-            "sbom_path": "dist/assured-downstream-sbom.spdx.json",
+            "isolated_builder": {
+                "status": "human-review-required",
+                "image": None,
+                "image_digest": None,
+                "run_as": "65532:65532",
+                "command_argv": [],
+                "network": "none",
+            },
+            "sbom_path": "assured-evidence/sbom.spdx.json",
             "sbom_format": "spdx-json",
             "required_actions": REQUIRED_RELEASE_ACTIONS,
         },
         "review_notes": build["review_notes"] + artifact_candidate_notes(artifact_candidates) + [
             "Confirm artifact globs match the actual release outputs.",
+            "Confirm a digest-pinned isolated builder image and argv-only command before execution.",
             "Confirm generated SBOM scope is appropriate for this project.",
             "Confirm this downstream workflow does not replace upstream release authority.",
         ],
@@ -155,12 +171,11 @@ def choose_build(
         return {
             "language_family": "python",
             "commands": [
-                "python -m pip install --upgrade build",
-                "python -m build --outdir dist",
+                "python -m build --no-isolation --outdir /out",
             ],
             "artifact_paths": ["dist/*.whl", "dist/*.tar.gz"],
             "review_notes": [
-                "Review whether the Python project needs extra build dependencies or isolated build settings.",
+                "The builder image must contain exact build dependencies; missing dependencies fail instead of downloading from an index.",
             ],
         }
     return {

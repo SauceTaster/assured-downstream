@@ -53,6 +53,7 @@ class CheckoutPipelineTests(unittest.TestCase):
                     "actions/checkout": FULL_SHA,
                     "actions/attest": FULL_SHA,
                     "actions/dependency-review-action": FULL_SHA,
+                    "actions/download-artifact": FULL_SHA,
                     "actions/upload-artifact": FULL_SHA,
                     "anchore/sbom-action": FULL_SHA,
                     "ossf/scorecard-action": FULL_SHA,

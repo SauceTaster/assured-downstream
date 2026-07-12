@@ -12,8 +12,9 @@ work packages.
 ### 1.0 Durable Agent Runtime
 
 Status: single-host runtime plus intake, managed-checkout, governed additive
-patch request, externally attested authorization, and secure publication lanes
-built; distributed execution and later evidence lanes remain.
+patch request, authorization verification, and fail-closed publication mechanics
+built; remote authorization is disabled, and distributed execution plus later
+evidence lanes remain.
 
 - 1.0.1 Persist typed events, work items, attempts, artifacts, and handoffs
 - 1.0.2 Add idempotency keys, leased claims, retries, and dead letters
@@ -24,10 +25,13 @@ built; distributed execution and later evidence lanes remain.
 - 1.0.7 Add multi-host backend after measured need; evaluate Dapr at that gate
 - 1.0.8 Host recon, overlay planning, additive Patch, Publication Request,
   Publication Authorization, and Secure Branch Publisher agents on the same
-  contracts (built); repository-specific patch, build, trace, attestation,
-  repro, release, and watch remain
+  contracts (built); external build-result ingestion, Trace, Attestation, and
+  evidence Governor now use those contracts too; isolated execution,
+  repository-specific patch, repro, release, and watch remain
 - 1.0.9 Fence work completion by worker, attempt id, and unexpired lease (built)
 - 1.0.10 Add durable authorization-run polling and artifact collection
+- 1.0.11 Host external Build-result, Trace, Attestation, and evidence Governor
+  handlers with immutable input snapshots (built)
 
 ### 1.1 Candidate Intake
 
@@ -60,10 +64,10 @@ organization bootstrap and branch protection remain.
 
 ### 1.3 Sync Lifecycle
 
-Status: local reconciliation, durable recon, governed secure commits, protected
-Sigstore authorization, and exact-lease publication are implemented. The
-authorization canary is live; a governed public-ref mutation and scheduling
-remain.
+Status: local reconciliation, durable recon, governed secure commits,
+authorization verification, and exact-lease publication mechanics are
+implemented. Remote authorization is disabled; a replacement account-isolated
+gate, governed public-ref mutation, and scheduling remain.
 
 - 1.3.1 Generate clone/sync plans
 - 1.3.2 Record sync lifecycle state
@@ -106,8 +110,8 @@ Status: first pass built and hosted after durable managed-checkout recon.
 ### 2.3 Overlay Rendering
 
 Status: governed additive rendering, Git-object commit application, canonical
-publication requests, and real protected-workflow Sigstore authorization are
-built. The Bandit patch remains unpublished.
+publication requests, and Sigstore authorization verification are built. The
+live authorization deployment is disabled and the Bandit patch remains local.
 
 - 2.3.1 Render Dependabot baseline
 - 2.3.2 Render dependency review workflow
@@ -159,7 +163,9 @@ review.
 
 ### 3.3 Release Workflow Rendering
 
-Status: draft renderer built.
+Status: split-job renderer built. Untrusted build jobs have read-only
+permissions; only the evidence job receives OIDC/attestation writes and produces
+a portable evidence bundle.
 
 - 3.3.1 Render pinned attested-release workflow
 - 3.3.2 Generate SBOM with approved SBOM tooling
@@ -171,8 +177,12 @@ Status: draft renderer built.
 
 ### 3.4 Evidence And Verification
 
-Status: first pass built; Attested gate now requires local evidence
-verification, while GitHub attestation metadata ingestion remains.
+Status: portable manifest verification and a four-agent evidence lane are built.
+The non-authoritative evidence candidate requires local consistency, represented
+Sigstore subject coverage, approved-tooling digests, and workflow-risk claim
+shape. Production Attested remains blocked until code verifies the bundles and
+builder identity; a real isolated builder and GitHub attestation ingestion
+remain.
 
 - 3.4.1 Create evidence manifests
 - 3.4.2 Verify local evidence manifests

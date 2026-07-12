@@ -116,6 +116,33 @@ The development publication policy is disabled and no live control deployment
 is retained. Re-enabling it requires a new account-isolated approval design and
 a fresh validation case.
 
+## 2026-07-12: Build And Attestation Separation
+
+Decision: upstream build code must not execute in the control-plane process or
+in the same permission domain as OIDC attestation. Generated workflows use a
+read-only build job, an unprivileged artifact-inspection/SBOM job, and a final
+job with attestation permissions. Checkout credentials are not persisted into
+the builder's source mount, and artifact inventories are verified after SBOM
+generation and again before attestation.
+The durable runtime ingests immutable outputs from an external builder that
+declares isolation instead of treating local command execution as isolation.
+That declaration remains untrusted until builder identity is verified.
+Draft workflows refuse to execute until a digest-pinned builder image and
+argv-only command are reviewed. Confirmed execution uses a read-only source
+mount, no network, dropped capabilities, no-new-privileges, resource limits, and
+an unprivileged user; the privileged attestation job never checks out source or
+runs a third-party artifact parser.
+
+The evidence-candidate validator requires the local manifest to verify, every
+artifact digest to appear in a represented Sigstore subject set,
+approved-tooling policy and lock digests, and a workflow-risk result bound to
+the analyzed workflow. Those documents and builder-isolation fields remain
+untrusted declarations. Production `Attested` remains blocked until a
+code-anchored verifier creates those results and verifies builder identity.
+Trace coverage is recorded by
+category and remains an observational non-claim until a real Linux collector
+and independent comparisons exist.
+
 Sources:
 
 - GitHub deployment environments:

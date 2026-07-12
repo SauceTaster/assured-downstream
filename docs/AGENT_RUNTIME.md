@@ -1,8 +1,9 @@
 # Agent Runtime
 
 Status: executable dev/idea-stage runtime. It supports dry-run intake, guarded
-checkout reconciliation, and governed local secure-branch commits. It is not
-ready for production GitHub branch mutation.
+checkout reconciliation, governed local secure-branch commits, and durable
+release-evidence ingestion. It is not ready for production GitHub branch
+mutation or in-process execution of upstream build scripts.
 
 ## What Exists
 
@@ -68,8 +69,9 @@ temporary index, creates a deterministic single-parent commit, and advances
 `secure/<default>` with compare-and-swap. It never checks out or executes
 upstream files. Publication Request creates an expiring canonical request that
 also binds the patch result and publication-policy digests, but cannot mutate a
-remote. A SHA-pinned workflow behind the `secure-publication` GitHub environment
-attests the exact request with Sigstore and a custom in-toto predicate.
+remote. The remote authorization deployment is disabled. Its verifier and
+publisher mechanics remain fail-closed until an account-isolated gate replaces
+it.
 
 Publication Authorization snapshots every input once and verifies the pinned
 `gh` binary, build-anchored policy digest, exact certificate SAN, signer/source
@@ -82,6 +84,30 @@ deadlines immediately before a timeout-bounded push, isolates Git configuration,
 rejects repository URL rewrites, and pushes the approved object ID rather than a
 mutable local ref. A crash after the push can reconcile only the same
 run/work/request tuple; cross-run replay is blocked.
+
+The release-evidence lane treats build execution as a separate trust domain:
+
+```text
+BuildResultRecorded (external builder declaring isolation)
+  -> Build Agent -> BuildArtifactsReady
+  -> Trace Agent -> TraceReady
+  -> Attestation Agent -> ReleaseEvidenceReady
+  -> Governor Agent -> EvidenceCandidateReady | blocked
+```
+
+The Build Agent snapshots the build result, artifacts, SBOMs, signed bundles,
+raw traces, reports, and three caller-supplied verification documents. It
+rejects path escape, symlinks, mutable snapshots, and builder declarations that
+do not state isolation, no secret exposure, and denied network. These
+declarations are not independent proof of containment. Trace records measured
+collector coverage and blocks
+successful network activity under deny policy, privileged syscalls, and
+host-sensitive file mutation. Attestation creates a portable evidence manifest,
+an unsigned local binding statement, and a verification guide. Governor requires
+internally complete subject, tooling, and workflow-risk input shapes before it
+emits a non-authoritative evidence candidate. That event has no Release Agent
+route; a code-anchored artifact and builder verifier remains required for any
+assurance or production promotion.
 
 ## Why Custom SQLite First
 
@@ -268,9 +294,10 @@ assured-downstream codex-preflight
 ## Current Limits
 
 - intake, fork-sync/recon/overlay-planning, governed additive patch request,
-  authorization verification, and one-time secure publication mechanics are
-  hosted by the runtime; remote authorization is disabled, and
-  repository-specific patching, build, trace, release, and watch lanes remain
+  authorization verification, one-time secure publication mechanics, and
+  build-result/trace/attestation/Governor evidence ingestion are hosted by the
+  runtime; remote authorization is disabled, and isolated builder execution,
+  repository-specific patching, release, and watch adapters remain
 - discovery currently accepts local or HTTPS awesome-list style sources;
   remote responses are size-bounded and obvious local/private targets are
   rejected
@@ -285,7 +312,7 @@ assured-downstream codex-preflight
   later repository-specific patch agents will
   use the same driver where deterministic tools cannot resolve ambiguity
 
-The next runtime increment is an account-isolated authorization design plus
-authorization-run collection/polling. Only then can the first governed public
-secure-ref canary proceed, followed by an isolated attested Bandit build.
+The next runtime increment is an external disposable Linux builder adapter for
+the retained Bandit commit. Publication authorization remains a separate
+account-isolation design problem and is not a prerequisite for build evidence.
 Scheduled upstream-change ingestion follows once that pilot path is proven.

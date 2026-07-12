@@ -10,9 +10,14 @@ from assured_downstream.agent_registry import (
     summarize_agent_registry,
 )
 from assured_downstream.catalog import utc_now
-from assured_downstream.evidence import create_evidence_manifest, verify_evidence_manifest
+from assured_downstream.evidence import (
+    create_evidence_manifest,
+    sha256_file,
+    verify_evidence_manifest,
+)
+from assured_downstream.evidence_agents import run_release_evidence_agent_system
 from assured_downstream.intake_agents import run_intake_agent_system
-from assured_downstream.policy_eval import evaluate_release
+from assured_downstream.policy_eval import evaluate_release_candidate
 from assured_downstream.recon import inspect_repository
 from assured_downstream.release_profile import plan_release_profile
 from assured_downstream.release_render import render_release_workflow
@@ -23,6 +28,7 @@ FULL_SHA = "0123456789abcdef0123456789abcdef01234567"
 SELF_TEST_PINS = {
     "actions/checkout": FULL_SHA,
     "actions/attest": FULL_SHA,
+    "actions/download-artifact": FULL_SHA,
     "actions/upload-artifact": FULL_SHA,
     "anchore/sbom-action": FULL_SHA,
 }
@@ -48,10 +54,12 @@ def run_self_test(
         for ecosystem in selected_ecosystems
     ]
     evidence_result = run_evidence_self_test(output_dir)
+    evidence_agent_result = run_evidence_agent_self_test(output_dir)
 
     checks = [
         *agent_system_result["checks"],
         *evidence_result["checks"],
+        *evidence_agent_result["checks"],
         *[
             check
             for ecosystem_result in ecosystem_results
@@ -67,6 +75,7 @@ def run_self_test(
         "agent_system": agent_system_result,
         "ecosystems": ecosystem_results,
         "evidence": evidence_result,
+        "evidence_agents": evidence_agent_result,
         "summary": {
             "checks": len(checks),
             "passed": sum(1 for check in checks if check["ok"]),
@@ -88,9 +97,15 @@ def run_agent_system_self_test(output_dir: Path) -> dict[str, Any]:
         summary = summarize_agent_registry(registry)
         checks = [
             check("agent registry loads", True),
-            check("required agents present", summary["agent_count"] >= summary["required_agent_count"]),
+            check(
+                "required agents present",
+                summary["agent_count"] >= summary["required_agent_count"],
+            ),
             check("handoff invariants declared", summary["handoff_invariants"] > 0),
-            check("mutation-capable agents identifiable", bool(summary["mutation_capable_agents"])),
+            check(
+                "mutation-capable agents identifiable",
+                bool(summary["mutation_capable_agents"]),
+            ),
         ]
     except Exception as exc:  # noqa: BLE001 - self-test records validation failure details.
         registry = {}
@@ -141,10 +156,21 @@ def run_agent_replay_self_test(system_dir: Path) -> dict[str, Any]:
         checks = [
             check("agent replay succeeds", result["status"] == "succeeded"),
             check("agent replay drains all work", result["pending_count"] == 0),
-            check("agent replay artifacts verify", result["artifact_verification"]["ok"]),
-            check("agent replay records five handoffs", result["summary"]["handoff_count"] == 5),
-            check("agent replay follows typed event chain", result["summary"]["event_types"] == expected_events),
-            check("agent replay creates fork plan", (replay_dir / "fork-plan.json").exists()),
+            check(
+                "agent replay artifacts verify", result["artifact_verification"]["ok"]
+            ),
+            check(
+                "agent replay records five handoffs",
+                result["summary"]["handoff_count"] == 5,
+            ),
+            check(
+                "agent replay follows typed event chain",
+                result["summary"]["event_types"] == expected_events,
+            ),
+            check(
+                "agent replay creates fork plan",
+                (replay_dir / "fork-plan.json").exists(),
+            ),
         ]
         return {
             "run_id": result["run_id"],
@@ -198,10 +224,19 @@ def run_ecosystem_self_test(
     workflows = recon.get("ci", {}).get("workflows", [])
     checks = [
         check("fixture exists", True),
-        check("workflow parsed structurally", all(workflow.get("parsed") for workflow in workflows)),
+        check(
+            "workflow parsed structurally",
+            all(workflow.get("parsed") for workflow in workflows),
+        ),
         check("artifact candidates detected", bool(recon.get("artifact_candidates"))),
-        check("release profile recognized ecosystem", profile["project"]["language_family"] != "unknown"),
-        check("release workflow renderable", bool(render_result.written) and not render_result.skipped),
+        check(
+            "release profile recognized ecosystem",
+            profile["project"]["language_family"] != "unknown",
+        ),
+        check(
+            "release workflow renderable",
+            bool(render_result.written) and not render_result.skipped,
+        ),
     ]
 
     return {
@@ -217,6 +252,7 @@ def run_ecosystem_self_test(
         },
     }
 
+
 def run_evidence_self_test(output_dir: Path) -> dict[str, Any]:
     evidence_dir = output_dir / "evidence-smoke"
     evidence_dir.mkdir(parents=True, exist_ok=True)
@@ -225,7 +261,9 @@ def run_evidence_self_test(output_dir: Path) -> dict[str, Any]:
     attestation = evidence_dir / "build.intoto.json"
     artifact.write_text("self-test artifact\n", encoding="utf-8")
     sbom.write_text('{"spdxVersion":"SPDX-2.3","name":"self-test"}\n', encoding="utf-8")
-    attestation.write_text('{"_type":"https://in-toto.io/Statement/v1"}\n', encoding="utf-8")
+    attestation.write_text(
+        '{"_type":"https://in-toto.io/Statement/v1"}\n', encoding="utf-8"
+    )
 
     manifest = create_evidence_manifest(
         project="assured-downstream/self-test",
@@ -243,10 +281,29 @@ def run_evidence_self_test(output_dir: Path) -> dict[str, Any]:
         },
     )
     verification = verify_evidence_manifest(manifest)
-    evaluation = evaluate_release(
+    evaluation = evaluate_release_candidate(
         evidence=manifest,
         target="Attested",
         evidence_verification=verification,
+        attestation_verification={
+            "ok": True,
+            "verification_type": "sigstore-bundle",
+            "issuer": "https://token.actions.githubusercontent.com",
+            "signer": "self-test-fixture",
+            "verified_subjects": [
+                {"sha256": manifest["evidence"]["artifacts"][0]["sha256"]}
+            ],
+        },
+        tooling_verification={
+            "ok": True,
+            "policy_sha256": "1" * 64,
+            "lock_sha256": "2" * 64,
+        },
+        workflow_risk_verification={
+            "ok": True,
+            "analyzed_workflow_sha256": "3" * 64,
+            "findings": [],
+        },
     )
 
     write_json(evidence_dir / "evidence.json", manifest)
@@ -257,7 +314,10 @@ def run_evidence_self_test(output_dir: Path) -> dict[str, Any]:
         "output_dir": str(evidence_dir),
         "checks": [
             check("evidence manifest verifies", verification["ok"]),
-            check("attested gate passes", evaluation["decision"] == "pass"),
+            check(
+                "evidence candidate input shape is complete",
+                evaluation["decision"] == "candidate",
+            ),
         ],
         "artifacts": {
             "evidence": str(evidence_dir / "evidence.json"),
@@ -265,6 +325,173 @@ def run_evidence_self_test(output_dir: Path) -> dict[str, Any]:
             "release_evaluation": str(evidence_dir / "release-evaluation.json"),
         },
     }
+
+
+def run_evidence_agent_self_test(output_dir: Path) -> dict[str, Any]:
+    root = output_dir / "evidence-agent-replay"
+    source = root / "source"
+    evidence_root = source / "evidence"
+    for directory in ("dist", "sbom", "attestations", "traces", "reports"):
+        (evidence_root / directory).mkdir(parents=True, exist_ok=True)
+    artifact = evidence_root / "dist" / "fixture.bin"
+    artifact.write_bytes(b"durable evidence fixture\n")
+    (evidence_root / "sbom" / "fixture.spdx.json").write_text(
+        '{"spdxVersion":"SPDX-2.3","name":"durable-fixture"}\n',
+        encoding="utf-8",
+    )
+    (evidence_root / "attestations" / "fixture.sigstore.json").write_text(
+        '{"mediaType":"application/vnd.dev.sigstore.bundle+json;version=0.3"}\n',
+        encoding="utf-8",
+    )
+    write_json(
+        evidence_root / "traces" / "fixture-trace.json",
+        {
+            "schema_version": 1,
+            "collector": {
+                "name": "self-test-fixture",
+                "version": "1",
+                "platform": "linux",
+            },
+            "coverage": {
+                "process": True,
+                "file": True,
+                "network": True,
+                "syscall": True,
+            },
+            "events": [
+                {
+                    "kind": "process",
+                    "parent_exe": "/usr/bin/env",
+                    "exe": "/workspace/python",
+                    "argv": ["python", "-m", "build"],
+                },
+                {
+                    "kind": "file",
+                    "operation": "write",
+                    "path": "/workspace/dist/fixture.bin",
+                },
+                {
+                    "kind": "network",
+                    "host": "pypi.org",
+                    "port": 443,
+                    "outcome": "denied",
+                },
+                {
+                    "kind": "syscall",
+                    "name": "mount",
+                    "outcome": "denied",
+                },
+            ],
+        },
+    )
+    write_json(evidence_root / "reports" / "builder.json", {"fixture": True})
+    build_result = source / "build-result.json"
+    write_json(
+        build_result,
+        {
+            "schema_version": 1,
+            "status": "succeeded",
+            "project": {
+                "source_full_name": "assured-downstream/self-test",
+                "target_full_name": "assured-downstream/self-test",
+                "upstream_ref": "a" * 40,
+                "overlay_ref": "b" * 40,
+                "release_tag": "secure-v0.0.0+self-test",
+            },
+            "builder": {
+                "mode": "test-fixture",
+                "builder_id": "self-test-fixture-v1",
+                "isolated": True,
+                "secrets_exposed": False,
+                "network_policy": "deny",
+                "workspace_root": "/workspace",
+            },
+            "evidence": {
+                "artifacts": ["dist/fixture.bin"],
+                "sboms": ["sbom/fixture.spdx.json"],
+                "attestations": ["attestations/fixture.sigstore.json"],
+                "raw_traces": ["traces/fixture-trace.json"],
+                "reports": ["reports/builder.json"],
+            },
+        },
+    )
+    controls = source / "controls"
+    write_json(
+        controls / "attestation-verification.json",
+        {
+            "ok": True,
+            "verification_type": "sigstore-bundle",
+            "issuer": "https://token.actions.githubusercontent.com",
+            "signer": "self-test-fixture",
+            "verified_subjects": [{"sha256": sha256_file(artifact)}],
+        },
+    )
+    write_json(
+        controls / "tooling-verification.json",
+        {
+            "ok": True,
+            "policy_sha256": "1" * 64,
+            "lock_sha256": "2" * 64,
+        },
+    )
+    write_json(
+        controls / "workflow-risk-verification.json",
+        {
+            "ok": True,
+            "analyzed_workflow_sha256": "3" * 64,
+            "findings": [],
+        },
+    )
+    run_dir = root / "run"
+    try:
+        result = run_release_evidence_agent_system(
+            build_result_path=build_result,
+            evidence_root=evidence_root,
+            attestation_verification_path=(controls / "attestation-verification.json"),
+            tooling_verification_path=controls / "tooling-verification.json",
+            workflow_risk_verification_path=(
+                controls / "workflow-risk-verification.json"
+            ),
+            run_dir=run_dir,
+            run_id="self-test-evidence-agents",
+            allow_test_fixture=True,
+        )
+        evaluation = json.loads(
+            (run_dir / "release-evaluation.json").read_text(encoding="utf-8")
+        )
+        checks = [
+            check("evidence agent replay succeeds", result["status"] == "succeeded"),
+            check(
+                "evidence agent replay drains all work", result["pending_count"] == 0
+            ),
+            check(
+                "evidence agent artifacts verify", result["artifact_verification"]["ok"]
+            ),
+            check(
+                "evidence agent replay records four handoffs",
+                result["summary"]["handoff_count"] == 4,
+            ),
+            check(
+                "evidence Governor emits a non-authoritative candidate",
+                evaluation["decision"] == "candidate",
+            ),
+        ]
+        return {
+            "output_dir": str(run_dir),
+            "run_id": result["run_id"],
+            "checks": checks,
+            "artifacts": {
+                "evidence": str(run_dir / "evidence.json"),
+                "verification_guide": str(run_dir / "VERIFY.md"),
+                "release_evaluation": str(run_dir / "release-evaluation.json"),
+            },
+        }
+    except Exception as exc:  # noqa: BLE001 - self-test records validation failure.
+        return {
+            "output_dir": str(run_dir),
+            "run_id": "self-test-evidence-agents",
+            "checks": [check("evidence agent replay succeeds", False, str(exc))],
+        }
 
 
 def check(name: str, ok: bool, detail: str | None = None) -> dict[str, Any]:
@@ -324,7 +551,9 @@ def write_self_test_summary(path: Path, result: dict[str, Any]) -> None:
         lines.append(f"### {ecosystem['ecosystem']}")
         lines.append("")
         lines.append(f"- fixture: `{ecosystem['fixture']}`")
-        lines.append(f"- language family: `{ecosystem.get('language_family', 'unknown')}`")
+        lines.append(
+            f"- language family: `{ecosystem.get('language_family', 'unknown')}`"
+        )
         for item in ecosystem["checks"]:
             marker = "pass" if item["ok"] else "fail"
             detail = f" - {item['detail']}" if item.get("detail") else ""
@@ -335,5 +564,11 @@ def write_self_test_summary(path: Path, result: dict[str, Any]) -> None:
     for item in result["evidence"]["checks"]:
         marker = "pass" if item["ok"] else "fail"
         lines.append(f"- {marker}: {item['name']}")
+    lines.append("")
+    lines.extend(["## Durable Evidence Agents", ""])
+    for item in result["evidence_agents"]["checks"]:
+        marker = "pass" if item["ok"] else "fail"
+        detail = f" - {item['detail']}" if item.get("detail") else ""
+        lines.append(f"- {marker}: {item['name']}{detail}")
     lines.append("")
     path.write_text("\n".join(lines), encoding="utf-8")

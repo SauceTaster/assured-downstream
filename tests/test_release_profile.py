@@ -23,10 +23,18 @@ class ReleaseProfileTests(unittest.TestCase):
         self.assertEqual(profile["review"]["status"], "human-review-required")
         self.assertFalse(profile["review"]["release_workflow_confirmed"])
         self.assertFalse(profile["review"]["artifact_paths_confirmed"])
+        self.assertFalse(profile["review"]["isolated_builder_confirmed"])
+        self.assertFalse(profile["review"]["lineage_confirmed"])
         self.assertEqual(profile["project"]["name"], "demo-package")
         self.assertEqual(profile["project"]["language_family"], "python")
         self.assertIn("actions/attest", profile["release"]["required_actions"])
         self.assertIn("dist/*.whl", profile["release"]["artifact_paths"])
+        self.assertNotIn(
+            "pip install",
+            "\n".join(profile["release"]["build_commands"]),
+        )
+        self.assertEqual(profile["release"]["isolated_builder"]["network"], "none")
+        self.assertIsNone(profile["lineage"]["upstream_ref"])
         self.assertEqual(profile["release"]["artifact_candidates"], [])
         self.assertEqual(profile["release"]["confirmed_tag_pattern"], "secure-v*")
 
