@@ -470,6 +470,8 @@ class AgentStore:
                 connection,
                 work_id=work.work_id,
                 worker_id=worker_id,
+                attempt_id=work.current_attempt_id,
+                now=now,
             )
             input_event_row = connection.execute(
                 "SELECT * FROM events WHERE event_id = ?",
@@ -571,24 +573,32 @@ class AgentStore:
                     now,
                 ),
             )
-            connection.execute(
+            attempt_update = connection.execute(
                 """
                 UPDATE attempts
                 SET status = 'succeeded', completed_at = ?
-                WHERE attempt_id = ?
+                WHERE attempt_id = ? AND status = 'running'
                 """,
                 (now, attempt_id),
             )
-            connection.execute(
+            if attempt_update.rowcount != 1:
+                raise RuntimeError(f"Work attempt is no longer active: {attempt_id}")
+            work_update = connection.execute(
                 """
                 UPDATE work_items
                 SET status = 'succeeded', lease_owner = NULL,
                     lease_expires_at = NULL, current_attempt_id = NULL,
                     updated_at = ?
-                WHERE work_id = ?
+                WHERE work_id = ? AND status = 'running'
+                    AND lease_owner = ? AND current_attempt_id = ?
+                    AND lease_expires_at > ?
                 """,
-                (now, work.work_id),
+                (now, work.work_id, worker_id, attempt_id, now),
             )
+            if work_update.rowcount != 1:
+                raise RuntimeError(
+                    f"Worker {worker_id} lost the fenced lease for {work.work_id}"
+                )
             connection.execute(
                 "UPDATE runs SET updated_at = ? WHERE run_id = ?",
                 (now, work.run_id),
@@ -613,6 +623,8 @@ class AgentStore:
                 connection,
                 work_id=work.work_id,
                 worker_id=worker_id,
+                attempt_id=work.current_attempt_id,
+                now=now,
             )
             status = (
                 "queued"
@@ -621,21 +633,27 @@ class AgentStore:
             )
             attempt_status = "retryable_failure" if status == "queued" else "failed"
             error_json = canonical_json(error)
-            connection.execute(
+            attempt_update = connection.execute(
                 """
                 UPDATE attempts
                 SET status = ?, error_json = ?, completed_at = ?
-                WHERE attempt_id = ?
+                WHERE attempt_id = ? AND status = 'running'
                 """,
                 (attempt_status, error_json, now, current["current_attempt_id"]),
             )
-            connection.execute(
+            if attempt_update.rowcount != 1:
+                raise RuntimeError(
+                    f"Work attempt is no longer active: {current['current_attempt_id']}"
+                )
+            work_update = connection.execute(
                 """
                 UPDATE work_items
                 SET status = ?, available_at = ?, lease_owner = NULL,
                     lease_expires_at = NULL, current_attempt_id = NULL,
                     last_error_json = ?, updated_at = ?
-                WHERE work_id = ?
+                WHERE work_id = ? AND status = 'running'
+                    AND lease_owner = ? AND current_attempt_id = ?
+                    AND lease_expires_at > ?
                 """,
                 (
                     status,
@@ -643,8 +661,15 @@ class AgentStore:
                     error_json,
                     now,
                     work.work_id,
+                    worker_id,
+                    current["current_attempt_id"],
+                    now,
                 ),
             )
+            if work_update.rowcount != 1:
+                raise RuntimeError(
+                    f"Worker {worker_id} lost the fenced lease for {work.work_id}"
+                )
             if status == "dead_letter":
                 connection.execute(
                     "UPDATE runs SET status = 'failed', updated_at = ? WHERE run_id = ?",
@@ -658,6 +683,8 @@ class AgentStore:
         *,
         work_id: str,
         worker_id: str,
+        attempt_id: str | None,
+        now: str,
     ) -> sqlite3.Row:
         row = connection.execute(
             "SELECT * FROM work_items WHERE work_id = ?",
@@ -665,7 +692,14 @@ class AgentStore:
         ).fetchone()
         if row is None:
             raise KeyError(f"Unknown work item: {work_id}")
-        if row["status"] != "running" or row["lease_owner"] != worker_id:
+        if (
+            not attempt_id
+            or row["status"] != "running"
+            or row["lease_owner"] != worker_id
+            or row["current_attempt_id"] != attempt_id
+            or not row["lease_expires_at"]
+            or row["lease_expires_at"] <= now
+        ):
             raise RuntimeError(
                 f"Worker {worker_id} does not hold the active lease for {work_id}"
             )

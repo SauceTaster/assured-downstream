@@ -1,0 +1,90 @@
+name: Authorize Secure Branch Publication
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_base64:
+        description: Base64-encoded canonical publication request
+        required: true
+        type: string
+      request_sha256:
+        description: SHA-256 of the exact publication request bytes
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publication-authorization-${{ inputs.request_sha256 }}
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: secure-publication
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - name: Validate exact publication request
+        env:
+          REQUEST_BASE64: ${{ inputs.request_base64 }}
+          REQUEST_SHA256: ${{ inputs.request_sha256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ "$REQUEST_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          printf '%s' "$REQUEST_BASE64" | base64 --decode > publication-request.json
+          actual_sha256="$(sha256sum publication-request.json | cut -d' ' -f1)"
+          test "$actual_sha256" = "$REQUEST_SHA256"
+
+          request_id="$(jq -er '.request_id' publication-request.json)"
+          target_full_name="$(jq -er '.scope.target_full_name' publication-request.json)"
+          secure_branch="$(jq -er '.scope.secure_branch' publication-request.json)"
+          patch_sha="$(jq -er '.scope.patch_sha' publication-request.json)"
+          [[ "$request_id" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$target_full_name" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]
+          [[ "$secure_branch" =~ ^secure/[A-Za-z0-9._/-]+$ ]]
+          [[ "$secure_branch" != *..* ]]
+          [[ "$patch_sha" =~ ^[0-9a-f]{40}$ ]]
+
+          jq -n \
+            --arg request_id "$request_id" \
+            --arg request_sha256 "$REQUEST_SHA256" \
+            --arg target_full_name "$target_full_name" \
+            --arg secure_branch "$secure_branch" \
+            --arg patch_sha "$patch_sha" \
+            '{
+              schemaVersion: 1,
+              decision: "authorized",
+              requestId: $request_id,
+              requestSha256: $request_sha256,
+              targetFullName: $target_full_name,
+              secureBranch: $secure_branch,
+              patchSha: $patch_sha,
+              environment: "secure-publication"
+            }' > publication-authorization-predicate.json
+
+      - name: Attest protected publication decision
+        id: authorization
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763
+        with:
+          subject-path: publication-request.json
+          predicate-type: https://assured-downstream.dev/attestation/secure-branch-publication/v1
+          predicate-path: publication-authorization-predicate.json
+
+      - name: Preserve authorization evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: publication-authorization-${{ inputs.request_sha256 }}
+          if-no-files-found: error
+          retention-days: 90
+          path: |
+            publication-request.json
+            publication-authorization-predicate.json
+            ${{ steps.authorization.outputs.bundle-path }}

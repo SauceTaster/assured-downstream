@@ -15,6 +15,10 @@ from assured_downstream.patch_approval import (
 from assured_downstream.managed_checkout_agents import write_json_atomic
 from tests.test_secure_patch import managed_checkout, overlay_plan, pin_lock
 from tests.git_test_support import git
+from tests.publication_test_support import (
+    trust_publication_policy,
+    write_publication_policy,
+)
 
 
 TOOLING_POLICY_SHA256 = "f" * 64
@@ -119,6 +123,7 @@ class PatchAgentTests(unittest.TestCase):
                 pin_lock_path=pins_path,
                 tooling_policy_path=tooling_policy_path(root),
                 approval_path=approval_path,
+                publication_policy_path=publication_policy_path(root),
                 workspace=root / "managed",
                 run_dir=run_dir,
                 run_id="patch-test",
@@ -130,15 +135,15 @@ class PatchAgentTests(unittest.TestCase):
             self.assertEqual(result["processed_count"], 2)
             self.assertEqual(result["summary"]["handoff_agents"], [
                 "patch",
-                "secure-branch-publisher",
+                "publication-requestor",
             ])
             self.assertTrue(result["artifact_verification"]["ok"])
             patch_result = read_json(run_dir / "patch-result.json")
             self.assertEqual(patch_result["action"], "committed")
             self.assertNotEqual(patch_result["patch_sha"], base_sha)
-            publication = read_json(run_dir / "secure-branch-publication.json")
-            self.assertEqual(publication["status"], "not-authorized")
-            self.assertFalse(publication["executed"])
+            publication = read_json(run_dir / "publication-request.json")
+            self.assertEqual(publication["status"], "not-requested")
+            self.assertFalse(publication["publication_requested"])
             self.assertIsNone(remote_ref(target, "refs/heads/secure/main"))
 
             resumed = run_patch_publication_agent_system(
@@ -146,6 +151,7 @@ class PatchAgentTests(unittest.TestCase):
                 pin_lock_path=pins_path,
                 tooling_policy_path=tooling_policy_path(root),
                 approval_path=approval_path,
+                publication_policy_path=publication_policy_path(root),
                 workspace=root / "managed",
                 run_dir=run_dir,
                 run_id="patch-test",
@@ -179,6 +185,7 @@ class PatchAgentTests(unittest.TestCase):
                 pin_lock_path=pins_path,
                 tooling_policy_path=tooling_policy_path(root),
                 approval_path=approval_path,
+                publication_policy_path=publication_policy_path(root),
                 workspace=root / "managed",
                 run_dir=root / "blocked-run",
                 run_id="blocked-patch",
@@ -219,6 +226,7 @@ class PatchAgentTests(unittest.TestCase):
                 pin_lock_path=pins_path,
                 tooling_policy_path=tooling_policy_path(root),
                 approval_path=approval_path,
+                publication_policy_path=publication_policy_path(root),
                 workspace=root / "managed",
                 run_dir=root / "future-approval-run",
                 run_id="future-approval",
@@ -234,7 +242,7 @@ class PatchAgentTests(unittest.TestCase):
                 base_sha,
             )
 
-    def test_local_human_record_cannot_execute_remote_publication(self) -> None:
+    def test_local_human_record_only_creates_external_authorization_request(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             checkout, _upstream, target = managed_checkout(root)
@@ -260,24 +268,36 @@ class PatchAgentTests(unittest.TestCase):
             approval["repository"]["publish_secure_branch"] = True
             write_json_atomic(approval_path, approval)
             run_dir = root / "unauthenticated-publication-run"
+            publication_policy = publication_policy_path(root)
 
-            result = run_patch_publication_agent_system(
-                analysis_index_path=analysis_path,
-                pin_lock_path=pins_path,
-                tooling_policy_path=tooling_policy_path(root),
-                approval_path=approval_path,
-                workspace=root / "managed",
-                run_dir=run_dir,
-                run_id="unauthenticated-publication",
-                execute_patch=True,
-                execute_publish=True,
-                allow_local_test_remotes=True,
+            with trust_publication_policy(publication_policy):
+                result = run_patch_publication_agent_system(
+                    analysis_index_path=analysis_path,
+                    pin_lock_path=pins_path,
+                    tooling_policy_path=tooling_policy_path(root),
+                    approval_path=approval_path,
+                    publication_policy_path=publication_policy,
+                    workspace=root / "managed",
+                    run_dir=run_dir,
+                    run_id="unauthenticated-publication",
+                    execute_patch=True,
+                    allow_local_test_remotes=True,
+                )
+
+            self.assertEqual(result["status"], "succeeded")
+            self.assertEqual(
+                result["summary"]["event_types"][-1],
+                "PublicationAuthorizationRequested",
             )
-
-            self.assertEqual(result["status"], "blocked")
-            publication = read_json(run_dir / "secure-branch-publication.json")
-            self.assertIn("authenticated approval backend", publication["reason"])
-            self.assertFalse(publication["executed"])
+            publication = read_json(run_dir / "publication-request.json")
+            self.assertEqual(
+                publication["request_type"],
+                "secure-branch-publication",
+            )
+            self.assertEqual(
+                publication["scope"]["target_full_name"],
+                "user/target",
+            )
             self.assertIsNone(remote_ref(target, "refs/heads/secure/main"))
 
     def test_expired_approval_is_rejected_again_at_publication_handoff(self) -> None:
@@ -304,6 +324,7 @@ class PatchAgentTests(unittest.TestCase):
                 pin_lock_path=pins_path,
                 tooling_policy_path=tooling_policy_path(root),
                 approval_path=approval_path,
+                publication_policy_path=publication_policy_path(root),
                 workspace=root / "managed",
                 run_dir=run_dir,
                 run_id="delayed-publication",
@@ -327,6 +348,7 @@ class PatchAgentTests(unittest.TestCase):
                     pin_lock_path=pins_path,
                     tooling_policy_path=tooling_policy_path(root),
                     approval_path=approval_path,
+                    publication_policy_path=publication_policy_path(root),
                     workspace=root / "managed",
                     run_dir=run_dir,
                     run_id="delayed-publication",
@@ -335,7 +357,7 @@ class PatchAgentTests(unittest.TestCase):
                 )
 
             self.assertEqual(resumed["status"], "blocked")
-            publication = read_json(run_dir / "secure-branch-publication.json")
+            publication = read_json(run_dir / "publication-request.json")
             self.assertIn("expired", publication["reason"])
             self.assertIsNone(remote_ref(target, "refs/heads/secure/main"))
 
@@ -368,6 +390,7 @@ class PatchAgentTests(unittest.TestCase):
                 pin_lock_path=pins_path,
                 tooling_policy_path=tooling_policy_path(root),
                 approval_path=approval_path,
+                publication_policy_path=publication_policy_path(root),
                 workspace=root / "managed",
                 run_dir=root / "tampered-run",
                 run_id="tampered-patch",
@@ -461,6 +484,10 @@ def tooling_policy() -> dict:
 
 def tooling_policy_path(root: Path) -> Path:
     return root / "tooling-policy.json"
+
+
+def publication_policy_path(root: Path) -> Path:
+    return write_publication_policy(root)[0]
 
 
 def read_json(path: Path) -> dict:

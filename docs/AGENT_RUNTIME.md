@@ -43,31 +43,45 @@ remote pushes. Recon inspects a detached analysis worktree pinned to the SHA in
 the sync handoff. Every downstream consumer verifies the producer artifact
 digest before reading it.
 
-The governed patch-publication lane is a separate run so approval can bind the
-already-produced analysis:
+Patch creation and remote publication are separate durable runs so a protected
+approval can arrive later without changing immutable run configuration:
 
 ```text
 PatchApprovalRecorded
   -> Patch Agent -> PatchReady
+  -> Publication Request Agent -> PublicationAuthorizationRequested
+
+PublicationAuthorizationRecorded (external Sigstore bundle)
+  -> Publication Authorization Agent -> SecureBranchPublicationAuthorized
   -> Secure Branch Publisher Agent
        -> SecureBranchPublicationPlanned | SecureBranchPublished
 ```
 
 The approval binds the analysis index, nested overlay digest, fresh pin lock,
 tooling-policy digest, repository, upstream SHA, secure base, exact change IDs,
-expiration, and publication decision. Both agents verify the lock's complete
+ expiration, and publication decision. The patch-side agents verify the lock's complete
 action/ref coverage against the supplied digest-verified tooling-policy file.
 Automated policy approval is limited to known additive templates with exact
 action/path contracts and no review marker; it cannot authorize a push. The
 Patch Agent writes Git objects through a
 temporary index, creates a deterministic single-parent commit, and advances
 `secure/<default>` with compare-and-swap. It never checks out or executes
-upstream files. The Publisher defaults to planning and uses an exact ref plus an
-explicit expected remote SHA when separately authorized. It revalidates approval
-and freshness at the handoff, isolates system/global Git configuration, rejects
-repository URL rewrites, and pushes the approved object ID rather than a mutable
-local ref. Production execution remains disabled until external authorization
-can be authenticated.
+upstream files. Publication Request creates an expiring canonical request that
+also binds the patch result and publication-policy digests, but cannot mutate a
+remote. A SHA-pinned workflow behind the `secure-publication` GitHub environment
+attests the exact request with Sigstore and a custom in-toto predicate.
+
+Publication Authorization snapshots every input once and verifies the pinned
+`gh` binary, build-anchored policy digest, exact certificate SAN, signer/source
+commit, source ref, GitHub OIDC issuer, GitHub-hosted runner, predicate type,
+subject digest, predicate scope, transparency timestamp, and expiry. Publisher
+accepts only its typed event, rechecks the immutable authorization record,
+reserves the request in a code-derived per-account one-time ledger, and uses an
+exact ref plus expected remote SHA. It rechecks authorization and worker
+deadlines immediately before a timeout-bounded push, isolates Git configuration,
+rejects repository URL rewrites, and pushes the approved object ID rather than a
+mutable local ref. A crash after the push can reconcile only the same
+run/work/request tuple; cross-run replay is blocked.
 
 ## Why Custom SQLite First
 
@@ -214,15 +228,33 @@ assured-downstream patch-run \
   --pins ./runs/pins.json \
   --tooling-policy ./policies/approved-tooling.json \
   --approval ./runs/patch-approval.json \
+  --publication-policy ./policies/publication-authorization.json \
   --workspace ./worktrees \
   --run-dir ./runs/patch-001 \
   --execute-patch
 ```
 
-Omitting `--execute-patch` plans without moving the local secure ref.
-`--execute-publish` currently records a blocked publication request: a local
-human record is not authentication. The exact-lease push adapter is enabled only
-by the local test harness until an authenticated approval backend is connected.
+Omitting `--execute-patch` plans without moving the local secure ref. There is
+no patch-run publication switch. A human-record patch approval can request
+publication, but only the separate protected-workflow authorization lane can
+route work to Publisher.
+
+```text
+assured-downstream dispatch-publication-authorization \
+  --request ./runs/patch-001/publication-request.json \
+  --publication-policy ./policies/publication-authorization.json \
+  --output ./runs/patch-001/authorization-dispatch.json \
+  --execute
+
+assured-downstream publication-run \
+  --request ./runs/patch-001/publication-request.json \
+  --bundle ./authorization.sigstore.json \
+  --publication-policy ./policies/publication-authorization.json \
+  --checkout ./worktrees/repository \
+  --workspace ./worktrees \
+  --run-dir ./runs/publication-001 \
+  --execute
+```
 
 Inspect the durable state or verify the model profile:
 
@@ -235,23 +267,25 @@ assured-downstream codex-preflight
 
 ## Current Limits
 
-- intake, fork-sync/recon/overlay-planning, and governed additive patch lanes
-  are hosted by the runtime; repository-specific patching, build, trace,
-  attestation, release, and watch lanes remain
+- intake, fork-sync/recon/overlay-planning, governed additive patch request,
+  authorization verification, and one-time secure publication mechanics are
+  hosted by the runtime; remote authorization is disabled, and
+  repository-specific patching, build, trace, release, and watch lanes remain
 - discovery currently accepts local or HTTPS awesome-list style sources;
   remote responses are size-bounded and obvious local/private targets are
   rejected
 - GitHub metadata enrichment can run inside the Catalog Ingestion handoff with
   `--enrich`; tokens are read from an environment variable and never persisted
-- live fork creation remains a separately guarded adapter; managed checkout
-  and local secure commits are live, while production remote publication still
-  lacks an authenticated approval backend
+- live fork creation remains a separately guarded adapter; managed checkout and
+  local secure commits are live; authorization verification and exact-lease
+  publication are locally validated but remote authorization is disabled and no
+  public secure ref has moved
 - SQLite is single-host orchestration
 - deterministic policy owns additive patch approval; Luna remains advisory and
   later repository-specific patch agents will
   use the same driver where deterministic tools cannot resolve ambiguity
 
-The next runtime increment is authenticated human approval plus the first live
-secure-branch publication, followed immediately by an isolated attested Bandit
-build. Scheduled upstream-change ingestion follows once that pilot path is
-proven.
+The next runtime increment is an account-isolated authorization design plus
+authorization-run collection/polling. Only then can the first governed public
+secure-ref canary proceed, followed by an isolated attested Bandit build.
+Scheduled upstream-change ingestion follows once that pilot path is proven.

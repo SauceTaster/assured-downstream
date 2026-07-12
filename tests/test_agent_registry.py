@@ -11,11 +11,13 @@ class AgentRegistryTests(unittest.TestCase):
         summary = summarize_agent_registry(registry)
 
         self.assertEqual(registry["schema_version"], 1)
-        self.assertEqual(summary["agent_count"], 17)
+        self.assertEqual(summary["agent_count"], 19)
         self.assertEqual(summary["agent_count"], summary["required_agent_count"])
         agent_ids = {agent["id"] for agent in registry["agents"]}
         self.assertIn("source-discovery", agent_ids)
         self.assertIn("fork-publisher", agent_ids)
+        self.assertIn("publication-requestor", agent_ids)
+        self.assertIn("publication-authorizer", agent_ids)
         self.assertIn("secure-branch-publisher", agent_ids)
         self.assertIn("governor", agent_ids)
         self.assertIn("watch", agent_ids)

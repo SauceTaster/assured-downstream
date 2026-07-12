@@ -64,3 +64,65 @@ Sources:
   https://github.com/anchore/sbom-action
 - Sigstore Cosign quickstart:
   https://docs.sigstore.dev/quickstart/quickstart-cosign/
+
+## 2026-07-11: Publication Authorization Trust Boundary
+
+Question: how can a local agent prove that a human gate authorized one exact
+secure-branch transition without treating a local boolean or unsigned JSON as
+authority?
+
+Decision: split patch creation and publication into separate durable runs. A
+public control repository hosts a static, SHA-pinned `actions/attest@v4`
+workflow behind a protected GitHub environment. The exact publication request
+is the attestation subject; a custom predicate repeats the critical target,
+branch, patch, request id, request digest, decision, and environment.
+
+Verification policy:
+
+- require the exact certificate SAN for the control workflow and source ref
+- pin both signer and source repository commit digests
+- require the GitHub Actions OIDC issuer and reject self-hosted runners
+- require the custom predicate type and one exact request subject digest
+- require a verified transparency timestamp
+- revalidate request target scope, patch/base/upstream SHAs, expected remote
+  state, evidence/policy digests, canonical request id, and expiry
+- snapshot request, bundle, policy, and verifier binary once before parsing or
+  execution
+- anchor the accepted policy SHA-256 in the installed code so a caller cannot
+  nominate both a verifier binary and its digest
+- derive the one-time consumption ledger from the operating-system account,
+  rather than accepting a caller-selected path
+- recheck authorization and work-lease deadlines immediately before a
+  timeout-bounded exact-lease push
+
+GitHub environments can require reviewers, prevent the dispatcher from
+approving its own run, and disallow administrator bypass. A deployment must also
+satisfy the repository's account-boundary policy. `gh attestation verify`
+exposes the required certificate identity, signer/source digest, source ref,
+predicate, OIDC issuer, hosted-runner, offline bundle, and JSON-output controls.
+Its identity selector flags are mutually exclusive, so the implementation uses
+the exact certificate SAN rather than simultaneously passing the weaker signer
+repository/workflow selectors.
+
+## 2026-07-12: GitHub Account Isolation
+
+Decision: one workspace operates through one explicitly configured GitHub
+actor. Agents must verify that actor before mutation, must never switch
+authentication, and must not manufacture independent approval by adding or
+using another user account. If a required approval cannot be implemented inside
+that boundary, publication fails closed.
+
+The development publication policy is disabled and no live control deployment
+is retained. Re-enabling it requires a new account-isolated approval design and
+a fresh validation case.
+
+Sources:
+
+- GitHub deployment environments:
+  https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments
+- GitHub deployment environment REST API:
+  https://docs.github.com/en/rest/deployments/environments
+- GitHub CLI attestation verification:
+  https://cli.github.com/manual/gh_attestation_verify
+- `actions/attest` custom predicates and bundle output:
+  https://github.com/actions/attest

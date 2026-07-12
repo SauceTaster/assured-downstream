@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -18,11 +19,14 @@ class SecurePublishError(RuntimeError):
     pass
 
 
+MIN_MUTATION_WINDOW_SECONDS = 15
+MAX_PUSH_SECONDS = 120
 PUBLISH_ENV = {
     "GIT_CONFIG_COUNT": "0",
     "GIT_CONFIG_NOSYSTEM": "1",
     "GIT_CONFIG_GLOBAL": "/dev/null",
     "GIT_CONFIG_PARAMETERS": "",
+    "GIT_NO_REPLACE_OBJECTS": "1",
     "GIT_TERMINAL_PROMPT": "0",
 }
 
@@ -33,6 +37,10 @@ def publish_secure_branch(
     target_full_name: str,
     secure_branch: str,
     patch_sha: str,
+    patch_base_sha: str,
+    required_upstream_sha: str,
+    authorization_expires_at: str,
+    lease_expires_at: str,
     expected_remote_sha: str | None,
     execute: bool,
     allow_local_remotes: bool = False,
@@ -41,6 +49,24 @@ def publish_secure_branch(
     checkout_path = checkout_path.resolve()
     validate_default_branch(secure_branch)
     patch_sha = require_full_sha(patch_sha, label="secure patch commit")
+    patch_base_sha = require_full_sha(
+        patch_base_sha,
+        label="secure patch base commit",
+    )
+    required_upstream_sha = require_full_sha(
+        required_upstream_sha,
+        label="required upstream commit",
+    )
+    authorization_expiry = parse_deadline(
+        authorization_expires_at,
+        label="publication authorization expiry",
+    )
+    lease_expiry = parse_deadline(
+        lease_expires_at,
+        label="publisher lease expiry",
+    )
+    if execute:
+        mutation_timeout_seconds(authorization_expiry, lease_expiry)
     if expected_remote_sha is not None:
         expected_remote_sha = require_full_sha(
             expected_remote_sha,
@@ -65,6 +91,34 @@ def publish_secure_branch(
     if local_sha != patch_sha:
         raise SecurePublishError(
             f"Local {secure_ref} is {local_sha}, expected approved patch {patch_sha}"
+        )
+    commit = run_required(
+        runner,
+        git_command(checkout_path, "cat-file", "commit", patch_sha),
+    )
+    headers = commit.split("\n\n", 1)[0].splitlines()
+    parents = [
+        line.removeprefix("parent ")
+        for line in headers
+        if line.startswith("parent ")
+    ]
+    if parents != [patch_base_sha]:
+        raise SecurePublishError(
+            "Authorized patch commit does not have exactly the approved base parent"
+        )
+    ancestry = runner.run(
+        git_command(
+            checkout_path,
+            "merge-base",
+            "--is-ancestor",
+            required_upstream_sha,
+            patch_base_sha,
+        ),
+        env=PUBLISH_ENV,
+    )
+    if not ancestry.ok:
+        raise SecurePublishError(
+            "Authorized patch base does not contain the required upstream commit"
         )
 
     origin_url = run_required(
@@ -100,6 +154,10 @@ def publish_secure_branch(
         "secure_branch": secure_branch,
         "secure_ref": secure_ref,
         "patch_sha": patch_sha,
+        "patch_base_sha": patch_base_sha,
+        "required_upstream_sha": required_upstream_sha,
+        "authorization_expires_at": authorization_expires_at,
+        "lease_expires_at": lease_expires_at,
         "expected_remote_sha": expected_remote_sha,
         "remote_before_sha": None,
         "remote_after_sha": None,
@@ -127,7 +185,15 @@ def publish_secure_branch(
             f"Remote {destination_ref} is {remote_before or '<absent>'}, expected "
             f"{expected_remote_sha or '<absent>'}"
         )
-    pushed = runner.run(push_command, env=PUBLISH_ENV)
+    push_timeout = mutation_timeout_seconds(
+        authorization_expiry,
+        lease_expiry,
+    )
+    pushed = runner.run(
+        push_command,
+        env=PUBLISH_ENV,
+        timeout_seconds=push_timeout,
+    )
     if not pushed.ok:
         raise SecurePublishError(command_failure(pushed))
     remote_after = remote_ref_sha(
@@ -232,3 +298,28 @@ def command_failure(result: CommandResult) -> str:
     if len(detail) > 2048:
         detail = detail[:2048] + "...<truncated>"
     return f"Git command failed: {display_safe_command(result.command)}: {detail}"
+
+
+def parse_deadline(value: Any, *, label: str) -> datetime:
+    if not isinstance(value, str) or not value:
+        raise SecurePublishError(f"{label.capitalize()} is invalid")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise SecurePublishError(f"{label.capitalize()} is invalid") from exc
+    if parsed.tzinfo is None:
+        raise SecurePublishError(f"{label.capitalize()} must include a timezone")
+    return parsed.astimezone(UTC)
+
+
+def mutation_timeout_seconds(
+    authorization_expiry: datetime,
+    lease_expiry: datetime,
+) -> int:
+    remaining = min(authorization_expiry, lease_expiry) - datetime.now(UTC)
+    seconds = int(remaining.total_seconds())
+    if seconds < MIN_MUTATION_WINDOW_SECONDS:
+        raise SecurePublishError(
+            "Publication authorization or publisher lease expires too soon for mutation"
+        )
+    return min(seconds, MAX_PUSH_SECONDS)

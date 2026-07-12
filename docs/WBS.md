@@ -11,8 +11,9 @@ work packages.
 
 ### 1.0 Durable Agent Runtime
 
-Status: single-host runtime plus intake, managed-checkout, and governed additive
-patch lanes built; distributed execution and later evidence lanes remain.
+Status: single-host runtime plus intake, managed-checkout, governed additive
+patch request, externally attested authorization, and secure publication lanes
+built; distributed execution and later evidence lanes remain.
 
 - 1.0.1 Persist typed events, work items, attempts, artifacts, and handoffs
 - 1.0.2 Add idempotency keys, leased claims, retries, and dead letters
@@ -21,9 +22,12 @@ patch lanes built; distributed execution and later evidence lanes remain.
 - 1.0.5 Run discovery through dry-run fork planning as five durable agents
 - 1.0.6 Add no-network agent replay to self-test
 - 1.0.7 Add multi-host backend after measured need; evaluate Dapr at that gate
-- 1.0.8 Host recon, overlay planning, additive Patch, and Secure Branch
-  Publisher agents on the same contracts (built); repository-specific patch,
-  build, trace, attestation, repro, release, and watch remain
+- 1.0.8 Host recon, overlay planning, additive Patch, Publication Request,
+  Publication Authorization, and Secure Branch Publisher agents on the same
+  contracts (built); repository-specific patch, build, trace, attestation,
+  repro, release, and watch remain
+- 1.0.9 Fence work completion by worker, attempt id, and unexpired lease (built)
+- 1.0.10 Add durable authorization-run polling and artifact collection
 
 ### 1.1 Candidate Intake
 
@@ -56,9 +60,10 @@ organization bootstrap and branch protection remain.
 
 ### 1.3 Sync Lifecycle
 
-Status: local reconciliation, durable recon, and governed secure commits are
-live. Exact-lease remote publication is implemented and locally tested but
-awaits authenticated approval and a live canary; scheduling remains.
+Status: local reconciliation, durable recon, governed secure commits, protected
+Sigstore authorization, and exact-lease publication are implemented. The
+authorization canary is live; a governed public-ref mutation and scheduling
+remain.
 
 - 1.3.1 Generate clone/sync plans
 - 1.3.2 Record sync lifecycle state
@@ -68,7 +73,8 @@ awaits authenticated approval and a live canary; scheduling remains.
 - 1.3.6 Add upstream release/tag detection (built)
 - 1.3.7 Add conflict routing to human review (built)
 - 1.3.8 Publish reviewed `upstream/<default>` and `secure/<default>` refs to the
-  downstream remote (secure-ref implementation built; live approval pending)
+  downstream remote (authorization and secure-ref implementation built; first
+  governed public-ref canary pending)
 - 1.3.9 Add scheduled and GitHub-event-driven upstream reconciliation
 
 ## 2. Repository Analysis And Overlay
@@ -99,8 +105,9 @@ Status: first pass built and hosted after durable managed-checkout recon.
 
 ### 2.3 Overlay Rendering
 
-Status: governed additive rendering and Git-object commit application are built;
-the Bandit canary passed locally without remote publication.
+Status: governed additive rendering, Git-object commit application, canonical
+publication requests, and real protected-workflow Sigstore authorization are
+built. The Bandit patch remains unpublished.
 
 - 2.3.1 Render Dependabot baseline
 - 2.3.2 Render dependency review workflow
@@ -114,6 +121,14 @@ the Bandit canary passed locally without remote publication.
 - 2.3.9 Build deterministic single-parent commits through a temporary Git index
   and advance `secure/<default>` by compare-and-swap (built)
 - 2.3.10 Add authenticated human approvals before production remote mutation
+  (verification and replay controls built; deployment disabled pending an
+  account-isolated approval design)
+- 2.3.11 Add immutable authorization input snapshots and cross-run replay
+  rejection (built)
+- 2.3.12 Anchor the publication policy in code, derive the replay ledger from
+  the OS account, and enforce mutation deadlines at push time (built)
+- 2.3.13 Enforce the GitHub account-boundary policy at every mutation adapter
+  and revalidate the external approval design without cross-account delegation
 
 ## 3. Attested Release MVP
 

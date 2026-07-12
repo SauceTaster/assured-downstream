@@ -18,6 +18,9 @@ from assured_downstream.sync_plan import create_sync_plan
 from tests.git_test_support import create_remote_fixture, git, local_fork_plan
 
 
+FUTURE_PUBLICATION_DEADLINE = "2099-01-01T00:00:00+00:00"
+
+
 class SecurePatchTests(unittest.TestCase):
     def test_same_immutable_inputs_create_same_patch_commit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -208,6 +211,10 @@ class SecurePatchTests(unittest.TestCase):
                 target_full_name="user/target",
                 secure_branch="secure/main",
                 patch_sha=patch["patch_sha"],
+                patch_base_sha=base_sha,
+                required_upstream_sha=base_sha,
+                authorization_expires_at=FUTURE_PUBLICATION_DEADLINE,
+                lease_expires_at=FUTURE_PUBLICATION_DEADLINE,
                 expected_remote_sha=None,
                 execute=False,
                 allow_local_remotes=True,
@@ -219,11 +226,60 @@ class SecurePatchTests(unittest.TestCase):
             )
             self.assertEqual(remote_ref(target, "refs/heads/secure/main"), None)
 
+            with self.assertRaisesRegex(SecurePublishError, "approved base parent"):
+                publish_secure_branch(
+                    checkout_path=checkout,
+                    target_full_name="user/target",
+                    secure_branch="secure/main",
+                    patch_sha=patch["patch_sha"],
+                    patch_base_sha="d" * 40,
+                    required_upstream_sha=base_sha,
+                    authorization_expires_at=FUTURE_PUBLICATION_DEADLINE,
+                    lease_expires_at=FUTURE_PUBLICATION_DEADLINE,
+                    expected_remote_sha=None,
+                    execute=False,
+                    allow_local_remotes=True,
+                )
+
+            with self.assertRaisesRegex(SecurePublishError, "required upstream"):
+                publish_secure_branch(
+                    checkout_path=checkout,
+                    target_full_name="user/target",
+                    secure_branch="secure/main",
+                    patch_sha=patch["patch_sha"],
+                    patch_base_sha=base_sha,
+                    required_upstream_sha="e" * 40,
+                    authorization_expires_at=FUTURE_PUBLICATION_DEADLINE,
+                    lease_expires_at=FUTURE_PUBLICATION_DEADLINE,
+                    expected_remote_sha=None,
+                    execute=False,
+                    allow_local_remotes=True,
+                )
+
+            with self.assertRaisesRegex(SecurePublishError, "expires too soon"):
+                publish_secure_branch(
+                    checkout_path=checkout,
+                    target_full_name="user/target",
+                    secure_branch="secure/main",
+                    patch_sha=patch["patch_sha"],
+                    patch_base_sha=base_sha,
+                    required_upstream_sha=base_sha,
+                    authorization_expires_at="2000-01-01T00:00:00+00:00",
+                    lease_expires_at=FUTURE_PUBLICATION_DEADLINE,
+                    expected_remote_sha=None,
+                    execute=True,
+                    allow_local_remotes=True,
+                )
+
             published = publish_secure_branch(
                 checkout_path=checkout,
                 target_full_name="user/target",
                 secure_branch="secure/main",
                 patch_sha=patch["patch_sha"],
+                patch_base_sha=base_sha,
+                required_upstream_sha=base_sha,
+                authorization_expires_at=FUTURE_PUBLICATION_DEADLINE,
+                lease_expires_at=FUTURE_PUBLICATION_DEADLINE,
                 expected_remote_sha=None,
                 execute=True,
                 allow_local_remotes=True,
@@ -239,6 +295,10 @@ class SecurePatchTests(unittest.TestCase):
                 target_full_name="user/target",
                 secure_branch="secure/main",
                 patch_sha=patch["patch_sha"],
+                patch_base_sha=base_sha,
+                required_upstream_sha=base_sha,
+                authorization_expires_at=FUTURE_PUBLICATION_DEADLINE,
+                lease_expires_at=FUTURE_PUBLICATION_DEADLINE,
                 expected_remote_sha=None,
                 execute=True,
                 allow_local_remotes=True,
@@ -259,6 +319,10 @@ class SecurePatchTests(unittest.TestCase):
                     target_full_name="user/target",
                     secure_branch="secure/main",
                     patch_sha=patch["patch_sha"],
+                    patch_base_sha=base_sha,
+                    required_upstream_sha=base_sha,
+                    authorization_expires_at=FUTURE_PUBLICATION_DEADLINE,
+                    lease_expires_at=FUTURE_PUBLICATION_DEADLINE,
                     expected_remote_sha=None,
                     execute=True,
                     allow_local_remotes=True,
@@ -307,6 +371,10 @@ class SecurePatchTests(unittest.TestCase):
                     target_full_name="user/target",
                     secure_branch="secure/main",
                     patch_sha=applied["patch_sha"],
+                    patch_base_sha=base_sha,
+                    required_upstream_sha=base_sha,
+                    authorization_expires_at=FUTURE_PUBLICATION_DEADLINE,
+                    lease_expires_at=FUTURE_PUBLICATION_DEADLINE,
                     expected_remote_sha=None,
                     execute=True,
                     allow_local_remotes=True,
@@ -361,6 +429,10 @@ class SecurePatchTests(unittest.TestCase):
                         target_full_name="user/target",
                         secure_branch="secure/main",
                         patch_sha=applied["patch_sha"],
+                        patch_base_sha=base_sha,
+                        required_upstream_sha=base_sha,
+                        authorization_expires_at=FUTURE_PUBLICATION_DEADLINE,
+                        lease_expires_at=FUTURE_PUBLICATION_DEADLINE,
                         expected_remote_sha=None,
                         execute=True,
                         allow_local_remotes=True,

@@ -3,10 +3,10 @@
 Assured Downstream is an early-stage idea/dev project for an agentic DevOps
 assured downstream for open source software.
 
-Status: executable design prototype. Durable intake, managed-checkout, and
-governed local patch lanes work, but this is not production-ready. Expect
-names, schemas, command interfaces, and trust boundaries to change while the
-core automation takes shape.
+Status: executable design prototype. Durable intake, managed-checkout, governed
+patch-request, and local publication-verification mechanics work. Remote
+publication authorization is intentionally disabled while its account-isolated
+trust boundary is redesigned. This is not production-ready.
 
 The goal is to maintain an organization of hardened forks that continuously
 track upstream projects, rebuild and release them under stronger security
@@ -56,10 +56,10 @@ packages, and applications, the org provides a trusted downstream lane:
 ## Current Prototype Commands
 
 The current CLI defaults to observe-first behavior. Explicit flags can create
-forks or mutate managed local refs. Exact-lease remote publication is implemented
-and locally tested, but the durable runtime refuses executed publication until
-an authenticated approval backend exists. The CLI is a local tool adapter for
-the agent system, not the system boundary.
+forks or mutate managed local refs. The exact-lease publication adapter requires
+a protected-workflow Sigstore authorization and a shared one-time consumption
+ledger, but the checked-in authorization policy is disabled. The CLI is a local
+tool adapter for the agent system, not the system boundary.
 
 ```text
 assured-downstream codex-preflight
@@ -81,12 +81,31 @@ assured-downstream prepare-patch-approval --analysis-index analysis-index.json \
   --auto-approve-safe
 assured-downstream patch-run --analysis-index analysis-index.json --pins pins.json \
   --tooling-policy policies/approved-tooling.json \
-  --approval patch-approval.json --workspace ./worktrees \
+  --approval patch-approval.json \
+  --publication-policy policies/publication-authorization.json \
+  --workspace ./worktrees \
   --run-dir ./runs/patch-001
 assured-downstream patch-run --analysis-index analysis-index.json --pins pins.json \
   --tooling-policy policies/approved-tooling.json \
-  --approval patch-approval.json --workspace ./worktrees \
+  --approval patch-approval.json \
+  --publication-policy policies/publication-authorization.json \
+  --workspace ./worktrees \
   --run-dir ./runs/patch-apply-001 --execute-patch
+assured-downstream dispatch-publication-authorization \
+  --request ./runs/patch-apply-001/publication-request.json \
+  --publication-policy policies/publication-authorization.json \
+  --output ./runs/patch-apply-001/authorization-dispatch.json --execute
+assured-downstream verify-publication-authorization \
+  --request ./runs/patch-apply-001/publication-request.json \
+  --bundle ./authorization.sigstore.json \
+  --publication-policy policies/publication-authorization.json \
+  --output ./authorization-verification.json
+assured-downstream publication-run \
+  --request ./runs/patch-apply-001/publication-request.json \
+  --bundle ./authorization.sigstore.json \
+  --publication-policy policies/publication-authorization.json \
+  --checkout ./worktrees/repository --workspace ./worktrees \
+  --run-dir ./runs/publication-001 --execute
 assured-downstream pilot --seed awesome-security.md --org <org> --run-dir ./runs/pilot-001
 assured-downstream pilot --seed https://example.com/awesome-security.md --org <org> \
   --run-dir ./runs/pilot-remote
@@ -153,16 +172,24 @@ synchronized upstream commit, not whichever branch happens to be checked out.
 Its automated policy can select only exact supported additive templates with an
 explicit false review marker, a complete fresh pin lock whose action/ref coverage
 matches the supplied digest-verified tooling policy, and no overwrite.
-`patch-run` then hosts Patch and Secure Branch Publisher agents. The Patch Agent
-constructs a deterministic Git commit through the object database, proves its
-secure base contains the analyzed upstream commit, and advances only
-`secure/<default>` with compare-and-swap. The Publisher plans by default; a
-network push names the approved commit object directly, isolates Git transport
-configuration, revalidates approval at the handoff, and uses an exact expected
-remote SHA lease. That primitive is exercised only against local test remotes;
-the CLI and normal workers block execution until they can verify an externally
-authenticated publication authorization. No outbound maintainer contact is
-created.
+`patch-run` hosts Patch and Publication Request agents. The Patch Agent creates
+a deterministic Git commit through the object database, proves its secure base
+contains the analyzed upstream commit, and advances only `secure/<default>` by
+compare-and-swap. Publication Request then emits an immutable request binding
+the target, branch, patch/base/upstream SHAs, expected remote state, approved
+changes, policy and evidence digests, and expiration. It cannot push.
+
+The authorization lane is implemented but intentionally disabled. A future
+deployment must stay inside `policies/github-account-boundary.json`, use a
+non-bypassable approval design without switching or delegating to another user
+account, and emit a SHA-pinned `actions/attest` Sigstore/in-toto bundle.
+Publication Authorization verifies the resulting bundle against an exact
+certificate identity, signer/source commit, source ref, OIDC issuer, hosted
+runner, predicate, subject digest, request scope, and code-anchored policy hash.
+Publisher consumes the request once in a code-anchored per-account SQLite ledger
+and uses an exact expected-remote lease. Remote pushes remain limited to local
+test remotes until the authorization boundary is replaced and revalidated. No
+outbound maintainer contact is created.
 
 Seeds can be local files or URLs. `agent-run` is the current durable
 observe-first entrypoint. It persists typed events, leased work, attempts,

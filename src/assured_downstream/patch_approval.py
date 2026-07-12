@@ -107,7 +107,10 @@ def create_patch_approval(
         "limitations": [
             "Policy approval covers only supported additive files.",
             "Existing paths, workflow modifications, release logic, and human-review items are excluded.",
-            "Human-record approvals are local records until an authenticated approval backend exists.",
+            (
+                "Human-record patch approval cannot authorize a remote push; "
+                "a separate attested publication authorization is required."
+            ),
         ],
     }
 

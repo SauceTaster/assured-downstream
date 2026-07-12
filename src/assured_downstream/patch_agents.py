@@ -17,8 +17,6 @@ from assured_downstream.agent_store import AgentStore
 from assured_downstream.evidence import sha256_file
 from assured_downstream.managed_checkout_agents import (
     artifact_reference,
-    read_json,
-    verified_config_path,
     write_json_atomic,
 )
 from assured_downstream.patch_approval import (
@@ -31,10 +29,16 @@ from assured_downstream.secure_patch import (
     build_rendered_patch,
     rendered_patch_manifest,
 )
-from assured_downstream.secure_publish import SecurePublishError, publish_secure_branch
+from assured_downstream.publication_authorization import (
+    PublicationAuthorizationError,
+    create_publication_request,
+    decode_json_object,
+    require_trusted_publication_policy_digest,
+    snapshot_file,
+)
 
 
-PATCH_PUBLICATION_WORKFLOW = "governed-patch-publication"
+PATCH_PUBLICATION_WORKFLOW = "governed-patch-request"
 
 
 class PatchHandler:
@@ -49,14 +53,26 @@ class PatchHandler:
         if context.event.producer_agent_id is not None:
             raise ValueError("PatchApprovalRecorded must be an external event")
         config = require_patch_config(context.event.payload)
-        analysis_path = verified_config_path(config, "analysis_index_path")
-        pin_lock_path = verified_config_path(config, "pin_lock_path")
-        tooling_policy_path = verified_config_path(config, "tooling_policy_path")
-        approval_path = verified_config_path(config, "approval_path")
-        analysis = read_json(analysis_path)
-        pin_lock = read_json(pin_lock_path)
-        tooling_policy = read_json(tooling_policy_path)
-        approval = read_json(approval_path)
+        _analysis_path, analysis = read_verified_config_json(
+            config,
+            "analysis_index_path",
+            label="analysis index",
+        )
+        _pin_lock_path, pin_lock = read_verified_config_json(
+            config,
+            "pin_lock_path",
+            label="pin lock",
+        )
+        _tooling_policy_path, tooling_policy = read_verified_config_json(
+            config,
+            "tooling_policy_path",
+            label="tooling policy",
+        )
+        _approval_path, approval = read_verified_config_json(
+            config,
+            "approval_path",
+            label="patch approval",
+        )
         gate_path = context.run_dir / "patch-gate-decision.json"
 
         try:
@@ -182,178 +198,145 @@ class PatchHandler:
         )
 
 
-class SecureBranchPublisherHandler:
-    agent_id = "secure-branch-publisher"
-
-    def __init__(
-        self,
-        *,
-        allow_local_remotes: bool = False,
-    ) -> None:
-        self.allow_local_remotes = allow_local_remotes
+class PublicationRequestHandler:
+    agent_id = "publication-requestor"
 
     def handle(self, context: AgentContext) -> AgentResult:
         if context.event.event_type != "PatchReady":
-            raise ValueError("Secure Branch Publisher requires PatchReady")
+            raise ValueError("Publication Request Agent requires PatchReady")
         if context.event.producer_agent_id != "patch":
             raise ValueError("PatchReady must be produced by the Patch Agent")
         config = require_patch_config(context.event.payload)
-        patch_result = read_json(
-            verified_handoff_path(context.event.payload.get("patch_result"))
+        patch_result, patch_result_sha256 = read_verified_handoff_json(
+            context.event.payload.get("patch_result"),
+            label="patch result",
         )
-        analysis_path = verified_config_path(config, "analysis_index_path")
-        pin_lock_path = verified_config_path(config, "pin_lock_path")
-        tooling_policy_path = verified_config_path(config, "tooling_policy_path")
-        approval_path = verified_config_path(config, "approval_path")
-        approval = read_json(approval_path)
-        result_path = context.run_dir / "secure-branch-publication.json"
+        _analysis_path, analysis = read_verified_config_json(
+            config,
+            "analysis_index_path",
+            label="analysis index",
+        )
+        _pin_path, pin_lock = read_verified_config_json(
+            config,
+            "pin_lock_path",
+            label="pin lock",
+        )
+        _tooling_path, tooling_policy = read_verified_config_json(
+            config,
+            "tooling_policy_path",
+            label="tooling policy",
+        )
+        _approval_path, approval = read_verified_config_json(
+            config,
+            "approval_path",
+            label="patch approval",
+        )
+        _policy_path, publication_policy = read_verified_config_json(
+            config,
+            "publication_policy_path",
+            label="publication authorization policy",
+        )
+        result_path = context.run_dir / "publication-request.json"
         try:
             _repository, _overlay = validate_patch_approval(
                 approval,
-                analysis_index=read_json(analysis_path),
+                analysis_index=analysis,
                 analysis_index_sha256=config["analysis_index_path_sha256"],
-                pin_lock=read_json(pin_lock_path),
+                pin_lock=pin_lock,
                 pin_lock_sha256=config["pin_lock_path_sha256"],
-                tooling_policy=read_json(tooling_policy_path),
+                tooling_policy=tooling_policy,
                 tooling_policy_sha256=config["tooling_policy_path_sha256"],
             )
-        except (PatchApprovalError, SecurePatchError, ValueError) as exc:
-            write_json_atomic(
-                result_path,
-                {
+            approval_repo = approval["repository"]
+            expected_branch = f"secure/{approval_repo['default_branch']}"
+            if (
+                patch_result.get("target_full_name")
+                != approval_repo["target_full_name"]
+                or patch_result.get("source_full_name")
+                != approval_repo["source_full_name"]
+                or patch_result.get("secure_branch") != expected_branch
+                or patch_result.get("base_sha")
+                != approval_repo["secure_branch_sha"]
+                or patch_result.get("approval_sha256")
+                != config["approval_path_sha256"]
+            ):
+                raise PublicationAuthorizationError(
+                    "Patch result scope does not match the approved publication"
+                )
+            patch_sha = patch_result.get("patch_sha")
+            publication_requested = approval_repo["publish_secure_branch"]
+            if patch_sha is None:
+                request = {
                     "schema_version": 1,
-                    "status": "blocked",
-                    "reason": str(exc),
-                    "executed": False,
-                },
-            )
+                    "status": "awaiting-local-patch",
+                    "publication_requested": publication_requested,
+                    "target_full_name": approval_repo["target_full_name"],
+                    "secure_branch": expected_branch,
+                }
+                event_type = "PublicationRequestDeferred"
+            elif not publication_requested:
+                request = {
+                    "schema_version": 1,
+                    "status": "not-requested",
+                    "publication_requested": False,
+                    "target_full_name": approval_repo["target_full_name"],
+                    "secure_branch": expected_branch,
+                    "patch_sha": patch_sha,
+                }
+                event_type = "SecureBranchPublicationNotRequested"
+            else:
+                require_trusted_publication_policy_digest(
+                    config["publication_policy_path_sha256"]
+                )
+                request = create_publication_request(
+                    source_full_name=approval_repo["source_full_name"],
+                    target_full_name=approval_repo["target_full_name"],
+                    secure_branch=expected_branch,
+                    patch_sha=patch_sha,
+                    patch_base_sha=patch_result["base_sha"],
+                    required_upstream_sha=approval_repo["analysis_sha"],
+                    expected_remote_sha=approval_repo.get("expected_remote_sha"),
+                    approved_change_ids=approval_repo["approved_change_ids"],
+                    approved_at=approval["approved_at"],
+                    approval_expires_at=approval["expires_at"],
+                    analysis_index_sha256=config["analysis_index_path_sha256"],
+                    pin_lock_sha256=config["pin_lock_path_sha256"],
+                    tooling_policy_sha256=config["tooling_policy_path_sha256"],
+                    patch_approval_sha256=config["approval_path_sha256"],
+                    publication_policy=publication_policy,
+                    publication_policy_sha256=config[
+                        "publication_policy_path_sha256"
+                    ],
+                    patch_result_sha256=patch_result_sha256,
+                )
+                event_type = "PublicationAuthorizationRequested"
+        except (
+            PatchApprovalError,
+            PublicationAuthorizationError,
+            SecurePatchError,
+            ValueError,
+        ) as exc:
+            blocked = {
+                "schema_version": 1,
+                "status": "blocked",
+                "reason": str(exc),
+            }
+            write_json_atomic(result_path, blocked)
             return AgentResult(
                 status="blocked",
-                summary="Publication approval revalidation failed.",
+                summary="Publication request creation failed closed.",
                 artifacts=[
-                    ArtifactOutput(role="secure-branch-publication", path=result_path)
+                    ArtifactOutput(role="publication-request", path=result_path)
                 ],
                 human_review=[str(exc)],
             )
-        approval_repo = approval["repository"]
-        expected_branch = f"secure/{approval_repo['default_branch']}"
-        if (
-            patch_result.get("target_full_name") != approval_repo["target_full_name"]
-            or patch_result.get("source_full_name") != approval_repo["source_full_name"]
-            or patch_result.get("secure_branch") != expected_branch
-            or patch_result.get("approval_sha256") != config["approval_path_sha256"]
-        ):
-            raise ValueError("Patch result scope does not match the approved publication")
-        publication_requested = approval_repo["publish_secure_branch"]
-        execute_publish = config["execute_publish"]
 
-        if execute_publish and not publication_requested:
-            write_json_atomic(
-                result_path,
-                {
-                    "schema_version": 1,
-                    "status": "blocked",
-                    "reason": "Approval does not authorize secure branch publication",
-                    "executed": False,
-                },
-            )
-            return AgentResult(
-                status="blocked",
-                summary="Secure branch publication was not authorized.",
-                artifacts=[
-                    ArtifactOutput(role="secure-branch-publication", path=result_path)
-                ],
-                human_review=["Record a human publication approval with an expected remote SHA."],
-            )
-
-        if execute_publish:
-            write_json_atomic(
-                result_path,
-                {
-                    "schema_version": 1,
-                    "status": "blocked",
-                    "reason": (
-                        "Executed publication is disabled until an authenticated "
-                        "approval backend is available"
-                    ),
-                    "executed": False,
-                },
-            )
-            return AgentResult(
-                status="blocked",
-                summary="Secure branch publication execution is disabled.",
-                artifacts=[
-                    ArtifactOutput(role="secure-branch-publication", path=result_path)
-                ],
-                human_review=[
-                    "Configure authenticated publication approval before remote mutation."
-                ],
-            )
-
-        patch_sha = patch_result.get("patch_sha")
-        if patch_sha is None:
-            publication = {
-                "schema_version": 1,
-                "status": "awaiting-local-patch",
-                "executed": False,
-                "publication_requested": publication_requested,
-                "target_full_name": approval_repo["target_full_name"],
-                "secure_branch": f"secure/{approval_repo['default_branch']}",
-            }
-        elif not publication_requested:
-            publication = {
-                "schema_version": 1,
-                "status": "not-authorized",
-                "executed": False,
-                "publication_requested": False,
-                "target_full_name": approval_repo["target_full_name"],
-                "secure_branch": f"secure/{approval_repo['default_branch']}",
-                "patch_sha": patch_sha,
-            }
-        else:
-            try:
-                publication = publish_secure_branch(
-                    checkout_path=Path(patch_result["checkout_path"]),
-                    target_full_name=approval_repo["target_full_name"],
-                    secure_branch=f"secure/{approval_repo['default_branch']}",
-                    patch_sha=patch_sha,
-                    expected_remote_sha=approval_repo.get("expected_remote_sha"),
-                    execute=execute_publish,
-                    allow_local_remotes=self.allow_local_remotes,
-                )
-            except SecurePublishError as exc:
-                write_json_atomic(
-                    result_path,
-                    {
-                        "schema_version": 1,
-                        "status": "blocked",
-                        "reason": str(exc),
-                        "executed": False,
-                    },
-                )
-                return AgentResult(
-                    status="blocked",
-                    summary="Secure branch publication was blocked.",
-                    artifacts=[
-                        ArtifactOutput(
-                            role="secure-branch-publication",
-                            path=result_path,
-                        )
-                    ],
-                    human_review=[str(exc)],
-                )
-
-        write_json_atomic(result_path, publication)
-        event_type = (
-            "SecureBranchPublished"
-            if publication.get("status") in {"published", "already-published"}
-            else "SecureBranchPublicationPlanned"
-        )
-        payload = {"publication": artifact_reference(result_path)}
+        write_json_atomic(result_path, request)
+        payload = {"publication_request": artifact_reference(result_path)}
         return AgentResult(
             status="succeeded",
             summary=(
-                f"Secure branch publication status: {publication['status']} for "
+                f"Publication request status: {request.get('status', 'ready')} for "
                 f"{approval_repo['target_full_name']}."
             ),
             events=[
@@ -364,9 +347,7 @@ class SecureBranchPublisherHandler:
                     dedupe_key=content_digest(payload),
                 )
             ],
-            artifacts=[
-                ArtifactOutput(role="secure-branch-publication", path=result_path)
-            ],
+            artifacts=[ArtifactOutput(role="publication-request", path=result_path)],
         )
 
 
@@ -376,9 +357,7 @@ def patch_publication_handlers(
 ) -> list[AgentHandler]:
     return [
         PatchHandler(allow_local_remotes=allow_local_test_remotes),
-        SecureBranchPublisherHandler(
-            allow_local_remotes=allow_local_test_remotes,
-        ),
+        PublicationRequestHandler(),
     ]
 
 
@@ -388,10 +367,10 @@ def run_patch_publication_agent_system(
     pin_lock_path: Path,
     tooling_policy_path: Path,
     approval_path: Path,
+    publication_policy_path: Path,
     workspace: Path,
     run_dir: Path,
     execute_patch: bool = False,
-    execute_publish: bool = False,
     database_path: Path | None = None,
     run_id: str | None = None,
     worker_id: str | None = None,
@@ -399,14 +378,13 @@ def run_patch_publication_agent_system(
     enqueue_only: bool = False,
     allow_local_test_remotes: bool = False,
 ) -> dict[str, Any]:
-    if execute_publish and not execute_patch:
-        raise ValueError("Remote publication requires --execute-patch")
     if max_items < 1:
         raise ValueError("max_items must be at least 1")
     analysis_index_path = analysis_index_path.expanduser().resolve()
     pin_lock_path = pin_lock_path.expanduser().resolve()
     tooling_policy_path = tooling_policy_path.expanduser().resolve()
     approval_path = approval_path.expanduser().resolve()
+    publication_policy_path = publication_policy_path.expanduser().resolve()
     workspace = workspace.expanduser().resolve()
     run_dir = run_dir.expanduser().resolve()
     for path in (
@@ -414,6 +392,7 @@ def run_patch_publication_agent_system(
         pin_lock_path,
         tooling_policy_path,
         approval_path,
+        publication_policy_path,
     ):
         if not path.is_file():
             raise FileNotFoundError(path)
@@ -430,9 +409,10 @@ def run_patch_publication_agent_system(
         "tooling_policy_path_sha256": sha256_file(tooling_policy_path),
         "approval_path": str(approval_path),
         "approval_path_sha256": sha256_file(approval_path),
+        "publication_policy_path": str(publication_policy_path),
+        "publication_policy_path_sha256": sha256_file(publication_policy_path),
         "workspace": str(workspace),
         "execute_patch": execute_patch,
-        "execute_publish": execute_publish,
     }
     store = AgentStore(database_path)
     runtime = AgentRuntime(
@@ -471,7 +451,7 @@ def run_patch_publication_agent_system(
         result = runtime.drain(run_id=effective_run_id, max_items=max_items)
     result["database_path"] = str(database_path)
     result["run_dir"] = str(run_dir)
-    summary_path = run_dir / "patch-publication-summary.json"
+    summary_path = run_dir / "patch-request-summary.json"
     write_json_atomic(summary_path, result)
     result["summary_path"] = str(summary_path)
     return result
@@ -518,6 +498,7 @@ def require_patch_config(payload: dict[str, Any]) -> dict[str, Any]:
         "pin_lock_path",
         "tooling_policy_path",
         "approval_path",
+        "publication_policy_path",
         "workspace",
     ):
         if not isinstance(config.get(key), str) or not config[key]:
@@ -527,6 +508,7 @@ def require_patch_config(payload: dict[str, Any]) -> dict[str, Any]:
         "pin_lock_path_sha256",
         "tooling_policy_path_sha256",
         "approval_path_sha256",
+        "publication_policy_path_sha256",
     ):
         value = config.get(key)
         if (
@@ -537,8 +519,6 @@ def require_patch_config(payload: dict[str, Any]) -> dict[str, Any]:
             raise ValueError(f"Patch config has invalid {key}")
     if not isinstance(config.get("execute_patch"), bool):
         raise ValueError("Patch config has invalid execute_patch")
-    if not isinstance(config.get("execute_publish"), bool):
-        raise ValueError("Patch config has invalid execute_publish")
     return config
 
 
@@ -554,14 +534,40 @@ def guarded_checkout_path(value: Any, *, workspace: Path) -> Path:
     return path
 
 
-def verified_handoff_path(value: Any) -> Path:
+def read_verified_handoff_json(
+    value: Any,
+    *,
+    label: str,
+) -> tuple[dict[str, Any], str]:
     if not isinstance(value, dict):
-        raise ValueError("Patch handoff artifact reference must be an object")
+        raise ValueError(f"{label.capitalize()} artifact reference must be an object")
     path = value.get("path")
     digest = value.get("sha256")
     if not isinstance(path, str) or not isinstance(digest, str):
-        raise ValueError("Patch handoff artifact reference is invalid")
+        raise ValueError(f"{label.capitalize()} artifact reference is invalid")
     resolved = Path(path).resolve()
-    if not resolved.is_file() or sha256_file(resolved) != digest:
-        raise ValueError("Patch handoff artifact digest verification failed")
-    return resolved
+    if not resolved.is_file():
+        raise ValueError(f"{label.capitalize()} artifact is missing")
+    value_bytes, actual = snapshot_file(resolved, label=label)
+    if actual != digest:
+        raise ValueError(f"{label.capitalize()} artifact digest verification failed")
+    return decode_json_object(value_bytes, label=label), actual
+
+
+def read_verified_config_json(
+    config: dict[str, Any],
+    key: str,
+    *,
+    label: str,
+) -> tuple[Path, dict[str, Any]]:
+    path_value = config.get(key)
+    digest_value = config.get(f"{key}_sha256")
+    if not isinstance(path_value, str) or not isinstance(digest_value, str):
+        raise ValueError(f"Patch config has invalid {key}")
+    path = Path(path_value).resolve()
+    if not path.is_file():
+        raise ValueError(f"Configured {label} is missing: {path}")
+    value, digest = snapshot_file(path, label=label)
+    if digest != digest_value:
+        raise ValueError(f"Configured {label} digest changed")
+    return path, decode_json_object(value, label=label)

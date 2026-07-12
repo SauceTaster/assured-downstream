@@ -4,6 +4,11 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from assured_downstream.account_boundary import (
+    AccountBoundaryError,
+    require_allowed_target_owner,
+    verify_authenticated_actor,
+)
 from assured_downstream.command_runner import CommandRunner, display_command
 from assured_downstream.fork_plan import fork_command, fork_target_from_plan
 from assured_downstream.lifecycle import StateStore
@@ -22,6 +27,7 @@ def apply_fork_plan(
     state: StateStore,
     execute: bool = False,
     runner: CommandRunner | None = None,
+    account_boundary: dict[str, Any] | None = None,
 ) -> ForkApplyResult:
     runner = runner or CommandRunner(execute=execute)
     fork_target = fork_target_from_plan(plan)
@@ -30,11 +36,28 @@ def apply_fork_plan(
     failed = 0
     skipped = 0
 
-    if execute and entries and fork_target["owner_type"] == "user":
+    if execute and entries:
+        try:
+            if account_boundary is None:
+                raise AccountBoundaryError(
+                    "GitHub account boundary policy is required for mutation"
+                )
+            require_allowed_target_owner(account_boundary, fork_target["owner"])
+        except AccountBoundaryError as exc:
+            detail = {"reason": str(exc)}
+            for entry in entries:
+                state.record(
+                    source_full_name=entry["source_full_name"],
+                    target_full_name=entry["target_full_name"],
+                    event="ForkPreflightFailed",
+                    status="failed",
+                    detail=detail,
+                )
+            return ForkApplyResult(succeeded=0, failed=len(entries), skipped=0)
         identity = runner.run(authenticated_user_lookup_command())
-        identity_ok, identity_detail = verify_authenticated_user(
+        identity_ok, identity_detail = verify_authenticated_actor(
             identity,
-            fork_target["owner"],
+            account_boundary,
         )
         if not identity_ok:
             for entry in entries:
@@ -134,33 +157,6 @@ def repository_lookup_command(target_full_name: str) -> list[str]:
 
 def authenticated_user_lookup_command() -> list[str]:
     return ["gh", "api", "user"]
-
-
-def verify_authenticated_user(
-    result: Any,
-    expected_login: str,
-) -> tuple[bool, dict[str, Any]]:
-    detail = command_result_detail(result, include_stdout=False)
-    detail["expected_login"] = expected_login
-    if not result.ok:
-        detail["reason"] = "authenticated GitHub user lookup failed"
-        return False, detail
-
-    try:
-        payload = json.loads(result.stdout)
-    except (json.JSONDecodeError, TypeError):
-        detail["reason"] = "authenticated GitHub user lookup returned invalid JSON"
-        return False, detail
-
-    actual_login = payload.get("login")
-    detail["actual_login"] = actual_login
-    verified = (
-        isinstance(actual_login, str)
-        and actual_login.casefold() == expected_login.casefold()
-    )
-    if not verified:
-        detail["reason"] = "authenticated GitHub user does not match the target owner"
-    return verified, detail
 
 
 def verify_fork_lookup(result: Any, source_full_name: str) -> tuple[bool, dict[str, Any]]:

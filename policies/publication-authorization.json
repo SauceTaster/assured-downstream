@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "status": "disabled",
+  "predicate_type": "https://assured-downstream.dev/attestation/secure-branch-publication/v1",
+  "control_repository": "SauceTaster/assured-control",
+  "environment": "secure-publication",
+  "signer": {
+    "workflow": "SauceTaster/assured-control/.github/workflows/authorize-publication.yml",
+    "workflow_digest": "bc20676410fc07d85ce0dd5b4cfe18ca53e197f0",
+    "source_digest": "bc20676410fc07d85ce0dd5b4cfe18ca53e197f0",
+    "source_ref": "refs/heads/main",
+    "certificate_identity": "https://github.com/SauceTaster/assured-control/.github/workflows/authorize-publication.yml@refs/heads/main",
+    "oidc_issuer": "https://token.actions.githubusercontent.com",
+    "deny_self_hosted_runners": true
+  },
+  "verifier": {
+    "executable": "/opt/homebrew/bin/gh",
+    "sha256": "582a40676acf1394fcaf1c8c8bc5bad21806bd8c864b209d37b185c2df45dc92"
+  },
+  "scope": {
+    "target_owner": "SauceTaster",
+    "repository_prefix": "assured-",
+    "branch_prefix": "secure/",
+    "max_request_lifetime_seconds": 604800
+  }
+}

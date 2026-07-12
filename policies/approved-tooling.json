@@ -23,7 +23,7 @@
     },
     {
       "name": "actions/upload-artifact",
-      "ref": "v4",
+      "ref": "v7.0.1",
       "usage": "workflow artifact retention for release evidence",
       "requires_full_sha_pin": true
     },

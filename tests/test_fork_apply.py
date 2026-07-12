@@ -8,6 +8,24 @@ from assured_downstream.fork_apply import apply_fork_plan
 from assured_downstream.lifecycle import StateStore
 
 
+def github_account_boundary(*, owners: list[str] | None = None) -> dict:
+    return {
+        "schema_version": 1,
+        "status": "active",
+        "github_host": "github.com",
+        "required_actor": "SauceTaster",
+        "allowed_target_owners": owners or ["SauceTaster"],
+        "controls": {
+            "allow_auth_switch": False,
+            "allow_external_collaborators": False,
+            "allow_external_reviewers": False,
+            "require_identity_check_before_mutation": True,
+            "on_identity_mismatch": "fail_closed",
+            "on_independent_approval_unavailable": "fail_closed",
+        },
+    }
+
+
 class FakeRunner:
     def __init__(self, responses: list[CommandResult] | None = None) -> None:
         self.responses = list(responses or [])
@@ -116,7 +134,13 @@ class ForkApplyTests(unittest.TestCase):
         state = StateStore.empty()
         runner = FakeRunner([identity, lookup])
 
-        result = apply_fork_plan(plan, state=state, execute=True, runner=runner)
+        result = apply_fork_plan(
+            plan,
+            state=state,
+            execute=True,
+            runner=runner,
+            account_boundary=github_account_boundary(),
+        )
 
         self.assertEqual(result.succeeded, 0)
         self.assertEqual(result.failed, 0)
@@ -178,7 +202,13 @@ class ForkApplyTests(unittest.TestCase):
         state = StateStore.empty()
         runner = FakeRunner([identity, missing, created, verified])
 
-        result = apply_fork_plan(plan, state=state, execute=True, runner=runner)
+        result = apply_fork_plan(
+            plan,
+            state=state,
+            execute=True,
+            runner=runner,
+            account_boundary=github_account_boundary(),
+        )
 
         self.assertEqual(result.succeeded, 1)
         self.assertEqual(result.failed, 0)
@@ -223,13 +253,20 @@ class ForkApplyTests(unittest.TestCase):
             returncode=0,
             stdout=json.dumps({"fork": False, "parent": None}),
         )
+        identity = CommandResult(
+            command=[],
+            executed=True,
+            returncode=0,
+            stdout=json.dumps({"login": "SauceTaster"}),
+        )
         state = StateStore.empty()
 
         result = apply_fork_plan(
             plan,
             state=state,
             execute=True,
-            runner=FakeRunner([lookup]),
+            runner=FakeRunner([identity, lookup]),
+            account_boundary=github_account_boundary(owners=["assured-oss"]),
         )
 
         self.assertEqual(result.failed, 1)
@@ -261,13 +298,50 @@ class ForkApplyTests(unittest.TestCase):
         state = StateStore.empty()
         runner = FakeRunner([identity])
 
-        result = apply_fork_plan(plan, state=state, execute=True, runner=runner)
+        result = apply_fork_plan(
+            plan,
+            state=state,
+            execute=True,
+            runner=runner,
+            account_boundary=github_account_boundary(),
+        )
 
         self.assertEqual(result.failed, 1)
         self.assertEqual(runner.commands, [["gh", "api", "user"]])
         event = state.data["repositories"]["owner/project"]["events"][0]
         self.assertEqual(event["event"], "ForkPreflightFailed")
         self.assertEqual(event["detail"]["actual_login"], "someone-else")
+
+    def test_execute_blocks_without_account_boundary(self) -> None:
+        plan = {
+            "target": {
+                "owner": "SauceTaster",
+                "owner_type": "user",
+                "name_prefix": "assured-",
+            },
+            "forks": [
+                {
+                    "source_full_name": "owner/project",
+                    "target_full_name": "SauceTaster/assured-project",
+                    "target_repo_name": "assured-project",
+                }
+            ],
+        }
+        state = StateStore.empty()
+        runner = FakeRunner()
+
+        result = apply_fork_plan(
+            plan,
+            state=state,
+            execute=True,
+            runner=runner,
+        )
+
+        self.assertEqual(result.failed, 1)
+        self.assertEqual(runner.commands, [])
+        event = state.data["repositories"]["owner/project"]["events"][0]
+        self.assertEqual(event["event"], "ForkPreflightFailed")
+        self.assertIn("account boundary policy is required", event["detail"]["reason"])
 
 
 if __name__ == "__main__":

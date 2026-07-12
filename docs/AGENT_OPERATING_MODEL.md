@@ -100,6 +100,10 @@ DiscoveryRequested
   -> OverlayProposed
   -> ToolPinsReady
   -> PatchRendered
+  -> PatchReady
+  -> PublicationAuthorizationRequested
+  -> SecureBranchPublicationAuthorized
+  -> SecureBranchPublished
   -> ReleaseProfileDrafted
   -> ReleaseConfirmed
   -> BuildArtifactsReady
@@ -199,6 +203,27 @@ Core artifacts:
 The lane answers: "What is the smallest useful hardening delta, and can it be
 rendered safely?"
 
+### Publication Authorization Lane
+
+Agents:
+
+- Publication Request Agent
+- Publication Authorization Agent
+- Secure Branch Publisher Agent
+
+Core artifacts:
+
+- canonical publication request
+- protected-workflow dispatch record
+- Sigstore/in-toto authorization bundle
+- authorization verification record
+- one-time consumption ledger entry
+- exact-lease remote transition evidence
+
+The lane answers: "Did an independent protected identity authorize this exact
+patch, target, ref, old remote state, and evidence set, and can that authority be
+consumed only once?"
+
 ### Build And Evidence Lane
 
 Agents:
@@ -252,13 +277,15 @@ contacting maintainers or overclaiming authority?"
 
 Current local CLI tools are early adapters:
 
-- `agent-run`, `checkout-run`, `patch-run`, `agent-worker`, `agent-status`
+- `agent-run`, `checkout-run`, `patch-run`, `publication-run`, `agent-worker`,
+  `agent-status`
 - `ingest`, `enrich`, `score`, `pilot`
 - `plan-forks`, `apply-fork-plan`
 - `plan-sync`, `apply-sync-plan`
 - `recon`, `analyze-checkout`
 - `plan-overlay`, `render-overlay`
 - `prepare-patch-approval`
+- `dispatch-publication-authorization`, `verify-publication-authorization`
 - `resolve-pins`
 - `plan-release`, `render-release-workflow`
 - `create-evidence`, `create-attestation`, `verify-evidence`
@@ -310,11 +337,14 @@ The local self-test should grow in layers:
 The current `self-test` covers the first three and replays the durable intake
 lane. Case Study 001 separately proves repeat-safe live fork detection plus the
 durable Fork And Sync -> Recon -> Overlay Planner lane over five repositories.
-It also proves the Patch -> Secure Branch Publisher lane locally on Bandit,
-including policy scope, deterministic commit creation, CAS, artifact
-verification, and unauthorized-publication refusal. The next self-test
-increment should bring both update and patch replay into the no-network bundle
-before the first governed build case study.
+It also proves Patch -> Publication Request and Publication Authorization ->
+Secure Branch Publisher locally on Bandit, including policy scope,
+deterministic commit creation, CAS, artifact verification, invalid-attestation
+refusal, and cross-run replay rejection. Remote authorization is disabled until
+the independent gate can operate without authentication switching or
+cross-account delegation. The next self-test increment should bring both update
+and patch replay into the no-network bundle before the first governed build case
+study.
 
 ## Validated Case Study
 

@@ -162,6 +162,66 @@ class AgentStoreTests(unittest.TestCase):
             self.assertEqual(store.get_run("run")["status"], "failed")
             self.assertEqual(store.work_status_counts("run"), {"dead_letter": 1})
 
+    def test_stale_attempt_cannot_complete_after_lease_recovery(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = AgentStore(Path(tmp) / "agents.sqlite3")
+            store.create_run("run", {"run_dir": tmp})
+            store.publish_event(
+                run_id="run",
+                event_type="Input",
+                payload={},
+                agent_ids=["agent"],
+            )
+            stale = store.claim_work(
+                worker_id="same-worker",
+                run_id="run",
+                lease_seconds=-1,
+            )
+            replacement = store.claim_work(
+                worker_id="same-worker",
+                run_id="run",
+            )
+            assert stale is not None and replacement is not None
+
+            with self.assertRaisesRegex(RuntimeError, "active lease"):
+                store.complete_work(
+                    work=stale,
+                    worker_id="same-worker",
+                    result=AgentResult(status="succeeded", summary="stale"),
+                    routed_events=[],
+                )
+            store.complete_work(
+                work=replacement,
+                worker_id="same-worker",
+                result=AgentResult(status="succeeded", summary="current"),
+                routed_events=[],
+            )
+
+    def test_expired_lease_cannot_complete_without_recovery_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = AgentStore(Path(tmp) / "agents.sqlite3")
+            store.create_run("run", {"run_dir": tmp})
+            store.publish_event(
+                run_id="run",
+                event_type="Input",
+                payload={},
+                agent_ids=["agent"],
+            )
+            expired = store.claim_work(
+                worker_id="worker",
+                run_id="run",
+                lease_seconds=-1,
+            )
+            assert expired is not None
+
+            with self.assertRaisesRegex(RuntimeError, "active lease"):
+                store.complete_work(
+                    work=expired,
+                    worker_id="worker",
+                    result=AgentResult(status="succeeded", summary="late"),
+                    routed_events=[],
+                )
+
     def test_artifact_verification_detects_post_handoff_tampering(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

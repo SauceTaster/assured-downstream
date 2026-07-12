@@ -108,21 +108,26 @@ Inputs:
 
 Outputs:
 
-- durable Patch and Secure Branch Publisher handoffs
+- durable Patch, Publication Request, Publication Authorization, and Secure
+  Branch Publisher handoffs across two immutable runs
 - gate decision and exact rendered-file manifest
 - single-parent local secure commit and compare-and-swap result
-- publication plan or explicit not-authorized decision
+- canonical publication request, Sigstore authorization verification, one-time
+  consumption record, and publication plan or explicit not-requested decision
 
 Pass condition: only exact approved files enter the commit, the secure base
 contains the analyzed upstream commit, retries converge on the same commit, all
 artifacts re-verify, and no remote ref changes without an authenticated external
-authorization revalidated at the Publisher handoff. The current production
-runtime blocks all executed publication; exact-lease pushes are tested only
-against local bare remotes.
+authorization revalidated at the Publisher handoff. Executed publication now
+requires a pinned protected-workflow Sigstore bundle and shared replay ledger;
+exact-lease pushes are still tested only against local bare remotes.
 
 Case Study 001 passed the local portion for Bandit on 2026-07-10. Commit
 `a509063a8b80b9c04e6bec990a0108b2f9a0043c` contains three policy-approved
 additions and remains unpublished. This is not a build or hardening claim.
+External authorization is disabled. Its next validation must prove the approval
+gate without authentication switching, cross-account delegation, or an
+unapproved access principal before any public ref can move.
 
 ### T2 - Sandbox Owner Attested Case Study
 

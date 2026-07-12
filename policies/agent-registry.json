@@ -5,7 +5,8 @@
   "control_plane": {
     "mode": "event-driven human-gated assurance pipeline",
     "state_store": "SQLite event/work/handoff ledger plus catalog, lifecycle state, evidence manifests, and release evaluations",
-    "mutation_policy": "observe-first by default; repository, GitHub, and release mutations require explicit gates; outbound maintainer contact is disabled"
+    "mutation_policy": "observe-first by default; repository, GitHub, and release mutations require explicit gates; outbound maintainer contact is disabled",
+    "github_account_boundary": "all GitHub mutations must satisfy policies/github-account-boundary.json; authentication switching and cross-account delegation are forbidden"
   },
   "execution_plane": {
     "local_backend": "custom FOSS Python and SQLite with leased at-least-once work delivery",
@@ -24,6 +25,8 @@
     "recon",
     "overlay-planner",
     "patch",
+    "publication-requestor",
+    "publication-authorizer",
     "secure-branch-publisher",
     "tooling-curator",
     "build",
@@ -116,14 +119,34 @@
       "human_gates": ["non-additive patch", "existing workflow overwrite", "release profile confirmation"]
     },
     {
+      "id": "publication-requestor",
+      "name": "Publication Request Agent",
+      "purpose": "Convert an approved local patch into a canonical, digest-bound, expiring secure-branch publication request without mutating a remote.",
+      "owns": ["publication request", "publication scope", "authorization handoff"],
+      "input_events": ["PatchReady"],
+      "output_events": ["PublicationAuthorizationRequested", "PublicationRequestDeferred", "SecureBranchPublicationNotRequested"],
+      "tools": ["publication request policy", "canonical JSON", "digest verification"],
+      "human_gates": ["all remote branch creation or update"]
+    },
+    {
+      "id": "publication-authorizer",
+      "name": "Publication Authorization Agent",
+      "purpose": "Verify a protected-workflow Sigstore/in-toto authorization against pinned signer, source, runner, predicate, subject, scope, and expiry policy.",
+      "owns": ["authorization verification", "Sigstore trust policy", "verified publication event"],
+      "input_events": ["PublicationAuthorizationRecorded"],
+      "output_events": ["SecureBranchPublicationAuthorized"],
+      "tools": ["gh attestation verify", "Sigstore bundle", "in-toto predicate policy"],
+      "human_gates": ["protected GitHub environment approval", "signer policy rotation"]
+    },
+    {
       "id": "secure-branch-publisher",
       "name": "Secure Branch Publisher Agent",
-      "purpose": "Publish an approved local secure branch with an exact refspec and expected remote commit guard.",
-      "owns": ["secure branch publication plan", "remote ref transition", "publication verification"],
-      "input_events": ["PatchReady"],
+      "purpose": "Consume a verified one-time authorization and publish the exact local secure commit with an exact refspec and expected remote commit guard.",
+      "owns": ["authorization consumption", "remote ref transition", "publication verification"],
+      "input_events": ["SecureBranchPublicationAuthorized"],
       "output_events": ["SecureBranchPublicationPlanned", "SecureBranchPublished", "SecureBranchPublicationBlocked"],
-      "tools": ["git push", "git ls-remote", "approval policy"],
-      "human_gates": ["all remote branch creation or update", "remote ref mismatch"]
+      "tools": ["git push", "git ls-remote", "publication consumption ledger"],
+      "human_gates": ["remote ref mismatch", "authorization replay"]
     },
     {
       "id": "tooling-curator",
@@ -211,6 +234,7 @@
     "Every agent must write machine-readable artifacts before human-readable summaries.",
     "Every mutation-capable agent must support dry-run planning.",
     "Every release claim must be backed by evidence and a Governor Agent decision.",
-    "Fork publication must never create pull requests, issues, comments, email, or other outbound maintainer contact."
+    "Fork publication must never create pull requests, issues, comments, email, or other outbound maintainer contact.",
+    "GitHub mutations must verify the configured actor immediately before execution and must fail closed instead of switching authentication or delegating approval to another user account."
   ]
 }

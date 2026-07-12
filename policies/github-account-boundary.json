@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "status": "active",
+  "github_host": "github.com",
+  "required_actor": "SauceTaster",
+  "allowed_target_owners": [
+    "SauceTaster"
+  ],
+  "controls": {
+    "allow_auth_switch": false,
+    "allow_external_collaborators": false,
+    "allow_external_reviewers": false,
+    "require_identity_check_before_mutation": true,
+    "on_identity_mismatch": "fail_closed",
+    "on_independent_approval_unavailable": "fail_closed"
+  }
+}
+

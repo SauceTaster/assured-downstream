@@ -7,6 +7,7 @@ from pathlib import Path
 
 from assured_downstream.agent_runtime import AgentRuntime
 from assured_downstream.agent_store import AgentStore
+from assured_downstream.account_boundary import load_github_account_boundary
 from assured_downstream.attestations import create_intoto_statement
 from assured_downstream.behavior import compare_behavior_reports, normalize_trace
 from assured_downstream.catalog import load_catalog, save_catalog, upsert_findings
@@ -43,6 +44,17 @@ from assured_downstream.pin_resolver import resolve_tooling_pins
 from assured_downstream.policy_eval import evaluate_release
 from assured_downstream.pipeline import run_pilot_pipeline
 from assured_downstream.publication import create_project_packet
+from assured_downstream.publication_agents import (
+    AUTHORIZED_PUBLICATION_WORKFLOW,
+    authorized_publication_handlers,
+    run_authorized_publication_agent_system,
+)
+from assured_downstream.publication_control import (
+    dispatch_publication_authorization,
+)
+from assured_downstream.publication_authorization import (
+    verify_publication_authorization,
+)
 from assured_downstream.recon import inspect_repository
 from assured_downstream.release_profile import plan_release_profile
 from assured_downstream.release_render import render_release_workflow
@@ -259,6 +271,7 @@ def build_parser() -> argparse.ArgumentParser:
     patch_run.add_argument("--pins", required=True, type=Path)
     patch_run.add_argument("--tooling-policy", required=True, type=Path)
     patch_run.add_argument("--approval", required=True, type=Path)
+    patch_run.add_argument("--publication-policy", required=True, type=Path)
     patch_run.add_argument("--workspace", required=True, type=Path)
     patch_run.add_argument("--run-dir", required=True, type=Path)
     patch_run.add_argument("--database", type=Path)
@@ -268,14 +281,6 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Create and compare-and-swap the approved local secure commit.",
     )
-    patch_run.add_argument(
-        "--execute-publish",
-        action="store_true",
-        help=(
-            "Request secure-ref publication. Execution remains disabled until an "
-            "authenticated approval backend is configured."
-        ),
-    )
     patch_run.add_argument("--max-items", type=int, default=100)
     patch_run.add_argument(
         "--enqueue-only",
@@ -283,6 +288,63 @@ def build_parser() -> argparse.ArgumentParser:
         help="Persist the initial event and leave execution to agent-worker.",
     )
     patch_run.set_defaults(func=command_patch_run)
+
+    publication_run = subparsers.add_parser(
+        "publication-run",
+        help="Verify an attested authorization and run the secure branch publisher.",
+    )
+    publication_run.add_argument("--request", required=True, type=Path)
+    publication_run.add_argument("--bundle", required=True, type=Path)
+    publication_run.add_argument("--publication-policy", required=True, type=Path)
+    publication_run.add_argument("--checkout", required=True, type=Path)
+    publication_run.add_argument("--workspace", required=True, type=Path)
+    publication_run.add_argument("--run-dir", required=True, type=Path)
+    publication_run.add_argument("--database", type=Path)
+    publication_run.add_argument("--run-id")
+    publication_run.add_argument(
+        "--execute",
+        action="store_true",
+        help="Publish the exact authorized commit with an expected-remote lease.",
+    )
+    publication_run.add_argument("--max-items", type=int, default=100)
+    publication_run.add_argument(
+        "--enqueue-only",
+        action="store_true",
+        help="Persist the authorization event and leave execution to agent-worker.",
+    )
+    publication_run.set_defaults(func=command_publication_run)
+
+    publication_dispatch = subparsers.add_parser(
+        "dispatch-publication-authorization",
+        help="Dispatch a canonical publication request to the protected control workflow.",
+    )
+    publication_dispatch.add_argument("--request", required=True, type=Path)
+    publication_dispatch.add_argument(
+        "--publication-policy",
+        required=True,
+        type=Path,
+    )
+    publication_dispatch.add_argument("--output", required=True, type=Path)
+    publication_dispatch.add_argument(
+        "--execute",
+        action="store_true",
+        help="Dispatch the workflow. Default is a validated plan only.",
+    )
+    publication_dispatch.set_defaults(func=command_publication_dispatch)
+
+    publication_verify = subparsers.add_parser(
+        "verify-publication-authorization",
+        help="Verify a Sigstore publication bundle against the pinned trust policy.",
+    )
+    publication_verify.add_argument("--request", required=True, type=Path)
+    publication_verify.add_argument("--bundle", required=True, type=Path)
+    publication_verify.add_argument(
+        "--publication-policy",
+        required=True,
+        type=Path,
+    )
+    publication_verify.add_argument("--output", required=True, type=Path)
+    publication_verify.set_defaults(func=command_publication_verify)
 
     agent_worker = subparsers.add_parser(
         "agent-worker",
@@ -301,6 +363,7 @@ def build_parser() -> argparse.ArgumentParser:
                     *first_lane_handlers(),
                     *managed_checkout_handlers(),
                     *patch_publication_handlers(),
+                    *authorized_publication_handlers(),
                 ]
             }
         ),
@@ -797,22 +860,76 @@ def command_patch_run(args: argparse.Namespace) -> int:
         pin_lock_path=args.pins,
         tooling_policy_path=args.tooling_policy,
         approval_path=args.approval,
+        publication_policy_path=args.publication_policy,
         workspace=args.workspace,
         run_dir=args.run_dir,
         execute_patch=args.execute_patch,
-        execute_publish=args.execute_publish,
         database_path=args.database,
         run_id=args.run_id,
         max_items=args.max_items,
         enqueue_only=args.enqueue_only,
     )
-    print(f"patch publication run: {result['run_id']}")
+    print(f"patch request run: {result['run_id']}")
     print(f"status: {result['status']}")
     print(f"processed work attempts: {result['processed_count']}")
     print(f"pending work: {result['pending_count']}")
     print(f"database: {result['database_path']}")
     print(f"summary: {result['summary_path']}")
     return 0 if result["status"] in {"running", "succeeded"} else 2
+
+
+def command_publication_run(args: argparse.Namespace) -> int:
+    result = run_authorized_publication_agent_system(
+        request_path=args.request,
+        bundle_path=args.bundle,
+        publication_policy_path=args.publication_policy,
+        checkout_path=args.checkout,
+        workspace=args.workspace,
+        run_dir=args.run_dir,
+        execute=args.execute,
+        database_path=args.database,
+        run_id=args.run_id,
+        max_items=args.max_items,
+        enqueue_only=args.enqueue_only,
+    )
+    print(f"authorized publication run: {result['run_id']}")
+    print(f"status: {result['status']}")
+    print(f"processed work attempts: {result['processed_count']}")
+    print(f"pending work: {result['pending_count']}")
+    print(f"database: {result['database_path']}")
+    print(f"authorization ledger: {result['authorization_ledger_path']}")
+    print(f"summary: {result['summary_path']}")
+    return 0 if result["status"] in {"running", "succeeded"} else 2
+
+
+def command_publication_dispatch(args: argparse.Namespace) -> int:
+    result = dispatch_publication_authorization(
+        request_path=args.request,
+        policy_path=args.publication_policy,
+        execute=args.execute,
+        account_boundary=load_github_account_boundary(),
+    )
+    write_json_atomic(args.output, result)
+    print(f"publication authorization dispatch: {result['status']}")
+    print(f"request: {result['request_id']}")
+    if result["run_url"]:
+        print(f"run: {result['run_url']}")
+    print(f"output: {args.output.resolve()}")
+    return 0
+
+
+def command_publication_verify(args: argparse.Namespace) -> int:
+    result = verify_publication_authorization(
+        request_path=args.request,
+        bundle_path=args.bundle,
+        policy_path=args.publication_policy,
+    )
+    write_json_atomic(args.output, result)
+    print(f"publication authorization verification: {result['status']}")
+    print(f"request: {result['request_id']}")
+    print(f"signer: {result['signer_workflow']}@{result['signer_digest']}")
+    print(f"output: {args.output.resolve()}")
+    return 0
 
 
 def command_agent_worker(args: argparse.Namespace) -> int:
@@ -825,6 +942,8 @@ def command_agent_worker(args: argparse.Namespace) -> int:
         available_handlers = managed_checkout_handlers()
     elif workflow == PATCH_PUBLICATION_WORKFLOW:
         available_handlers = patch_publication_handlers()
+    elif workflow == AUTHORIZED_PUBLICATION_WORKFLOW:
+        available_handlers = authorized_publication_handlers()
     elif workflow == "discovery-to-fork-plan":
         available_handlers = first_lane_handlers()
     else:
@@ -1338,7 +1457,12 @@ def command_apply_fork_plan(args: argparse.Namespace) -> int:
     with args.plan.open("r", encoding="utf-8") as handle:
         plan = json.load(handle)
     state = StateStore.load(args.state)
-    result = apply_fork_plan(plan, state=state, execute=args.execute)
+    result = apply_fork_plan(
+        plan,
+        state=state,
+        execute=args.execute,
+        account_boundary=(load_github_account_boundary() if args.execute else None),
+    )
     state.save(args.state)
 
     mode = "executed" if args.execute else "dry-run"

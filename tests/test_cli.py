@@ -107,7 +107,7 @@ class CliTests(unittest.TestCase):
         self.assertFalse(args.execute_sync)
         self.assertEqual(args.target, "Attested")
 
-    def test_patch_run_parser_keeps_both_mutations_explicit(self) -> None:
+    def test_patch_run_parser_has_no_remote_publication_switch(self) -> None:
         args = build_parser().parse_args(
             [
                 "patch-run",
@@ -119,6 +119,8 @@ class CliTests(unittest.TestCase):
                 "policies/approved-tooling.json",
                 "--approval",
                 "approval.json",
+                "--publication-policy",
+                "publication-policy.json",
                 "--workspace",
                 "worktrees",
                 "--run-dir",
@@ -127,7 +129,28 @@ class CliTests(unittest.TestCase):
         )
 
         self.assertFalse(args.execute_patch)
-        self.assertFalse(args.execute_publish)
+        self.assertFalse(hasattr(args, "execute_publish"))
+
+    def test_publication_run_parser_keeps_remote_mutation_explicit(self) -> None:
+        args = build_parser().parse_args(
+            [
+                "publication-run",
+                "--request",
+                "request.json",
+                "--bundle",
+                "bundle.json",
+                "--publication-policy",
+                "publication-policy.json",
+                "--checkout",
+                "worktrees/repository",
+                "--workspace",
+                "worktrees",
+                "--run-dir",
+                "runs/publication-001",
+            ]
+        )
+
+        self.assertFalse(args.execute)
 
     def test_select_fork_plan_entry_requires_selector_for_multiple_forks(self) -> None:
         fork_plan = {

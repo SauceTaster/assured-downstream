@@ -186,6 +186,26 @@ prefer incremental improvements over broad rewrites.
 Applies approved templates and repository-specific edits. It should preserve
 local style and avoid unrelated churn.
 
+### Publication Request Agent
+
+Converts an approved local patch into a canonical, expiring request that binds
+the target repository, secure branch, patch/base/upstream commits, expected
+remote state, approved changes, and all governing evidence and policy digests.
+It cannot mutate a remote.
+
+### Publication Authorization Agent
+
+Verifies a protected-workflow Sigstore/in-toto authorization against the exact
+request subject, trusted workflow identity and commit, source ref, OIDC issuer,
+runner class, predicate, transparency timestamp, and expiry. Only this agent can
+emit the event accepted by Publisher.
+
+### Secure Branch Publisher Agent
+
+Consumes a verified authorization once, checks workspace and lease fencing, and
+updates only the authorized remote ref using the exact patch object and expected
+remote commit lease.
+
 ### Tooling Curator
 
 Maintains the approved tooling catalog. It pins versions, verifies upstream
