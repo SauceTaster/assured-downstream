@@ -109,6 +109,7 @@ DiscoveryRequested
   -> BuildArtifactsReady
   -> TraceReady
   -> ReleaseEvidenceReady
+  -> ReleaseAttestationsVerified
   -> GatePassed | GateBlocked
   -> ReleasePublished
   -> ForkPresentationReady

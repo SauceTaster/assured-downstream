@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Callable
+from unittest.mock import patch
 
 from assured_downstream.evidence_agents import (
     EvidenceLaneError,
@@ -22,7 +23,7 @@ class EvidenceAgentTests(unittest.TestCase):
             result = run_lane(inputs, run_dir=run_dir, allow_test_fixture=True)
 
             self.assertEqual(result["status"], "succeeded")
-            self.assertEqual(result["processed_count"], 4)
+            self.assertEqual(result["processed_count"], 5)
             self.assertEqual(result["pending_count"], 0)
             self.assertTrue(result["artifact_verification"]["ok"])
             self.assertEqual(
@@ -32,15 +33,20 @@ class EvidenceAgentTests(unittest.TestCase):
                     "BuildArtifactsReady",
                     "TraceReady",
                     "ReleaseEvidenceReady",
+                    "ReleaseAttestationsVerified",
                     "EvidenceCandidateReady",
                 ],
             )
-            self.assertEqual(result["summary"]["handoff_count"], 4)
+            self.assertEqual(result["summary"]["handoff_count"], 5)
             evaluation = read_json(run_dir / "release-evaluation.json")
             self.assertEqual(evaluation["decision"], "candidate")
             self.assertTrue(evaluation["trace_coverage"]["syscall"])
-            self.assertIn("caller-supplied evidence shape", evaluation["claim_limit"])
+            self.assertIn("tooling and builder claims", evaluation["claim_limit"])
             self.assertIn("untrusted input shape", evaluation["authority"])
+            self.assertEqual(
+                evaluation["attestation_authority"],
+                "test-fixture-non-authoritative",
+            )
             self.assertTrue((run_dir / "evidence.json").is_file())
             self.assertTrue((run_dir / "VERIFY.md").is_file())
 
@@ -84,6 +90,52 @@ class EvidenceAgentTests(unittest.TestCase):
             self.assertFalse(policy["passed"])
             self.assertIn("network activity succeeded", policy["failures"][0])
 
+    def test_release_verification_rejection_is_a_durable_event(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            inputs = write_inputs(root)
+
+            result = run_lane(
+                inputs,
+                run_dir=root / "run",
+                allow_test_fixture=True,
+                use_fixture_verifier=False,
+            )
+
+            self.assertEqual(result["status"], "blocked")
+            self.assertEqual(result["processed_count"], 4)
+            self.assertIn(
+                "ReleaseAttestationsRejected",
+                result["summary"]["event_types"],
+            )
+            rejection = read_json(
+                root / "run" / "release-attestation-verification.json"
+            )
+            self.assertEqual(rejection["status"], "rejected")
+            self.assertIn("not anchored", rejection["error"])
+
+    def test_post_verification_record_failure_is_a_durable_event(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            inputs = write_inputs(root)
+
+            result = run_lane(
+                inputs,
+                run_dir=root / "run",
+                allow_test_fixture=True,
+                fixture_verifier=invalid_fixture_release_verifier,
+            )
+
+            self.assertEqual(result["status"], "blocked")
+            self.assertIn(
+                "ReleaseAttestationsRejected",
+                result["summary"]["event_types"],
+            )
+            rejection = read_json(
+                root / "run" / "release-attestation-verification.json"
+            )
+            self.assertIn("authority is invalid", rejection["error"])
+
     def test_rejects_evidence_path_traversal_before_enqueue(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -113,10 +165,15 @@ def write_inputs(root: Path, *, successful_network: bool = False) -> dict[str, P
         '{"spdxVersion":"SPDX-2.3","name":"fixture"}\n',
         encoding="utf-8",
     )
-    (evidence_root / "attestations" / "artifact.sigstore.json").write_text(
-        '{"mediaType":"application/vnd.dev.sigstore.bundle+json;version=0.3"}\n',
-        encoding="utf-8",
-    )
+    for name in (
+        "provenance.sigstore.json",
+        "sbom.sigstore.json",
+        "policy.sigstore.json",
+    ):
+        (evidence_root / "attestations" / name).write_text(
+            '{"mediaType":"application/vnd.dev.sigstore.bundle+json;version=0.3"}\n',
+            encoding="utf-8",
+        )
     network_outcome = "success" if successful_network else "denied"
     write_json(
         evidence_root / "traces" / "raw-trace.json",
@@ -188,7 +245,11 @@ def write_inputs(root: Path, *, successful_network: bool = False) -> dict[str, P
             "evidence": {
                 "artifacts": ["dist/artifact.bin"],
                 "sboms": ["sbom/sbom.spdx.json"],
-                "attestations": ["attestations/artifact.sigstore.json"],
+                "attestations": [
+                    "attestations/provenance.sigstore.json",
+                    "attestations/sbom.sigstore.json",
+                    "attestations/policy.sigstore.json",
+                ],
                 "raw_traces": ["traces/raw-trace.json"],
                 "reports": ["reports/builder.json"],
             },
@@ -196,16 +257,12 @@ def write_inputs(root: Path, *, successful_network: bool = False) -> dict[str, P
     )
     controls = root / "controls"
     controls.mkdir()
-    artifact_sha = hashlib.sha256(artifact.read_bytes()).hexdigest()
-    attestation_verification_path = controls / "attestation-verification.json"
+    release_verification_policy_path = controls / "release-verification-policy.json"
     write_json(
-        attestation_verification_path,
+        release_verification_policy_path,
         {
-            "ok": True,
-            "verification_type": "sigstore-bundle",
-            "issuer": "https://token.actions.githubusercontent.com",
-            "signer": "owner/project/.github/workflows/release.yml",
-            "verified_subjects": [{"sha256": artifact_sha}],
+            "schema_version": 1,
+            "status": "test-fixture-only",
         },
     )
     tooling_verification_path = controls / "tooling-verification.json"
@@ -229,7 +286,7 @@ def write_inputs(root: Path, *, successful_network: bool = False) -> dict[str, P
     return {
         "build_result_path": build_result_path,
         "evidence_root": evidence_root,
-        "attestation_verification_path": attestation_verification_path,
+        "release_verification_policy_path": release_verification_policy_path,
         "tooling_verification_path": tooling_verification_path,
         "workflow_risk_verification_path": workflow_risk_verification_path,
     }
@@ -240,13 +297,52 @@ def run_lane(
     *,
     run_dir: Path,
     allow_test_fixture: bool,
+    use_fixture_verifier: bool = True,
+    fixture_verifier: Callable[..., dict] | None = None,
 ) -> dict:
-    return run_release_evidence_agent_system(
+    kwargs = {
         **inputs,
-        run_dir=run_dir,
-        run_id="evidence-agent-test",
-        allow_test_fixture=allow_test_fixture,
+        "run_dir": run_dir,
+        "run_id": "evidence-agent-test",
+        "allow_test_fixture": allow_test_fixture,
+    }
+    if allow_test_fixture and use_fixture_verifier:
+        with patch(
+            "assured_downstream.evidence_agents.verify_release_attestations",
+            side_effect=fixture_verifier or fixture_release_verifier,
+        ):
+            return run_release_evidence_agent_system(**kwargs)
+    return run_release_evidence_agent_system(**kwargs)
+
+
+def fixture_release_verifier(*, evidence_path: Path, policy_path: Path) -> dict:
+    del policy_path
+    manifest = read_json(evidence_path)
+    project = manifest["project"]
+    return {
+        "schema_version": 1,
+        "status": "verified",
+        "ok": True,
+        "authority": "test-fixture-non-authoritative",
+        "verification_type": "sigstore-bundle",
+        "issuer": "https://token.actions.githubusercontent.com",
+        "signer": (
+            f"{project['target_full_name']}/.github/workflows/"
+            "assured-downstream-attested-release.yml"
+        ),
+        "verified_subjects": [
+            {"sha256": entry["sha256"]} for entry in manifest["evidence"]["artifacts"]
+        ],
+    }
+
+
+def invalid_fixture_release_verifier(*, evidence_path: Path, policy_path: Path) -> dict:
+    result = fixture_release_verifier(
+        evidence_path=evidence_path,
+        policy_path=policy_path,
     )
+    result["authority"] = "caller-authored-ok"
+    return result
 
 
 def write_json(path: Path, value: object) -> None:

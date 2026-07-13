@@ -112,7 +112,7 @@ assured-downstream publication-run \
 assured-downstream evidence-run \
   --build-result ./builder/build-result.json \
   --evidence-root ./builder/evidence \
-  --attestation-verification ./verification/attestation.json \
+  --release-verification-policy policies/release-verification.json \
   --tooling-verification ./verification/tooling.json \
   --workflow-risk-verification ./verification/workflow-risk.json \
   --run-dir ./runs/evidence-001
@@ -147,6 +147,8 @@ assured-downstream create-evidence --project owner/repo --target-repo org/repo \
 assured-downstream create-attestation --predicate-type https://assured-downstream.dev/attestation/build/v1 \
   --subject ./dist/tool --predicate build-predicate.json --output build.intoto.json
 assured-downstream verify-evidence --manifest evidence.json
+assured-downstream verify-release-attestations --evidence evidence.json \
+  --policy policies/release-verification.json --output attestation-verification.json
 assured-downstream write-verification-guide --evidence evidence.json --output VERIFY.md
 assured-downstream evaluate-release --evidence evidence.json --target Attested \
   --attestation-verification attestation-verification.json \
@@ -217,9 +219,9 @@ and appends to a machine-readable run index.
 
 `self-test` runs local no-network validation against first-lane Go, Rust,
 Python, Java, and .NET fixtures, replays the five-agent intake lane, verifies an
-Attested evidence smoke test, and drains the four-agent build-result, trace,
-attestation, and Governor lane with synthetic evidence. It executes no upstream
-build code.
+Attested evidence smoke test, and drains the five-agent build-result, trace,
+attestation, release-verifier, and Governor lane with synthetic evidence. It
+executes no upstream build code.
 
 `analyze-checkout` is the local Patch Agent cockpit. It writes `recon.json`,
 `overlay-plan.json`, `render-result.json`, `release-profile.json`,
@@ -243,13 +245,16 @@ source mount, dropped capabilities, and `--network none`. Before building, the
 workflow fetches the exact configured upstream commit without credentials and
 requires it to be an ancestor of the downstream commit being attested.
 `evidence-run` snapshots outputs from a builder declaring external isolation and
-routes them through Build, Trace, Attestation, and Governor agents. The current
-evidence-candidate input check requires exact artifact subjects represented in
-the supplied Sigstore, tooling, and workflow-risk documents, but does not trust
-or independently verify those documents.
+routes them through Build, Trace, Attestation, Release Verifier, and Governor
+agents. The Release Verifier cryptographically verifies the three retained
+Sigstore bundles against a digest-anchored policy, exact workflow identity,
+certificate fields, transparency timestamps, artifact subjects, SBOM, SLSA
+provenance, and custom policy predicate. The custom predicate's upstream
+lineage fields remain workflow-authored claims; ancestry, tooling,
+workflow-risk, and builder isolation are not independently verified yet.
 The lane emits `EvidenceCandidateReady`, which grants no assurance and cannot
-publish a release; code-anchored generation of verification results remains
-next.
+publish a release; code-anchored lineage, tooling, workflow, and builder
+verification remain next.
 
 `create-project-packet` produces passive fork metadata, lineage, an overlay
 summary, and optional fetch commands. Assured Downstream does not create pull

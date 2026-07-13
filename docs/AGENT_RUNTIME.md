@@ -92,22 +92,28 @@ BuildResultRecorded (external builder declaring isolation)
   -> Build Agent -> BuildArtifactsReady
   -> Trace Agent -> TraceReady
   -> Attestation Agent -> ReleaseEvidenceReady
+  -> Release Verifier Agent -> ReleaseAttestationsVerified
   -> Governor Agent -> EvidenceCandidateReady | blocked
 ```
 
 The Build Agent snapshots the build result, artifacts, SBOMs, signed bundles,
-raw traces, reports, and three caller-supplied verification documents. It
+raw traces, reports, a digest-anchored release-verification policy, and two
+caller-supplied policy documents. It
 rejects path escape, symlinks, mutable snapshots, and builder declarations that
 do not state isolation, no secret exposure, and denied network. These
 declarations are not independent proof of containment. Trace records measured
 collector coverage and blocks
 successful network activity under deny policy, privileged syscalls, and
 host-sensitive file mutation. Attestation creates a portable evidence manifest,
-an unsigned local binding statement, and a verification guide. Governor requires
-internally complete subject, tooling, and workflow-risk input shapes before it
-emits a non-authoritative evidence candidate. That event has no Release Agent
-route; a code-anchored artifact and builder verifier remains required for any
-assurance or production promotion.
+an unsigned local binding statement, and a verification guide. Release Verifier
+uses the pinned `gh` binary to validate the retained provenance, SPDX, and custom
+Sigstore bundles plus their exact certificate, artifact-subject, SPDX-reference,
+and statement bindings. Upstream ancestry in the custom predicate is retained as
+a signed workflow claim, not independent lineage proof. Governor then requires
+internally complete tooling and workflow-risk input shapes before it emits a
+non-authoritative evidence candidate. That event has no Release Agent route;
+code-anchored lineage, builder, tooling, and workflow verification remain
+required for production promotion.
 
 ## Why Custom SQLite First
 

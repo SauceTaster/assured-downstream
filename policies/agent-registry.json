@@ -32,6 +32,7 @@
     "build",
     "trace",
     "attestation",
+    "release-verifier",
     "repro",
     "release",
     "fork-publisher",
@@ -73,7 +74,7 @@
       "name": "Governor Agent",
       "purpose": "Enforce policies, block unsafe transitions, require evidence before claims, and route uncertainty to humans.",
       "owns": ["policy decisions", "release gates", "claim discipline"],
-      "input_events": ["CandidateSelected", "OverlayProposed", "ReleaseEvidenceReady", "RebuildCompared", "BehaviorCompared"],
+      "input_events": ["CandidateSelected", "OverlayProposed", "ReleaseAttestationsVerified", "RebuildCompared", "BehaviorCompared"],
       "output_events": ["GatePassed:CandidateSelected", "EvidenceCandidateReady", "GatePassed:Attested", "GatePassed:Reproducible", "GateBlocked", "NeedsHumanReview"],
       "tools": ["evaluate-release", "approved tooling policy", "pin lock checks", "risk signal checks"],
       "human_gates": ["all blocked release overrides", "custodian claims", "public validation claims"]
@@ -189,11 +190,21 @@
       "human_gates": ["missing artifact role", "missing attestation role", "signature policy exception"]
     },
     {
+      "id": "release-verifier",
+      "name": "Release Verifier Agent",
+      "purpose": "Cryptographically verify retained Sigstore bundles, bind certificate-backed facts to pinned policy, and retain upstream lineage only as a workflow-authored claim until separately verified.",
+      "owns": ["release attestation verification record", "verifier policy binding", "cryptographic rejection reasons"],
+      "input_events": ["ReleaseEvidenceReady"],
+      "output_events": ["ReleaseAttestationsVerified", "ReleaseAttestationsRejected"],
+      "tools": ["verify-release-attestations", "pinned gh verifier", "retained Sigstore bundles"],
+      "human_gates": ["verifier policy rotation", "signer identity change", "predicate schema change"]
+    },
+    {
       "id": "repro",
       "name": "Repro Agent",
       "purpose": "Run independent rebuilds and compare artifacts, SBOMs, materials, provenance, and normalized behavior.",
       "owns": ["rebuild manifests", "comparison reports", "mismatch packets"],
-      "input_events": ["ReleaseEvidenceReady", "RebuildRequested"],
+      "input_events": ["ReleaseAttestationsVerified", "RebuildRequested"],
       "output_events": ["RebuildCompared", "RebuildMismatch", "BehaviorCompared", "BehaviorMismatch"],
       "tools": ["compare-evidence", "compare-behavior", "independent runners"],
       "human_gates": ["artifact mismatch", "behavior mismatch", "allowed divergence update"]

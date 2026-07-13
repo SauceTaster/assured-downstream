@@ -27,10 +27,16 @@ class SelfTestTests(unittest.TestCase):
             self.assertEqual(result["summary"]["failed"], 0)
             self.assertTrue((output_dir / "self-test-result.json").exists())
             self.assertTrue((output_dir / "SELF_TEST_SUMMARY.md").exists())
-            self.assertTrue((output_dir / "agent-system" / "agent-system.json").exists())
-            self.assertTrue((output_dir / "evidence-smoke" / "release-evaluation.json").exists())
+            self.assertTrue(
+                (output_dir / "agent-system" / "agent-system.json").exists()
+            )
+            self.assertTrue(
+                (output_dir / "evidence-smoke" / "release-evaluation.json").exists()
+            )
             self.assertIn("agent_system", result)
-            self.assertTrue(all(check["ok"] for check in result["agent_system"]["checks"]))
+            self.assertTrue(
+                all(check["ok"] for check in result["agent_system"]["checks"])
+            )
             ecosystems = {entry["ecosystem"]: entry for entry in result["ecosystems"]}
             self.assertEqual(ecosystems["java"]["language_family"], "java")
             self.assertEqual(ecosystems["dotnet"]["language_family"], "dotnet")
@@ -53,9 +59,11 @@ class SelfTestTests(unittest.TestCase):
             code = command_self_test(args)
 
             self.assertEqual(code, 0)
-            result = json.loads((output_dir / "self-test-result.json").read_text(encoding="utf-8"))
+            result = json.loads(
+                (output_dir / "self-test-result.json").read_text(encoding="utf-8")
+            )
             self.assertTrue(result["ok"])
-            self.assertEqual(result["agent_system"]["summary"]["agent_count"], 19)
+            self.assertEqual(result["agent_system"]["summary"]["agent_count"], 20)
             self.assertEqual(result["ecosystems"][0]["ecosystem"], "java")
 
 

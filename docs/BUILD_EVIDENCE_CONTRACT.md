@@ -7,7 +7,8 @@ Status: development-stage contract for the first isolated builder integration.
 The control plane does not execute upstream build scripts. An external,
 disposable builder produces a build result and evidence directory. The Build
 Agent snapshots those inputs once, validates their boundaries, and hands them to
-Trace, Attestation, and Governor agents through the durable SQLite runtime.
+Trace, Attestation, Release Verifier, and Governor agents through the durable
+SQLite runtime.
 
 The production CLI accepts only the declaration `builder.mode =
 external-isolated`. That value and the isolation fields are untrusted builder
@@ -54,15 +55,17 @@ that do not state isolation, no secret exposure, and denied network fail closed.
 
 ## Verification Inputs
 
-`evidence-run` currently requires three separate caller-supplied documents:
+`evidence-run` requires one code-anchored policy and two caller-supplied claim
+documents:
 
-- attestation verification naming the Sigstore verification type, issuer,
-  signer, and every verified artifact SHA-256 subject
+- release-verification policy that pins the verifier and exact allowed GitHub
+  signer namespace, workflow, tags, predicates, issuer, and runner class
 - approved-tooling claim binding the tooling-policy and pin-lock digests
 - workflow-risk claim binding the analyzed workflow digest and findings
 
-An `ok` boolean without those bindings cannot complete even the input-shape
-check. The documents remain untrusted and cannot promote `Attested`.
+The Release Verifier derives Sigstore results by executing the pinned verifier;
+the tooling and workflow-risk documents remain untrusted and cannot promote
+`Attested`.
 
 ## Agent Flow
 
@@ -71,6 +74,7 @@ BuildResultRecorded
   -> Build Agent -> BuildArtifactsReady
   -> Trace Agent -> TraceReady
   -> Attestation Agent -> ReleaseEvidenceReady
+  -> Release Verifier Agent -> ReleaseAttestationsVerified
   -> Governor Agent -> EvidenceCandidateReady | blocked
 ```
 
@@ -81,11 +85,13 @@ coverage is retained as a limitation; it is never presented as proof of absence.
 
 ## Non-Claims
 
-Completing this lane does not claim attestation verification, builder isolation,
-SLSA Build L3, reproducibility, independent builders, behavior parity, complete
-syscall visibility, semantic safety, or a validated security assessment. The
-locally generated in-toto statement binds the evidence but is not itself a
-Sigstore signature.
+Completing this lane verifies the retained GitHub/Sigstore attestations but does
+not claim independent upstream ancestry, builder isolation, SLSA Build L3,
+reproducibility, independent builders, behavior parity, complete syscall
+visibility, semantic safety, or a validated security assessment. Upstream
+lineage in the custom predicate is a signed workflow claim until a separate
+code-anchored lineage and workflow verifier confirms it. The locally generated
+in-toto statement binds the evidence but is not itself a Sigstore signature.
 The evidence-candidate event cannot route to Release Agent and grants no
-assurance. Production promotion requires a future code-anchored verifier to
-create the cryptographic and builder verification inputs.
+assurance. Production promotion still requires code-anchored lineage, builder,
+tooling, and workflow verification.

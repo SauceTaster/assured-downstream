@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import subprocess
 import sys
 import tempfile
@@ -12,6 +14,7 @@ from assured_downstream.release_render import (
     artifact_validation_script,
     evidence_assembly_script,
     render_release_workflow,
+    sbom_subject_binding_script,
     write_text_confined,
 )
 from assured_downstream.workflow_yaml import parse_workflow_yaml
@@ -67,6 +70,7 @@ class ReleaseRenderTests(unittest.TestCase):
             self.assertIn("fetch-depth: 0", text)
             self.assertIn("source lineage is not fully confirmed", text)
             self.assertIn("Verify SBOM generation did not alter build outputs", text)
+            self.assertIn("Bind release artifact subjects into SBOM", text)
             workflow = parse_workflow_yaml(text)
             self.assertIn("jobs", workflow)
             self.assertEqual(
@@ -265,6 +269,7 @@ class ReleaseRenderTests(unittest.TestCase):
         for script in (
             artifact_validation_script(),
             artifact_inventory_verification_script(),
+            sbom_subject_binding_script("assured-evidence/sbom.spdx.json"),
             evidence_assembly_script("assured-evidence/sbom.spdx.json"),
         ):
             lines = script.splitlines()
@@ -294,6 +299,50 @@ class ReleaseRenderTests(unittest.TestCase):
         self.assertEqual(unchanged.returncode, 0, unchanged.stderr)
         self.assertNotEqual(changed.returncode, 0)
         self.assertIn("changed after boundary validation", changed.stderr)
+
+    def test_sbom_binding_references_every_inventoried_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifact = root / "assured-input" / "artifacts" / "tool.bin"
+            artifact.parent.mkdir(parents=True)
+            artifact.write_bytes(b"release artifact\n")
+            sbom_path = root / "assured-evidence" / "sbom.spdx.json"
+            sbom_path.parent.mkdir(parents=True)
+            sbom_path.write_text(
+                json.dumps(
+                    {
+                        "spdxVersion": "SPDX-2.3",
+                        "SPDXID": "SPDXRef-DOCUMENT",
+                        "files": [],
+                        "relationships": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            inventory = run_embedded_script(artifact_validation_script(), cwd=root)
+            binding = run_embedded_script(
+                sbom_subject_binding_script("assured-evidence/sbom.spdx.json"),
+                cwd=root,
+            )
+            sbom = json.loads(sbom_path.read_text(encoding="utf-8"))
+
+        digest = hashlib.sha256(b"release artifact\n").hexdigest()
+        self.assertEqual(inventory.returncode, 0, inventory.stderr)
+        self.assertEqual(binding.returncode, 0, binding.stderr)
+        self.assertTrue(
+            any(
+                checksum == {"algorithm": "SHA256", "checksumValue": digest}
+                for entry in sbom["files"]
+                for checksum in entry.get("checksums", [])
+            )
+        )
+        self.assertTrue(
+            any(
+                relation.get("relationshipType") == "DESCRIBES"
+                for relation in sbom["relationships"]
+            )
+        )
 
     def test_rejects_profile_fields_that_can_inject_workflow_yaml(self) -> None:
         cases = (

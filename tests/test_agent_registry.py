@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import unittest
 
-from assured_downstream.agent_registry import load_agent_registry, summarize_agent_registry
+from assured_downstream.agent_registry import (
+    load_agent_registry,
+    summarize_agent_registry,
+)
 
 
 class AgentRegistryTests(unittest.TestCase):
@@ -11,7 +14,7 @@ class AgentRegistryTests(unittest.TestCase):
         summary = summarize_agent_registry(registry)
 
         self.assertEqual(registry["schema_version"], 1)
-        self.assertEqual(summary["agent_count"], 19)
+        self.assertEqual(summary["agent_count"], 20)
         self.assertEqual(summary["agent_count"], summary["required_agent_count"])
         agent_ids = {agent["id"] for agent in registry["agents"]}
         self.assertIn("source-discovery", agent_ids)

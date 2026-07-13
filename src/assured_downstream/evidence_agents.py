@@ -25,6 +25,10 @@ from assured_downstream.evidence import (
     verify_evidence_manifest,
 )
 from assured_downstream.policy_eval import evaluate_release_candidate
+from assured_downstream.release_verification import (
+    ReleaseVerificationError,
+    verify_release_attestations,
+)
 from assured_downstream.verification_guide import create_verification_guide
 
 
@@ -336,13 +340,132 @@ class ReleaseAttestationHandler:
         )
 
 
-class EvidenceGovernorHandler:
-    agent_id = "governor"
+class ReleaseVerificationHandler:
+    agent_id = "release-verifier"
 
     def handle(self, context: AgentContext) -> AgentResult:
         require_producer(context, "attestation")
         if context.event.event_type != "ReleaseEvidenceReady":
-            raise ValueError("Evidence Governor requires ReleaseEvidenceReady")
+            raise ValueError("Release Verifier Agent requires ReleaseEvidenceReady")
+        config: dict[str, Any] | None = None
+        index: dict[str, Any] | None = None
+        try:
+            config = require_evidence_config(context.event.payload)
+            index_path = verified_artifact_path(
+                context.event.payload.get("input_index"),
+                label="release evidence input index",
+            )
+            index = read_json(index_path)
+            evidence_path = verified_artifact_path(
+                context.event.payload.get("evidence"),
+                label="release evidence manifest",
+            )
+            policy_path = verified_index_reference(
+                index,
+                "release_verification_policy",
+            )
+            verification = verify_release_attestations(
+                evidence_path=evidence_path,
+                policy_path=policy_path,
+            )
+            if (
+                not isinstance(verification, dict)
+                or verification.get("status") != "verified"
+                or verification.get("ok") is not True
+            ):
+                raise EvidenceLaneError(
+                    "Release verifier returned a non-authoritative result"
+                )
+            validate_release_verification_record(
+                verification,
+                index=index,
+                evidence_path=evidence_path,
+                policy_path=policy_path,
+                allow_test_fixture=config["allow_test_fixture"],
+            )
+        except (
+            ReleaseVerificationError,
+            EvidenceLaneError,
+            FileNotFoundError,
+            KeyError,
+            ValueError,
+        ) as exc:
+            rejected = {
+                "schema_version": 1,
+                "status": "rejected",
+                "authority": "none",
+                "error": str(exc),
+            }
+            rejected_path = context.run_dir / "release-attestation-verification.json"
+            write_json_atomic(rejected_path, rejected)
+            payload: dict[str, Any] = {
+                "rejection": artifact_reference(rejected_path)
+            }
+            if config is not None:
+                payload["config"] = config
+            for field in ("input_index", "evidence"):
+                if field in context.event.payload:
+                    payload[field] = context.event.payload[field]
+            source_repository = context.event.source_repository
+            if index is not None and isinstance(index.get("project"), dict):
+                source_repository = index["project"].get("source_full_name")
+            return AgentResult(
+                status="blocked",
+                summary="Release attestation verification failed.",
+                events=[
+                    EventOutput(
+                        event_type="ReleaseAttestationsRejected",
+                        payload=payload,
+                        source_repository=source_repository,
+                        dedupe_key=content_digest(payload),
+                    )
+                ],
+                artifacts=[
+                    ArtifactOutput(
+                        role="release-attestation-verification",
+                        path=rejected_path,
+                    )
+                ],
+                human_review=[str(exc)],
+            )
+        verification_path = context.run_dir / "release-attestation-verification.json"
+        write_json_atomic(verification_path, verification)
+        payload = {
+            "config": config,
+            "input_index": context.event.payload["input_index"],
+            "evidence": context.event.payload["evidence"],
+            "evidence_verification": context.event.payload["evidence_verification"],
+            "verification_guide": context.event.payload["verification_guide"],
+            "trace_policy": context.event.payload["trace_policy"],
+            "attestation_verification": artifact_reference(verification_path),
+        }
+        return AgentResult(
+            status="succeeded",
+            summary="Cryptographically verified retained release attestations.",
+            events=[
+                EventOutput(
+                    event_type="ReleaseAttestationsVerified",
+                    payload=payload,
+                    source_repository=index["project"]["source_full_name"],
+                    dedupe_key=content_digest(payload),
+                )
+            ],
+            artifacts=[
+                ArtifactOutput(
+                    role="release-attestation-verification",
+                    path=verification_path,
+                )
+            ],
+        )
+
+
+class EvidenceGovernorHandler:
+    agent_id = "governor"
+
+    def handle(self, context: AgentContext) -> AgentResult:
+        require_producer(context, "release-verifier")
+        if context.event.event_type != "ReleaseAttestationsVerified":
+            raise ValueError("Evidence Governor requires ReleaseAttestationsVerified")
         require_evidence_config(context.event.payload)
         index = read_json(
             verified_artifact_path(
@@ -363,7 +486,10 @@ class EvidenceGovernorHandler:
             )
         )
         attestation_verification = read_json(
-            verified_index_reference(index, "attestation_verification")
+            verified_artifact_path(
+                context.event.payload.get("attestation_verification"),
+                label="release attestation verification",
+            )
         )
         tooling_verification = read_json(
             verified_index_reference(index, "tooling_verification")
@@ -387,11 +513,13 @@ class EvidenceGovernorHandler:
         )
         evaluation["trace_coverage"] = trace_policy["coverage"]
         evaluation["claim_limit"] = (
-            "This result validates caller-supplied evidence shape only; it does not "
-            "verify signatures, isolation, reproducibility, behavior parity, syscall "
+            "This result validates local evidence consistency and cryptographic "
+            "attestations; tooling and builder claims remain unverified, and it does "
+            "not claim isolation, reproducibility, behavior parity, syscall "
             "completeness, or safety."
         )
         evaluation["authority"] = "none; untrusted input shape validation only"
+        evaluation["attestation_authority"] = attestation_verification.get("authority")
         evaluation_path = context.run_dir / "release-evaluation.json"
         write_json_atomic(evaluation_path, evaluation)
         artifact = ArtifactOutput(role="release-evaluation", path=evaluation_path)
@@ -429,6 +557,7 @@ def release_evidence_handlers() -> list[AgentHandler]:
         BuildResultHandler(),
         TraceEvidenceHandler(),
         ReleaseAttestationHandler(),
+        ReleaseVerificationHandler(),
         EvidenceGovernorHandler(),
     ]
 
@@ -438,7 +567,9 @@ def release_evidence_routes() -> dict[str, list[str]]:
         "BuildResultRecorded": ["build"],
         "BuildArtifactsReady": ["trace"],
         "TraceReady": ["attestation"],
-        "ReleaseEvidenceReady": ["governor"],
+        "ReleaseEvidenceReady": ["release-verifier"],
+        "ReleaseAttestationsVerified": ["governor"],
+        "ReleaseAttestationsRejected": [],
         "EvidenceCandidateReady": [],
     }
 
@@ -447,7 +578,7 @@ def run_release_evidence_agent_system(
     *,
     build_result_path: Path,
     evidence_root: Path,
-    attestation_verification_path: Path,
+    release_verification_policy_path: Path,
     tooling_verification_path: Path,
     workflow_risk_verification_path: Path,
     run_dir: Path,
@@ -465,7 +596,7 @@ def run_release_evidence_agent_system(
     input_index_path = prepare_release_evidence_inputs(
         build_result_path=build_result_path,
         evidence_root=evidence_root,
-        attestation_verification_path=attestation_verification_path,
+        release_verification_policy_path=release_verification_policy_path,
         tooling_verification_path=tooling_verification_path,
         workflow_risk_verification_path=workflow_risk_verification_path,
         run_dir=run_dir,
@@ -527,7 +658,7 @@ def prepare_release_evidence_inputs(
     *,
     build_result_path: Path,
     evidence_root: Path,
-    attestation_verification_path: Path,
+    release_verification_policy_path: Path,
     tooling_verification_path: Path,
     workflow_risk_verification_path: Path,
     run_dir: Path,
@@ -566,7 +697,7 @@ def prepare_release_evidence_inputs(
             for value in values
         ]
     verification_sources = {
-        "attestation_verification": attestation_verification_path,
+        "release_verification_policy": release_verification_policy_path,
         "tooling_verification": tooling_verification_path,
         "workflow_risk_verification": workflow_risk_verification_path,
     }
@@ -675,6 +806,66 @@ def normalize_trace_coverage(value: Any) -> dict[str, bool]:
         category: source.get(category) is True
         for category in ("process", "file", "network", "syscall")
     }
+
+
+def validate_release_verification_record(
+    value: dict[str, Any],
+    *,
+    index: dict[str, Any],
+    evidence_path: Path,
+    policy_path: Path,
+    allow_test_fixture: bool,
+) -> None:
+    evidence = read_json(evidence_path)
+    evidence_roles = evidence.get("evidence")
+    artifact_entries = (
+        evidence_roles.get("artifacts") if isinstance(evidence_roles, dict) else None
+    )
+    if not isinstance(artifact_entries, list) or not artifact_entries:
+        raise EvidenceLaneError("Release verification has no artifact subjects")
+    expected_subjects = {
+        require_sha256(entry.get("sha256"), label="artifact digest")
+        for entry in artifact_entries
+        if isinstance(entry, dict)
+    }
+    verified_subjects = value.get("verified_subjects")
+    if not isinstance(verified_subjects, list):
+        raise EvidenceLaneError("Release verification subject set is invalid")
+    actual_subjects = {
+        require_sha256(entry.get("sha256"), label="verified artifact digest")
+        for entry in verified_subjects
+        if isinstance(entry, dict)
+    }
+    if (
+        len(expected_subjects) != len(artifact_entries)
+        or len(actual_subjects) != len(verified_subjects)
+        or actual_subjects != expected_subjects
+    ):
+        raise EvidenceLaneError(
+            "Release verification subjects do not exactly match artifacts"
+        )
+
+    builder = index.get("builder") if isinstance(index.get("builder"), dict) else {}
+    fixture_mode = allow_test_fixture and builder.get("mode") == "test-fixture"
+    if fixture_mode:
+        if value.get("authority") != "test-fixture-non-authoritative":
+            raise EvidenceLaneError("Test fixture verification authority is invalid")
+        return
+
+    project = index.get("project") if isinstance(index.get("project"), dict) else {}
+    required = {
+        "authority": "code-anchored-github-sigstore",
+        "evidence_sha256": sha256_file(evidence_path),
+        "policy_sha256": sha256_file(policy_path),
+        "target_full_name": project.get("target_full_name"),
+        "overlay_ref": project.get("overlay_ref"),
+        "release_tag": project.get("release_tag"),
+    }
+    for field, expected in required.items():
+        if value.get(field) != expected:
+            raise EvidenceLaneError(
+                f"Release verification does not bind the expected {field}"
+            )
 
 
 def merge_coverage(coverage: dict[str, Any], report: dict[str, Any]) -> None:

@@ -177,12 +177,13 @@ a portable evidence bundle.
 
 ### 3.4 Evidence And Verification
 
-Status: portable manifest verification and a four-agent evidence lane are built.
+Status: portable manifest verification and a five-agent evidence lane are built.
 The non-authoritative evidence candidate requires local consistency, represented
 Sigstore subject coverage, approved-tooling digests, and workflow-risk claim
-shape. Production Attested remains blocked until code verifies the bundles and
-builder identity; a real isolated builder and GitHub attestation ingestion
-remain.
+shape. Retained Sigstore bundles are now verified by pinned code. Production
+Attested remains blocked until code also verifies upstream ancestry, builder
+identity, tooling, and workflow implementation; a real isolated builder and
+GitHub attestation ingestion remain.
 
 - 3.4.1 Create evidence manifests
 - 3.4.2 Verify local evidence manifests

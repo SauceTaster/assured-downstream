@@ -39,8 +39,9 @@ def evaluate_release(
     )
     if target_at_least(target, "Attested"):
         result["failures"].append(
-            "production Attested promotion requires a code-anchored "
-            "cryptographic verifier"
+            "production Attested promotion requires code-anchored lineage, "
+            "builder, tooling, and workflow verification composed with the "
+            "Sigstore result"
         )
         result["decision"] = "block"
         result["promoted_assurance"] = None

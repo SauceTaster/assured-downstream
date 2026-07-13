@@ -30,6 +30,7 @@ class CommandRunner:
         env: dict[str, str] | None = None,
         input_text: str | None = None,
         timeout_seconds: float | None = None,
+        inherit_env: bool = True,
     ) -> CommandResult:
         if not self.execute:
             return CommandResult(command=command, executed=False, returncode=0)
@@ -38,7 +39,11 @@ class CommandRunner:
             completed = subprocess.run(
                 command,
                 cwd=cwd,
-                env=None if env is None else {**os.environ, **env},
+                env=(
+                    None
+                    if env is None
+                    else ({**os.environ, **env} if inherit_env else dict(env))
+                ),
                 input=input_text,
                 check=False,
                 text=True,

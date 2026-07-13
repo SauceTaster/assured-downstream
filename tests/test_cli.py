@@ -91,6 +91,23 @@ class CliTests(unittest.TestCase):
         self.assertIsNone(args.ecosystem)
         self.assertEqual(args.output_dir, Path("runs/self-test"))
 
+    def test_release_attestation_verifier_requires_policy_and_output(self) -> None:
+        args = build_parser().parse_args(
+            [
+                "verify-release-attestations",
+                "--evidence",
+                "evidence.json",
+                "--policy",
+                "policies/release-verification.json",
+                "--output",
+                "verification.json",
+            ]
+        )
+
+        self.assertEqual(args.evidence, Path("evidence.json"))
+        self.assertEqual(args.policy, Path("policies/release-verification.json"))
+        self.assertEqual(args.output, Path("verification.json"))
+
     def test_checkout_run_parser_keeps_sync_execution_explicit(self) -> None:
         args = build_parser().parse_args(
             [

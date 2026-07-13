@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 from assured_downstream.agent_registry import (
     default_agent_registry_path,
@@ -12,7 +13,6 @@ from assured_downstream.agent_registry import (
 from assured_downstream.catalog import utc_now
 from assured_downstream.evidence import (
     create_evidence_manifest,
-    sha256_file,
     verify_evidence_manifest,
 )
 from assured_downstream.evidence_agents import run_release_evidence_agent_system
@@ -339,10 +339,15 @@ def run_evidence_agent_self_test(output_dir: Path) -> dict[str, Any]:
         '{"spdxVersion":"SPDX-2.3","name":"durable-fixture"}\n',
         encoding="utf-8",
     )
-    (evidence_root / "attestations" / "fixture.sigstore.json").write_text(
-        '{"mediaType":"application/vnd.dev.sigstore.bundle+json;version=0.3"}\n',
-        encoding="utf-8",
-    )
+    for name in (
+        "provenance.sigstore.json",
+        "sbom.sigstore.json",
+        "policy.sigstore.json",
+    ):
+        (evidence_root / "attestations" / name).write_text(
+            '{"mediaType":"application/vnd.dev.sigstore.bundle+json;version=0.3"}\n',
+            encoding="utf-8",
+        )
     write_json(
         evidence_root / "traces" / "fixture-trace.json",
         {
@@ -409,7 +414,11 @@ def run_evidence_agent_self_test(output_dir: Path) -> dict[str, Any]:
             "evidence": {
                 "artifacts": ["dist/fixture.bin"],
                 "sboms": ["sbom/fixture.spdx.json"],
-                "attestations": ["attestations/fixture.sigstore.json"],
+                "attestations": [
+                    "attestations/provenance.sigstore.json",
+                    "attestations/sbom.sigstore.json",
+                    "attestations/policy.sigstore.json",
+                ],
                 "raw_traces": ["traces/fixture-trace.json"],
                 "reports": ["reports/builder.json"],
             },
@@ -417,13 +426,10 @@ def run_evidence_agent_self_test(output_dir: Path) -> dict[str, Any]:
     )
     controls = source / "controls"
     write_json(
-        controls / "attestation-verification.json",
+        controls / "release-verification-policy.json",
         {
-            "ok": True,
-            "verification_type": "sigstore-bundle",
-            "issuer": "https://token.actions.githubusercontent.com",
-            "signer": "self-test-fixture",
-            "verified_subjects": [{"sha256": sha256_file(artifact)}],
+            "schema_version": 1,
+            "status": "self-test-fixture-only",
         },
     )
     write_json(
@@ -444,18 +450,24 @@ def run_evidence_agent_self_test(output_dir: Path) -> dict[str, Any]:
     )
     run_dir = root / "run"
     try:
-        result = run_release_evidence_agent_system(
-            build_result_path=build_result,
-            evidence_root=evidence_root,
-            attestation_verification_path=(controls / "attestation-verification.json"),
-            tooling_verification_path=controls / "tooling-verification.json",
-            workflow_risk_verification_path=(
-                controls / "workflow-risk-verification.json"
-            ),
-            run_dir=run_dir,
-            run_id="self-test-evidence-agents",
-            allow_test_fixture=True,
-        )
+        with patch(
+            "assured_downstream.evidence_agents.verify_release_attestations",
+            side_effect=selftest_release_verifier,
+        ):
+            result = run_release_evidence_agent_system(
+                build_result_path=build_result,
+                evidence_root=evidence_root,
+                release_verification_policy_path=(
+                    controls / "release-verification-policy.json"
+                ),
+                tooling_verification_path=controls / "tooling-verification.json",
+                workflow_risk_verification_path=(
+                    controls / "workflow-risk-verification.json"
+                ),
+                run_dir=run_dir,
+                run_id="self-test-evidence-agents",
+                allow_test_fixture=True,
+            )
         evaluation = json.loads(
             (run_dir / "release-evaluation.json").read_text(encoding="utf-8")
         )
@@ -468,8 +480,8 @@ def run_evidence_agent_self_test(output_dir: Path) -> dict[str, Any]:
                 "evidence agent artifacts verify", result["artifact_verification"]["ok"]
             ),
             check(
-                "evidence agent replay records four handoffs",
-                result["summary"]["handoff_count"] == 4,
+                "evidence agent replay records five handoffs",
+                result["summary"]["handoff_count"] == 5,
             ),
             check(
                 "evidence Governor emits a non-authoritative candidate",
@@ -492,6 +504,27 @@ def run_evidence_agent_self_test(output_dir: Path) -> dict[str, Any]:
             "run_id": "self-test-evidence-agents",
             "checks": [check("evidence agent replay succeeds", False, str(exc))],
         }
+
+
+def selftest_release_verifier(*, evidence_path: Path, policy_path: Path) -> dict:
+    del policy_path
+    manifest = json.loads(evidence_path.read_text(encoding="utf-8"))
+    project = manifest["project"]
+    return {
+        "schema_version": 1,
+        "status": "verified",
+        "ok": True,
+        "authority": "test-fixture-non-authoritative",
+        "verification_type": "sigstore-bundle",
+        "issuer": "https://token.actions.githubusercontent.com",
+        "signer": (
+            f"{project['target_full_name']}/.github/workflows/"
+            "assured-downstream-attested-release.yml"
+        ),
+        "verified_subjects": [
+            {"sha256": entry["sha256"]} for entry in manifest["evidence"]["artifacts"]
+        ],
+    }
 
 
 def check(name: str, ok: bool, detail: str | None = None) -> dict[str, Any]:

@@ -5,7 +5,7 @@ agent-sized work packages that can be built in parallel without widening the
 MVP beyond a working assured downstream lane.
 
 Synthesized from four read-only Codex worker reviews on 2026-07-09 and updated
-with live pilot evidence on 2026-07-10:
+through the retained-bundle verifier review on 2026-07-12:
 
 - control plane and operations
 - recon, overlay, and release rendering
@@ -14,7 +14,7 @@ with live pilot evidence on 2026-07-10:
 
 ## Implementation Snapshot
 
-As of the 2026-07-10 prototype pass:
+As of the 2026-07-12 prototype pass:
 
 - WP0 core is implemented: pilot runs write a run index, selection reasons, and
   allow/suppress policy decisions.
@@ -34,26 +34,28 @@ As of the 2026-07-10 prototype pass:
   and draft release workflows remain manual-only until workflow, artifact,
   isolated-builder, and lineage review fields are confirmed. Renderer-level
   validation rejects path traversal and profile-to-YAML injection.
-- WP7 is partially implemented: the evidence-candidate validator requires local
-  consistency, exact represented Sigstore subject coverage, approved-tooling
-  digests, and workflow-risk input shape. All external verification and builder
-  claims remain untrusted. Production `Attested` remains deliberately blocked
-  pending code-anchored verification.
+- WP7 is partially implemented: the Release Verifier cryptographically validates
+  retained Sigstore bundles, exact subject coverage, certificates, workflow
+  provenance, SBOM content, and the custom policy predicate. Upstream ancestry
+  in that predicate remains a workflow-authored claim. Tooling, workflow-risk,
+  lineage, and builder claims remain untrusted. Production `Attested` remains
+  deliberately blocked pending those code-anchored checks.
 - WP6 now renders separate build, unprivileged inspection/SBOM, and privileged
-  attestation jobs, portable evidence bundles, and a durable four-agent
-  ingestion lane. Real isolated execution and post-run GitHub bundle
-  verification remain.
+  attestation jobs, portable evidence bundles, and a durable five-agent
+  ingestion lane. Real isolated execution and ingestion of genuine GitHub
+  bundles remain.
 - WP8/WP9 are implemented locally: passive fork publication packets, optional
   fetch instructions, and custodian governance fields exist.
 - A local `self-test` command now exercises first-lane fixtures, Attested
-  candidate evidence verification, and the four-agent durable evidence lane
+  candidate evidence verification, and the five-agent durable evidence lane
   without network access or upstream-code execution.
 
 Current critical path:
 
-1. WP7: implement code-anchored Sigstore and builder verifiers that derive
-   subject, signer, issuer, workflow identity, and builder identity from retained
-   evidence instead of accepting caller-authored claims.
+1. WP7: implement code-anchored lineage, builder, tooling, and workflow-content
+   verifiers. Sigstore certificate, subject, SBOM, and predicate-content
+   verification is implemented; signed workflow claims are not yet independent
+   proof of ancestry or isolation.
 2. Run the first isolated Bandit build from the exact retained local commit in a
    disposable Linux builder and ingest its evidence bundle.
 3. Turn that run into the first honest case study, including blocked and
@@ -103,7 +105,8 @@ Current critical path:
 8. Make the evidence-candidate validator require locally consistent evidence
    and recorded attestation input shape without granting assurance.
 9. Add a code-anchored Sigstore verifier before the production `Attested` gate
-   or any release route can pass.
+   or any release route can pass. Implemented; the gate remains blocked on
+   lineage, builder, tooling, and workflow-content authority.
 10. Generate passive fork publication packets and optional fetch instructions.
 11. Run the full sandbox MVP on one Go, one Rust, and one Python candidate.
 12. Add artifact reproducibility as the next gate after Attested is real.
@@ -497,7 +500,8 @@ Acceptance:
 - Required artifact, SBOM, and attestation evidence must be present.
 - Unapproved tooling and unsafe workflow signals block promotion.
 - the production `evaluate-release --target Attested` CLI remains blocked until
-  its code-anchored Sigstore verifier is implemented.
+  code-anchored lineage, builder, tooling, and workflow-content results are
+  composed with the implemented Sigstore result.
 - CLI exits nonzero on production block decisions.
 
 Tests:
@@ -751,9 +755,9 @@ retain these ownership boundaries.
 
 ## Next Implementation Tasks
 
-1. Implement code-anchored Sigstore bundle and builder verification, binding the
-   result to artifact subjects, exact workflow identity, and the builder
-   execution identity.
+1. Implement code-anchored lineage, builder, tooling-lock, and workflow-content
+   verification. Compose those results with the completed Sigstore verifier
+   before enabling production `Attested`.
 2. Run the first isolated Bandit build without requiring a public secure ref.
 3. Ingest and independently verify the Bandit bundle, then publish the case
    study with tamper and policy-block controls.

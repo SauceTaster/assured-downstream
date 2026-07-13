@@ -30,7 +30,10 @@ from assured_downstream.evidence_agents import (
 from assured_downstream.fork_apply import apply_fork_plan
 from assured_downstream.fork_plan import create_fork_plan
 from assured_downstream.github_api import GitHubClient
-from assured_downstream.intake_agents import first_lane_handlers, run_intake_agent_system
+from assured_downstream.intake_agents import (
+    first_lane_handlers,
+    run_intake_agent_system,
+)
 from assured_downstream.lifecycle import StateStore
 from assured_downstream.managed_checkout_agents import (
     MANAGED_CHECKOUT_WORKFLOW,
@@ -64,6 +67,7 @@ from assured_downstream.publication_authorization import (
 from assured_downstream.recon import inspect_repository
 from assured_downstream.release_profile import plan_release_profile
 from assured_downstream.release_render import render_release_workflow
+from assured_downstream.release_verification import verify_release_attestations
 from assured_downstream.scoring import score_catalog
 from assured_downstream.seed import parse_seed_source
 from assured_downstream.selection import load_candidate_policy
@@ -359,7 +363,7 @@ def build_parser() -> argparse.ArgumentParser:
     evidence_run.add_argument("--build-result", required=True, type=Path)
     evidence_run.add_argument("--evidence-root", required=True, type=Path)
     evidence_run.add_argument(
-        "--attestation-verification",
+        "--release-verification-policy",
         required=True,
         type=Path,
     )
@@ -476,12 +480,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--source",
         help="Source repository full name to select from the fork plan. Required when the plan has multiple forks.",
     )
-    publication.add_argument("--target", help="Target repository full name to select from the fork plan.")
+    publication.add_argument(
+        "--target", help="Target repository full name to select from the fork plan."
+    )
     publication.add_argument("--checkout-analysis", type=Path)
     publication.add_argument("--overlay-plan", type=Path)
     publication.add_argument("--render-result", type=Path)
     publication.add_argument("--release-profile", type=Path)
-    publication.add_argument("--maintainer-preferences", type=Path, help=argparse.SUPPRESS)
+    publication.add_argument(
+        "--maintainer-preferences", type=Path, help=argparse.SUPPRESS
+    )
     publication.add_argument("--suppression-state", type=Path, help=argparse.SUPPRESS)
     publication.add_argument("--output", required=True, type=Path)
     publication.add_argument("--markdown-output", type=Path)
@@ -616,12 +624,21 @@ def build_parser() -> argparse.ArgumentParser:
     create_evidence.add_argument("--release-tag", required=True)
     create_evidence.add_argument(
         "--assurance",
-        choices=["Tracked", "Hardened", "Attested", "Reproducible", "Behavior-Reproducible", "Validated"],
+        choices=[
+            "Tracked",
+            "Hardened",
+            "Attested",
+            "Reproducible",
+            "Behavior-Reproducible",
+            "Validated",
+        ],
         default="Attested",
     )
     create_evidence.add_argument("--artifact", action="append", type=Path, default=[])
     create_evidence.add_argument("--sbom", action="append", type=Path, default=[])
-    create_evidence.add_argument("--attestation", action="append", type=Path, default=[])
+    create_evidence.add_argument(
+        "--attestation", action="append", type=Path, default=[]
+    )
     create_evidence.add_argument("--trace", action="append", type=Path, default=[])
     create_evidence.add_argument("--report", action="append", type=Path, default=[])
     create_evidence.add_argument("--output", required=True, type=Path)
@@ -632,7 +649,9 @@ def build_parser() -> argparse.ArgumentParser:
         help="Create an in-toto statement for one or more subject files.",
     )
     create_attestation.add_argument("--predicate-type", required=True)
-    create_attestation.add_argument("--subject", action="append", required=True, type=Path)
+    create_attestation.add_argument(
+        "--subject", action="append", required=True, type=Path
+    )
     create_attestation.add_argument(
         "--predicate",
         type=Path,
@@ -647,6 +666,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_evidence.add_argument("--manifest", required=True, type=Path)
     verify_evidence.set_defaults(func=command_verify_evidence)
+
+    verify_release = subparsers.add_parser(
+        "verify-release-attestations",
+        help="Cryptographically verify retained release bundles against pinned policy.",
+    )
+    verify_release.add_argument("--evidence", required=True, type=Path)
+    verify_release.add_argument("--policy", required=True, type=Path)
+    verify_release.add_argument("--output", required=True, type=Path)
+    verify_release.set_defaults(func=command_verify_release_attestations)
 
     verification_guide = subparsers.add_parser(
         "write-verification-guide",
@@ -692,13 +720,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Evaluate release evidence against an assurance target.",
     )
     evaluate.add_argument("--evidence", required=True, type=Path)
-    evaluate.add_argument("--target", required=True, choices=[
-        "Hardened",
-        "Attested",
-        "Reproducible",
-        "Behavior-Reproducible",
-        "Validated",
-    ])
+    evaluate.add_argument(
+        "--target",
+        required=True,
+        choices=[
+            "Hardened",
+            "Attested",
+            "Reproducible",
+            "Behavior-Reproducible",
+            "Validated",
+        ],
+    )
     evaluate.add_argument("--evidence-comparison", type=Path)
     evaluate.add_argument("--behavior-comparison", type=Path)
     evaluate.add_argument("--attestation-verification", type=Path)
@@ -974,7 +1006,7 @@ def command_evidence_run(args: argparse.Namespace) -> int:
     result = run_release_evidence_agent_system(
         build_result_path=args.build_result,
         evidence_root=args.evidence_root,
-        attestation_verification_path=args.attestation_verification,
+        release_verification_policy_path=args.release_verification_policy,
         tooling_verification_path=args.tooling_verification,
         workflow_risk_verification_path=args.workflow_risk_verification,
         run_dir=args.run_dir,
@@ -1114,7 +1146,9 @@ def command_create_project_packet(args: argparse.Namespace) -> int:
 
     if args.markdown_output:
         args.markdown_output.parent.mkdir(parents=True, exist_ok=True)
-        args.markdown_output.write_text(project_packet_markdown(packet), encoding="utf-8")
+        args.markdown_output.write_text(
+            project_packet_markdown(packet), encoding="utf-8"
+        )
         print(f"wrote project publication markdown: {args.markdown_output}")
     return 0
 
@@ -1215,7 +1249,9 @@ def command_render_release_workflow(args: argparse.Namespace) -> int:
         force=args.force,
     )
     mode = "wrote" if args.execute else "planned"
-    print(f"{mode} release workflow: {len(result.written)} writable, {len(result.skipped)} skipped")
+    print(
+        f"{mode} release workflow: {len(result.written)} writable, {len(result.skipped)} skipped"
+    )
     for item in result.written:
         print(f"  {item['path']}")
     for item in result.skipped:
@@ -1240,9 +1276,7 @@ def command_render_overlay(args: argparse.Namespace) -> int:
     )
     mode = "wrote" if args.execute else "planned"
     print(
-        f"{mode} overlay: "
-        f"{len(result.written)} writable, "
-        f"{len(result.skipped)} skipped"
+        f"{mode} overlay: {len(result.written)} writable, {len(result.skipped)} skipped"
     )
     for item in result.written:
         print(f"  {item['path']}")
@@ -1328,6 +1362,18 @@ def command_verify_evidence(args: argparse.Namespace) -> int:
     for failure in result["failures"]:
         print(f"  {failure}")
     return 1
+
+
+def command_verify_release_attestations(args: argparse.Namespace) -> int:
+    result = verify_release_attestations(
+        evidence_path=args.evidence,
+        policy_path=args.policy,
+    )
+    write_json_atomic(args.output, result)
+    print(f"verified release attestations: {args.evidence}")
+    print(f"signer: {result['signer']}@{result['signer_digest']}")
+    print(f"output: {args.output.resolve()}")
+    return 0
 
 
 def command_write_verification_guide(args: argparse.Namespace) -> int:
@@ -1511,11 +1557,15 @@ def select_fork_plan_entry(
         matches.append(entry)
 
     if not source and not target and len(matches) != 1:
-        raise ValueError("Pass --source or --target when the fork plan does not contain exactly one fork")
+        raise ValueError(
+            "Pass --source or --target when the fork plan does not contain exactly one fork"
+        )
     if not matches:
         raise ValueError("No fork plan entry matched the requested source/target")
     if len(matches) > 1:
-        raise ValueError("Multiple fork plan entries matched; pass both --source and --target")
+        raise ValueError(
+            "Multiple fork plan entries matched; pass both --source and --target"
+        )
     return matches[0]
 
 
@@ -1604,7 +1654,11 @@ def command_apply_sync_plan(args: argparse.Namespace) -> int:
 def top_repositories(catalog: dict, limit: int) -> list[dict]:
     repositories = sorted(
         catalog.get("repositories", []),
-        key=lambda repo: (-repo.get("score", 0), repo["owner"].lower(), repo["name"].lower()),
+        key=lambda repo: (
+            -repo.get("score", 0),
+            repo["owner"].lower(),
+            repo["name"].lower(),
+        ),
     )
     return repositories[:limit]
 

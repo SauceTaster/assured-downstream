@@ -14,8 +14,11 @@ actions.
 Why:
 
 - GitHub's current artifact attestation docs show `actions/attest@v4` as the
-  attestation step for build provenance, with required `id-token`, `contents`,
-  and `attestations` permissions.
+  attestation step for build provenance. Its top-level usage lists
+  `artifact-metadata: write`, but the action source uses that permission for
+  optional OCI storage records. The file-subject MVP keeps only `id-token`,
+  `contents`, and `attestations`; a future container lane must add artifact
+  metadata permission explicitly if it enables storage records.
 - `actions/attest` supports provenance, SBOM, and custom-predicate modes through
   one action surface.
 - `actions/attest-sbom` is documented as being deprecated in favor of
@@ -99,10 +102,21 @@ GitHub environments can require reviewers, prevent the dispatcher from
 approving its own run, and disallow administrator bypass. A deployment must also
 satisfy the repository's account-boundary policy. `gh attestation verify`
 exposes the required certificate identity, signer/source digest, source ref,
-predicate, OIDC issuer, hosted-runner, offline bundle, and JSON-output controls.
+predicate, OIDC issuer, hosted-runner, local bundle, and JSON-output controls.
 Its identity selector flags are mutually exclusive, so the implementation uses
 the exact certificate SAN rather than simultaneously passing the weaker signer
 repository/workflow selectors.
+
+Sources:
+
+- GitHub deployment environments:
+  https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments
+- GitHub deployment environment REST API:
+  https://docs.github.com/en/rest/deployments/environments
+- GitHub CLI attestation verification:
+  https://cli.github.com/manual/gh_attestation_verify
+- `actions/attest` custom predicates and bundle output:
+  https://github.com/actions/attest
 
 ## 2026-07-12: GitHub Account Isolation
 
@@ -137,19 +151,57 @@ The evidence-candidate validator requires the local manifest to verify, every
 artifact digest to appear in a represented Sigstore subject set,
 approved-tooling policy and lock digests, and a workflow-risk result bound to
 the analyzed workflow. Those documents and builder-isolation fields remain
-untrusted declarations. Production `Attested` remains blocked until a
-code-anchored verifier creates those results and verifies builder identity.
-Trace coverage is recorded by
-category and remains an observational non-claim until a real Linux collector
-and independent comparisons exist.
+untrusted declarations. The code-anchored Sigstore verifier now replaces the
+attestation claim document; production `Attested` remains blocked until
+separate lineage, workflow, tooling, and builder verifiers are composed. Trace
+coverage is recorded by category and remains an observational non-claim until a
+real Linux collector and independent comparisons exist.
+
+## 2026-07-12: Retained Sigstore Bundle Verification
+
+Question: which release facts can the control plane establish from retained
+GitHub artifact-attestation bundles without trusting a caller-authored `ok`
+document?
+
+Decision: execute a digest-pinned `gh attestation verify` against each local
+bundle, with an isolated home, blank credentials, forced `github.com` hostname,
+exact certificate SAN, GitHub OIDC issuer, hosted-runner requirement, source and
+signer commit, tag ref, predicate type, and artifact subject. Parse the JSON
+result again in Assured Downstream and require exact certificate fields, a
+transparency timestamp, the complete artifact subject set, expected provenance,
+the exact retained SBOM, and the custom predicate content.
+
+`--bundle` prevents attestation lookup from becoming the authority. The current
+Sigstore public-good trusted root is retained inside the digest-anchored policy
+and passed through `--custom-trusted-root`, so the verifier does not discover or
+refresh signing authority at runtime. Root rotation requires a reviewed policy
+and embedded digest update.
+
+Implementation lessons:
+
+- `--cert-identity` and `--signer-workflow` are mutually exclusive in current
+  `gh`; exact SAN plus independent certificate-field checks is the selected
+  contract. A live CLI grammar test guards this boundary.
+- GitHub documents predicate content as workflow-controlled. A valid signature
+  therefore proves who signed a lineage assertion, not that upstream ancestry
+  is true. The output record marks upstream lineage as not independently
+  verified until a code-anchored lineage and workflow-content check exists.
+- An SPDX attestation that merely signs an arbitrary SPDX document is not enough
+  to bind release subjects. The generated workflow adds every inventoried
+  artifact SHA-256 as an SPDX file and `DESCRIBES` relationship; the verifier
+  requires the exact subject name and digest on a file directly described by the
+  signed document.
+- Test doubles are no longer accepted through the production orchestration API.
+  Unit tests patch the verifier symbol explicitly, while the production worker
+  always constructs the real verifier.
 
 Sources:
 
-- GitHub deployment environments:
-  https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments
-- GitHub deployment environment REST API:
-  https://docs.github.com/en/rest/deployments/environments
-- GitHub CLI attestation verification:
+- GitHub CLI attestation verification and JSON policy notes:
   https://cli.github.com/manual/gh_attestation_verify
-- `actions/attest` custom predicates and bundle output:
+- GitHub artifact attestation verification:
+  https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/verify-attestations
+- `actions/attest` retained bundle and SBOM inputs:
   https://github.com/actions/attest
+- SPDX 2.3 file checksums and relationships:
+  https://spdx.github.io/spdx-spec/v2.3/

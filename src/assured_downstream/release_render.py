@@ -190,6 +190,10 @@ jobs:
           upload-artifact: "false"
           upload-release-assets: "false"
 
+      - name: Bind release artifact subjects into SBOM
+        run: |
+{indent_text(sbom_subject_binding_script(sbom_path), 10)}
+
       - name: Verify SBOM generation did not alter build outputs
         run: |
 {indent_text(artifact_inventory_verification_script(), 10)}
@@ -384,6 +388,53 @@ for path in sorted(root.rglob("*")):
     }
 if actual != expected:
     raise SystemExit("build outputs changed after boundary validation")
+PY"""
+
+
+def sbom_subject_binding_script(sbom_path: str) -> str:
+    return f"""python - <<'PY'
+import json
+from pathlib import Path
+
+sbom_path = Path({json.dumps(sbom_path)})
+inventory_path = Path("assured-evidence/artifact-inventory.json")
+sbom = json.loads(sbom_path.read_text(encoding="utf-8"))
+inventory = json.loads(inventory_path.read_text(encoding="utf-8"))
+if sbom.get("spdxVersion") != "SPDX-2.3" or not isinstance(sbom.get("SPDXID"), str):
+    raise SystemExit("generated SBOM is not a valid SPDX 2.3 document")
+artifacts = inventory.get("artifacts")
+if inventory.get("schema_version") != 1 or not isinstance(artifacts, list) or not artifacts:
+    raise SystemExit("artifact inventory is invalid")
+files = sbom.setdefault("files", [])
+relationships = sbom.setdefault("relationships", [])
+if not isinstance(files, list) or not isinstance(relationships, list):
+    raise SystemExit("generated SBOM files or relationships are invalid")
+existing_ids = {{item.get("SPDXID") for item in files if isinstance(item, dict)}}
+document_id = sbom["SPDXID"]
+for position, artifact in enumerate(artifacts, start=1):
+    if not isinstance(artifact, dict):
+        raise SystemExit("artifact inventory entry is invalid")
+    path = artifact.get("path")
+    digest = artifact.get("sha256")
+    if not isinstance(path, str) or not isinstance(digest, str) or len(digest) != 64:
+        raise SystemExit("artifact inventory identity is invalid")
+    spdx_id = f"SPDXRef-AssuredArtifact-{{position}}-{{digest}}"
+    if spdx_id in existing_ids:
+        raise SystemExit("generated SPDX artifact identifier is duplicated")
+    existing_ids.add(spdx_id)
+    files.append({{
+        "SPDXID": spdx_id,
+        "fileName": path,
+        "checksums": [{{"algorithm": "SHA256", "checksumValue": digest}}],
+        "licenseConcluded": "NOASSERTION",
+        "copyrightText": "NOASSERTION",
+    }})
+    relationships.append({{
+        "spdxElementId": document_id,
+        "relationshipType": "DESCRIBES",
+        "relatedSpdxElement": spdx_id,
+    }})
+sbom_path.write_text(json.dumps(sbom, indent=2, sort_keys=True) + "\\n", encoding="utf-8")
 PY"""
 
 
