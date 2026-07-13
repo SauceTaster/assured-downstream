@@ -36,8 +36,8 @@ permissions:
 
 env:
   BUILDER_IMAGE: ghcr.io/saucetaster/assured-downstream-python-builder
-  BUILDER_DIGEST: sha256:fabfecbd48689108af585a49c6c9ee5522bb02aad716fcdc84a8799560ab791b
-  HANDOFF_COMMIT: 6db8f2b834f0318e615bfd849e17e9839aaad078
+  BUILDER_DIGEST: sha256:6214c96cdb53941e169b3a1a01e603a51a3347bb50f820e081ddda0dec46d472
+  HANDOFF_COMMIT: 5eb8417e519f918d7c58f9678e71279c72ddac91
 
 jobs:
   build:
@@ -95,7 +95,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: SauceTaster/assured-downstream
-          ref: 6db8f2b834f0318e615bfd849e17e9839aaad078
+          ref: 5eb8417e519f918d7c58f9678e71279c72ddac91
           path: assured-control
           persist-credentials: false
           fetch-depth: 1
@@ -112,7 +112,7 @@ jobs:
           cp assured-control/src/assured_downstream/seed.py "$tool_root/"
           cd "$RUNNER_TEMP/assured-tool"
           printf '%s  %s\n' face06d049a8925de14fabc068bcaf691f92d208e2f9b097fcf43e4697babeb2 src/assured_downstream/__init__.py | sha256sum -c -
-          printf '%s  %s\n' eec6f6e7f3e6a0e34d252bc1152c83b8efc8ec988443124ae9ea042f3a094907 src/assured_downstream/builder_handoff.py | sha256sum -c -
+          printf '%s  %s\n' e2c3ed4701a537a008c9ff742c2ebe93676c7b32acbc19c05e8cd2131b7ebe5f src/assured_downstream/builder_handoff.py | sha256sum -c -
           printf '%s  %s\n' 778465cc730f68f0c44e12755dc95adcf78168a1ecedbd5d6fa7aa6c89a5c00a src/assured_downstream/catalog.py | sha256sum -c -
           printf '%s  %s\n' 215c02153b405232a570c3957364dfd84f333b37de56b77e1497a769b953de65 src/assured_downstream/evidence.py | sha256sum -c -
           printf '%s  %s\n' 0fd74a45333689775fa925fdaa44444d465ffd77c710e852eb95e2558bd261a6 src/assured_downstream/seed.py | sha256sum -c -
