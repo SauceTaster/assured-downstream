@@ -180,6 +180,45 @@ class CliTests(unittest.TestCase):
         self.assertEqual(args.right_execution_id, "github-actions:1002")
         self.assertEqual(args.run_dir, Path("runs/repro-v3"))
 
+    def test_source_reacquisition_v3_requires_explicit_network_execution(self) -> None:
+        args = build_parser().parse_args(
+            [
+                "source-reacquisition-v3-run",
+                "--trusted-source-inventory",
+                "trusted-source-inventory.json",
+                "--source-ref",
+                "refs/heads/main",
+                "--object-format",
+                "sha1",
+                "--git-executable",
+                "/usr/bin/git",
+                "--git-sha256",
+                "a" * 64,
+                "--git-https-helper",
+                "/usr/libexec/git-core/git-remote-https",
+                "--git-https-helper-sha256",
+                "b" * 64,
+                "--run-dir",
+                "runs/source-reacquisition-v3",
+                "--execute-reacquisition",
+            ]
+        )
+
+        self.assertEqual(
+            args.trusted_source_inventory,
+            Path("trusted-source-inventory.json"),
+        )
+        self.assertEqual(args.source_ref, "refs/heads/main")
+        self.assertEqual(args.object_format, "sha1")
+        self.assertEqual(args.git_executable, Path("/usr/bin/git"))
+        self.assertEqual(args.git_sha256, "a" * 64)
+        self.assertEqual(
+            args.git_https_helper,
+            Path("/usr/libexec/git-core/git-remote-https"),
+        )
+        self.assertEqual(args.git_https_helper_sha256, "b" * 64)
+        self.assertTrue(args.execute_reacquisition)
+
     def test_checkout_run_parser_keeps_sync_execution_explicit(self) -> None:
         args = build_parser().parse_args(
             [

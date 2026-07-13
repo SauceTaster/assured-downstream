@@ -33,6 +33,7 @@
     "trace",
     "attestation",
     "builder-verifier",
+    "source-reacquirer-v3",
     "release-verifier",
     "repro",
     "release",
@@ -209,6 +210,16 @@
       "output_events": ["BuildAttestationsVerified", "BuildAttestationsRejected", "BuildAttestationsV3Verified", "BuildAttestationsV3Rejected"],
       "tools": ["verify-build-attestations", "build-verification-v3-run", "pinned gh verifier", "retained Sigstore bundles", "SPDX binding verifier", "archive transform verifier", "raw trace replay"],
       "human_gates": ["builder policy rotation", "reusable signer change", "caller workflow change", "predicate schema change"]
+    },
+    {
+      "id": "source-reacquirer-v3",
+      "name": "Source Reacquisition v3 Agent",
+      "purpose": "Reacquire exact upstream Git objects through a bounded canonical transport and compare applicable source inventory fields without checkout or execution.",
+      "owns": ["reacquired source inventory", "time-bounded source observation", "source mismatch and rejection evidence"],
+      "input_events": ["SourceReacquisitionV3Requested"],
+      "output_events": ["SourceReacquiredV3Compared", "SourceReacquisitionV3Mismatch", "SourceReacquisitionV3Rejected"],
+      "tools": ["source-reacquisition-v3-run", "private digest-bound Git and HTTPS helper", "bounded Git object reader", "trusted source inventory comparator"],
+      "human_gates": ["source mismatch", "source ref change", "transport policy change", "Git tooling trust rotation"]
     },
     {
       "id": "repro",

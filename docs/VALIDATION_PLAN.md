@@ -190,6 +190,32 @@ its relative manifests. Both Sigstore evidence sets reverified, all durable
 artifact references passed integrity checks, and the same non-authorizing
 Governor result was reproduced.
 
+### T1.11 - Exact Source Reacquisition Controls
+
+Purpose: independently reacquire the requested Git tree from canonical GitHub
+and compare it with retained build-time source inventory without checkout,
+source execution, or an ancestry claim.
+
+Pass condition:
+
+- the trusted inventory, full branch ref, object format, native Git binary, and
+  HTTPS helper are digest-bound durable request inputs
+- a private bare object database fetches only the explicit branch ref
+- the requested commit is present, is reachable from that ref, and resolves to
+  the exact retained tree
+- file bytes, executable bits, and symlink targets match the retained inventory
+- hostile paths, gitlinks, oversized content, output, time, CPU, command, or
+  polled storage limits fail closed into durable rejection evidence
+- expired workers cannot overwrite accepted artifacts because outputs are
+  scoped by fenced attempt identity
+- success does not claim authorship, upstream lineage, host/provider
+  independence, semantic safety, a kernel disk quota, or independently verified
+  host libraries
+
+The canonical Bandit replay passed on 2026-07-13 with 298 exact entries, zero
+findings, two verified registered artifacts, and a zero-work idempotent resume.
+A two-round Luna review closed all five initial actionable findings.
+
 ### T2 - Sandbox Owner Attested Case Study
 
 Purpose: prove an end-to-end downstream fork can produce evidence.

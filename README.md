@@ -284,6 +284,17 @@ release promotion or claims independent hosts. The first real Bandit pair
 correctly blocked on sdist metadata and SPDX byte drift while retaining matching
 wheel and normalized behavior evidence.
 
+`source-reacquisition-v3-run` separately snapshots a retained trusted source
+inventory, fetches one full branch ref from the canonical GitHub HTTPS URL into
+a private bare object database, and compares the requested commit tree without
+checkout or source execution. The durable Source Reacquirer uses request-bound
+native Git and HTTPS-helper bytes, attempt-scoped outputs, global time/CPU/output
+budgets, and explicit mismatch/rejection events. A match is only a time-bounded
+source observation: it does not establish authorship, upstream lineage, host or
+provider independence, or semantic safety. Aggregate disk enforcement is polled
+rather than a kernel filesystem quota, and dynamic libraries remain in the host
+toolchain trust boundary.
+
 `create-project-packet` produces passive fork metadata, lineage, an overlay
 summary, and optional fetch commands. Assured Downstream does not create pull
 requests, issues, comments, email, or other outbound maintainer contact.

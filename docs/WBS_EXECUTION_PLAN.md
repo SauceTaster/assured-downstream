@@ -38,9 +38,12 @@ As of the 2026-07-13 prototype pass:
   validates retained Sigstore bundles, exact subject coverage, certificates,
   run-bound workflow provenance, deterministic SPDX, archive transforms, and
   the custom policy predicate. Its policy and full-byte verifier sources are
-  pinned by a separate code trust root. Upstream ancestry, workflow implementation,
-  tooling, independent source reacquisition, and builder isolation remain
-  untrusted. Production `Attested` remains deliberately blocked.
+  pinned by a separate code trust root. A durable Source Reacquirer now performs
+  canonical GitHub branch acquisition and exact tree-inventory comparison, with
+  the real Bandit case matching 298 entries. Upstream ancestry, workflow
+  implementation, the wider operating-system toolchain, provider-independent
+  acquisition, and builder isolation remain untrusted. Production `Attested`
+  remains deliberately blocked.
 - WP6 now renders separate build, unprivileged inspection/SBOM, and privileged
   attestation jobs, portable evidence bundles, and durable evidence lanes. The
   Python v2 path has completed real GitHub-hosted executions and fresh retained
@@ -71,8 +74,9 @@ As of the 2026-07-13 prototype pass:
 
 Current critical path:
 
-1. Add an independent executor and independently reacquire the exact source
-   before granting any host- or provider-independence claim.
+1. Add an independent executor and rerun the implemented exact-source
+   reacquisition through a genuinely separate host/provider before granting any
+   host- or provider-independence claim.
 2. WP7: implement code-anchored lineage, builder, tooling, and workflow-content
    verifiers. Signed workflow claims are not yet separate proof of ancestry or
    isolation.
@@ -782,8 +786,8 @@ retain these ownership boundaries.
 
 ## Next Implementation Tasks
 
-1. Schedule a genuinely provider-independent rebuild with independent source
-   acquisition and a separate collector trust boundary.
+1. Schedule a genuinely provider-independent rebuild using Source Reacquirer v3
+   and a separate collector trust boundary.
 2. Implement code-anchored lineage, builder, tooling-lock, and workflow-content
    verification before enabling production `Attested`.
 3. Build Java and .NET evidence profiles and run real cohort cases.

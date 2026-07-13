@@ -97,6 +97,13 @@ from assured_downstream.scoring import score_catalog
 from assured_downstream.seed import parse_seed_source
 from assured_downstream.selection import load_candidate_policy
 from assured_downstream.selftest import DEFAULT_SELF_TEST_ECOSYSTEMS, run_self_test
+from assured_downstream.source_reacquisition_agents_v3 import (
+    SOURCE_REACQUISITION_V3_LEASE_SECONDS,
+    SOURCE_REACQUISITION_V3_WORKFLOW,
+    run_source_reacquisition_v3_agent_system,
+    source_reacquisition_v3_handlers,
+    source_reacquisition_v3_routes,
+)
 from assured_downstream.sync_apply import apply_sync_plan
 from assured_downstream.sync_plan import create_sync_plan
 from assured_downstream.verification_guide import create_verification_guide
@@ -502,6 +509,59 @@ def build_parser() -> argparse.ArgumentParser:
     reproducibility_v3_run.add_argument("--enqueue-only", action="store_true")
     reproducibility_v3_run.set_defaults(func=command_reproducibility_v3_run)
 
+    source_reacquisition_v3_run = subparsers.add_parser(
+        "source-reacquisition-v3-run",
+        help=(
+            "Reacquire an exact upstream Git tree and compare retained source "
+            "inventory without checkout or execution."
+        ),
+    )
+    source_reacquisition_v3_run.add_argument(
+        "--trusted-source-inventory",
+        required=True,
+        type=Path,
+    )
+    source_reacquisition_v3_run.add_argument("--source-ref", required=True)
+    source_reacquisition_v3_run.add_argument(
+        "--object-format",
+        required=True,
+        choices=("sha1", "sha256"),
+    )
+    source_reacquisition_v3_run.add_argument(
+        "--git-executable",
+        required=True,
+        type=Path,
+        help="Absolute regular Git executable whose identity and bytes are bound before use.",
+    )
+    source_reacquisition_v3_run.add_argument(
+        "--git-sha256",
+        required=True,
+        help="Expected SHA-256 digest of the Git executable.",
+    )
+    source_reacquisition_v3_run.add_argument(
+        "--git-https-helper",
+        required=True,
+        type=Path,
+        help="Absolute regular git-remote-https implementation to stage for fetches.",
+    )
+    source_reacquisition_v3_run.add_argument(
+        "--git-https-helper-sha256",
+        required=True,
+        help="Expected SHA-256 digest of the Git HTTPS helper.",
+    )
+    source_reacquisition_v3_run.add_argument("--run-dir", required=True, type=Path)
+    source_reacquisition_v3_run.add_argument("--database", type=Path)
+    source_reacquisition_v3_run.add_argument("--run-id")
+    source_reacquisition_v3_run.add_argument("--max-items", type=int, default=20)
+    source_reacquisition_v3_run.add_argument("--enqueue-only", action="store_true")
+    source_reacquisition_v3_run.add_argument(
+        "--execute-reacquisition",
+        action="store_true",
+        required=True,
+        help="Explicitly permit read-only network acquisition from canonical GitHub.",
+    )
+    source_reacquisition_v3_run.set_defaults(func=command_source_reacquisition_v3_run)
+
     agent_worker = subparsers.add_parser(
         "agent-worker",
         help="Drain leased work for one durable agent run.",
@@ -525,6 +585,7 @@ def build_parser() -> argparse.ArgumentParser:
                     *build_verification_v3_handlers(),
                     *reproducibility_handlers(),
                     *reproducibility_v3_handlers(),
+                    *source_reacquisition_v3_handlers(),
                 ]
             }
         ),
@@ -1242,12 +1303,40 @@ def command_reproducibility_v3_run(args: argparse.Namespace) -> int:
     return 0 if result["status"] in {"running", "succeeded"} else 2
 
 
+def command_source_reacquisition_v3_run(args: argparse.Namespace) -> int:
+    result = run_source_reacquisition_v3_agent_system(
+        trusted_inventory_path=args.trusted_source_inventory,
+        source_ref=args.source_ref,
+        object_format=args.object_format,
+        run_dir=args.run_dir,
+        execute_reacquisition=args.execute_reacquisition,
+        git_path=args.git_executable,
+        expected_git_sha256=args.git_sha256,
+        https_helper_path=args.git_https_helper,
+        expected_https_helper_sha256=args.git_https_helper_sha256,
+        database_path=args.database,
+        run_id=args.run_id,
+        max_items=args.max_items,
+        enqueue_only=args.enqueue_only,
+    )
+    print(f"source reacquisition v3 run: {result['run_id']}")
+    print(f"status: {result['status']}")
+    print(f"processed work attempts: {result['processed_count']}")
+    print(f"pending work: {result['pending_count']}")
+    print(f"database: {result['database_path']}")
+    print(f"summary: {result['summary_path']}")
+    if "report" in result:
+        print(f"report: {result['report']['path']}")
+    return 0 if result["status"] in {"running", "succeeded"} else 2
+
+
 def command_agent_worker(args: argparse.Namespace) -> int:
     store = AgentStore(args.database)
     run_id = args.run_id or store.latest_run_id()
     if run_id is None:
         raise ValueError("The agent database contains no runs")
-    workflow = store.get_run(run_id)["metadata"].get("workflow")
+    metadata = store.get_run(run_id)["metadata"]
+    workflow = metadata.get("workflow")
     routes = None
     if workflow == MANAGED_CHECKOUT_WORKFLOW:
         available_handlers = managed_checkout_handlers()
@@ -1270,6 +1359,16 @@ def command_agent_worker(args: argparse.Namespace) -> int:
     elif workflow == REPRODUCIBILITY_V3_WORKFLOW:
         available_handlers = reproducibility_v3_handlers()
         routes = reproducibility_v3_routes()
+    elif workflow == SOURCE_REACQUISITION_V3_WORKFLOW:
+        config = metadata.get("config") or {}
+        transport = config.get("transport") or {}
+        allow_local_remote = transport.get("mode") == "test-local"
+        remote_url = transport.get("url") if allow_local_remote else None
+        available_handlers = source_reacquisition_v3_handlers(
+            remote_url=remote_url,
+            allow_local_remote=allow_local_remote,
+        )
+        routes = source_reacquisition_v3_routes()
     elif workflow == "discovery-to-fork-plan":
         available_handlers = first_lane_handlers()
     else:
@@ -1282,12 +1381,15 @@ def command_agent_worker(args: argparse.Namespace) -> int:
     ]
     if not handlers:
         raise ValueError("No selected agents belong to this run's workflow")
+    lease_seconds = args.lease_seconds
+    if workflow == SOURCE_REACQUISITION_V3_WORKFLOW:
+        lease_seconds = max(lease_seconds, SOURCE_REACQUISITION_V3_LEASE_SECONDS)
     runtime = AgentRuntime(
         backend=store,
         handlers=handlers,
         routes=routes,
         worker_id=args.worker_id,
-        lease_seconds=args.lease_seconds,
+        lease_seconds=lease_seconds,
     )
     result = runtime.drain(run_id=run_id, max_items=args.max_items)
     print(json.dumps(result, indent=2, sort_keys=True))

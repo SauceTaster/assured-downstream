@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -10,10 +11,50 @@ from unittest.mock import patch
 from assured_downstream.evidence_agents import (
     EvidenceLaneError,
     run_release_evidence_agent_system,
+    snapshot_regular_file,
 )
 
 
 class EvidenceAgentTests(unittest.TestCase):
+    def test_regular_file_snapshot_is_durable_and_rejects_an_open_race(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "source.json"
+            source.write_text('{"value": 1}\n', encoding="utf-8")
+
+            snapshot = snapshot_regular_file(
+                source,
+                target_dir=root / "snapshots",
+                label="source.json",
+            )
+
+            retained = Path(snapshot["path"])
+            self.assertEqual(retained.read_bytes(), source.read_bytes())
+            self.assertEqual(retained.stat().st_mode & 0o777, 0o400)
+
+            replacement = root / "replacement.json"
+            replacement.write_text('{"value": 2}\n', encoding="utf-8")
+            original_open = os.open
+            swapped = False
+
+            def racing_open(path: object, flags: int, mode: int = 0o777) -> int:
+                nonlocal swapped
+                if Path(path) == source and not swapped:
+                    swapped = True
+                    replacement.replace(source)
+                return original_open(path, flags, mode)
+
+            with patch(
+                "assured_downstream.evidence_agents.os.open",
+                side_effect=racing_open,
+            ):
+                with self.assertRaisesRegex(EvidenceLaneError, "before snapshotting"):
+                    snapshot_regular_file(
+                        source,
+                        target_dir=root / "raced",
+                        label="source.json",
+                    )
+
     def test_ingests_build_trace_and_attestation_through_durable_agents(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

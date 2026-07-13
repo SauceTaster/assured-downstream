@@ -182,8 +182,11 @@ The bounded Python v3 lane independently reverifies retained keyless Sigstore
 bundles, exact in-toto subjects, normalized SPDX, archive transforms, signed run
 binding, raw trace parseability, and full-byte verifier sources against a
 separate code trust root. Production `Attested` remains blocked until
-separate code also verifies upstream ancestry, workflow content, tooling, source
-reacquisition, and builder or collector isolation.
+separate code also verifies upstream ancestry, workflow content, the wider
+toolchain, and builder or collector isolation. The new Source Reacquirer v3
+agent has independently fetched the exact Bandit branch from canonical GitHub,
+matched all 298 retained source entries, and retained a bounded source
+observation without claiming ancestry or provider independence.
 The complete v3 case is retained as a checksummed development prerelease and
 was successfully replayed after fresh extraction.
 

@@ -3,6 +3,7 @@
   "status": "same-provider-artifact-and-behavior-reproducibility-candidate",
   "case_id": "case-001-bandit-source-canary-v3-repro-01",
   "recorded_at": "2026-07-13T16:15:50+00:00",
+  "updated_at": "2026-07-13T17:33:38+00:00",
   "source": {
     "repository": "PyCQA/bandit",
     "commit": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
@@ -120,7 +121,50 @@
     "trusted_source_inventory_exact_match": true,
     "trusted_source_inventory_sha256": "03779c7950dff2dc43060c0304f4b719328eef404d3d4875878ee4c605423856",
     "host_comparison_attested": true,
-    "independent_source_reacquisition": false
+    "independent_source_reacquisition": true,
+    "canonical_github_transport_observed": true,
+    "upstream_lineage_established": false
+  },
+  "source_reacquisition": {
+    "run_id": "source-reacquisition-v3-bandit-case-001-final",
+    "workflow": "source-reacquisition-v3",
+    "agent": "source-reacquirer-v3",
+    "status": "matched",
+    "event": "SourceReacquiredV3Compared",
+    "authority": "time-bounded-canonical-github-source-observation",
+    "acquired_at": "2026-07-13T17:33:38+00:00",
+    "remote_url": "https://github.com/PyCQA/bandit.git",
+    "source_ref": "refs/heads/main",
+    "fetched_ref_tip": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+    "commit_reachable_from_ref": true,
+    "commit_exact_match": true,
+    "tree_exact_match": true,
+    "inventory_exact_match": true,
+    "entry_count": 298,
+    "finding_count": 0,
+    "trusted_inventory_sha256": "03779c7950dff2dc43060c0304f4b719328eef404d3d4875878ee4c605423856",
+    "acquired_inventory_sha256": "c21c46a48673709bc2e205cc9f2d55b2f2bf0bcd202aca7971bcdabf977a8724",
+    "inventory_tree_sha256": "0914573882503b41295ada916f405ee335235c95c35f80795237011ee620578a",
+    "report_sha256": "b29655ed6cb1960515e08e17bafda1b1d41d21c9e46581527fd5412198e6e3b0",
+    "execution_count": 311,
+    "registered_artifact_count": 2,
+    "registered_artifacts_verified": true,
+    "zero_work_resume": true,
+    "git": {
+      "version": "git version 2.50.1 (Apple Git-155)",
+      "sha256": "b74ed3cba67de14e273915e0be3085aeec0be6f04b93d46a3186c112982db5cd",
+      "https_helper_sha256": "0129939f1a4a972667a0b07177731899bfa3168ffe2bc021eb37515858d55ba9",
+      "private_staged_executables": true,
+      "private_exec_path": true,
+      "tooling_independently_verified": false
+    },
+    "upstream_code_checked_out": false,
+    "upstream_code_executed": false,
+    "host_independent": false,
+    "provider_independent": false,
+    "upstream_lineage": false,
+    "kernel_filesystem_quota": false,
+    "claim_limit": "This is a time-bounded canonical GitHub source observation and exact retained-inventory comparison. It does not establish authorship, persistent branch identity, upstream ownership or lineage, host or provider independence, semantic safety, or independently verified operating-system tooling."
   },
   "trace_comparison": {
     "raw_exact_match": false,
@@ -221,6 +265,21 @@
         "candidate-flag-and-blocker-coherence"
       ],
       "residual_trust_assumption": "The installed control-plane trust-root code, Python interpreter and import environment, and runtime filesystem are trusted and uncompromised."
+    },
+    "source_reacquisition_review": {
+      "profile": "assured-downstream-luna",
+      "review_rounds": 2,
+      "actionable_findings_seen": 5,
+      "final_actionable_findings": 0,
+      "all_addressed": true,
+      "added_controls": [
+        "private-digest-bound-native-git-and-https-helper",
+        "idempotent-event-publication-after-run-creation",
+        "parent-and-child-acquisition-budget",
+        "attempt-scoped-filesystem-evidence",
+        "explicit-polled-storage-and-toolchain-limit"
+      ],
+      "residual_trust_assumption": "The control-plane process, kernel, private same-UID runtime filesystem, dynamic libraries, and operating-system toolchain are trusted; aggregate disk enforcement is polling-based rather than a kernel filesystem quota."
     }
   },
   "independently_verified": {
@@ -232,7 +291,7 @@
     "normalized_behavior_reproducibility_candidate": true,
     "retained_trace_parser_pass": true,
     "run_invocation_certificate_binding": true,
-    "source_snapshot_comparison": false,
+    "source_snapshot_comparison": true,
     "ownership_boundary_observation": false,
     "build_invocation_from_trace": false,
     "provider_independence": false,
@@ -247,5 +306,5 @@
     "root_ownership_boundary_observed": true,
     "fixed_build_argv": true
   },
-  "claim_limit": "This case establishes one same-provider Bandit artifact and normalized-behavior reproducibility candidate from two distinct, freshly Sigstore-verified workflow runs sharing exact caller, called-workflow, handoff, builder, source, and policy anchors. It does not establish provider independence, independent source reacquisition, full invocation or lifecycle proof from trace, upstream ancestry, builder or collector tamper resistance, workflow implementation verification, release promotion, or semantic safety."
+  "claim_limit": "This case establishes one same-provider Bandit artifact and normalized-behavior reproducibility candidate from two distinct, freshly Sigstore-verified workflow runs sharing exact caller, called-workflow, handoff, builder, source, and policy anchors, plus one fresh canonical GitHub source-tree observation matching the retained 298-entry inventory. It does not establish provider independence, full invocation or lifecycle proof from trace, upstream ancestry or authorship, builder or collector tamper resistance, workflow implementation verification, release promotion, or semantic safety."
 }

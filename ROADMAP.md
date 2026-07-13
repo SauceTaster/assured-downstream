@@ -227,6 +227,11 @@ Current prototype status:
   Sigstore bundles and SPDX artifact references, and validates
   tooling/workflow-risk input shape without granting assurance; upstream
   ancestry remains a signed workflow claim until independently checked
+- Source Reacquirer v3 now performs a fresh canonical GitHub branch fetch into a
+  private bare object database and compares the exact requested tree without
+  checkout or source execution; the real Bandit case matched all 298 entries,
+  while ancestry, provider independence, and the wider host toolchain remain
+  explicitly unverified
 - a live Bandit source canary completed the digest-pinned no-network build,
   complete strace parser pass, permissionless SPDX generation, three keyless
   Sigstore attestations, and portable evidence assembly

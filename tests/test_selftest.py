@@ -63,7 +63,7 @@ class SelfTestTests(unittest.TestCase):
                 (output_dir / "self-test-result.json").read_text(encoding="utf-8")
             )
             self.assertTrue(result["ok"])
-            self.assertEqual(result["agent_system"]["summary"]["agent_count"], 21)
+            self.assertEqual(result["agent_system"]["summary"]["agent_count"], 22)
             self.assertEqual(result["ecosystems"][0]["ecosystem"], "java")
 
 

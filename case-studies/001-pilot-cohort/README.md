@@ -153,6 +153,13 @@ fork-of-a-fork lineage, and copyleft obligation handling.
   `dd58793059bded8c8074eb11da14b8fb6a87d0cc7df4fdf5ed6237561c84b356`
 - recorded the parser limit explicitly: the retained trace does not independently
   prove the complete build invocation, process lifecycle, or collector resistance
+- reacquired the exact Bandit commit from canonical GitHub with the durable
+  Source Reacquirer v3 agent, matched all 298 retained entries with zero
+  findings, verified both registered artifacts, and confirmed a zero-work resume
+- executed private digest-bound native Git and HTTPS-helper copies under a
+  private exec path; a two-round Luna review closed five initial findings around
+  executable TOCTOU, event publication, global limits, stale leases, and helper
+  trust while preserving the disk-quota and host-toolchain non-claims
 
 The machine-readable patch evidence is in [`patch-canary.json`](./patch-canary.json).
 It deliberately makes no build, runtime, attestation, or hardened-release claim.

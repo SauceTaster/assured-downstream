@@ -987,33 +987,54 @@ def snapshot_regular_file(
     temporary = target_dir / f".snapshot.{uuid.uuid4().hex}.tmp"
     digest_state = hashlib.sha256()
     copied_size = 0
+    source_descriptor: int | None = None
+    target_descriptor: int | None = None
     try:
-        with source.open("rb") as source_handle, temporary.open("xb") as target_handle:
-            while chunk := source_handle.read(COPY_CHUNK_SIZE):
-                copied_size += len(chunk)
-                if copied_size > MAX_EVIDENCE_FILE_BYTES:
+        source_flags = os.O_RDONLY
+        if hasattr(os, "O_NOFOLLOW"):
+            source_flags |= os.O_NOFOLLOW
+        source_descriptor = os.open(source, source_flags)
+        opened_stat = os.fstat(source_descriptor)
+        if evidence_file_identity(opened_stat) != evidence_file_identity(source_stat):
+            raise EvidenceLaneError(
+                f"Evidence input changed before snapshotting: {source}"
+            )
+        target_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        if hasattr(os, "O_NOFOLLOW"):
+            target_flags |= os.O_NOFOLLOW
+        target_descriptor = os.open(temporary, target_flags, 0o600)
+        while chunk := os.read(source_descriptor, COPY_CHUNK_SIZE):
+            copied_size += len(chunk)
+            if copied_size > MAX_EVIDENCE_FILE_BYTES:
+                raise EvidenceLaneError(
+                    f"Evidence input exceeds the file-size limit: {source}"
+                )
+            digest_state.update(chunk)
+            view = memoryview(chunk)
+            while view:
+                written = os.write(target_descriptor, view)
+                if written <= 0:
                     raise EvidenceLaneError(
-                        f"Evidence input exceeds the file-size limit: {source}"
+                        f"Evidence snapshot write stalled: {temporary}"
                     )
-                digest_state.update(chunk)
-                target_handle.write(chunk)
+                view = view[written:]
+        os.fchmod(target_descriptor, 0o400)
+        os.fsync(target_descriptor)
+        final_opened_stat = os.fstat(source_descriptor)
         final_stat = source.lstat()
-        source_identity = (
-            source_stat.st_dev,
-            source_stat.st_ino,
-            source_stat.st_size,
-            source_stat.st_mtime_ns,
-        )
-        final_identity = (
-            final_stat.st_dev,
-            final_stat.st_ino,
-            final_stat.st_size,
-            final_stat.st_mtime_ns,
-        )
-        if source_identity != final_identity or copied_size != source_stat.st_size:
+        source_identity = evidence_file_identity(source_stat)
+        if (
+            source_identity != evidence_file_identity(final_opened_stat)
+            or source_identity != evidence_file_identity(final_stat)
+            or copied_size != source_stat.st_size
+        ):
             raise EvidenceLaneError(
                 f"Evidence input changed while snapshotting: {source}"
             )
+        os.close(target_descriptor)
+        target_descriptor = None
+        os.close(source_descriptor)
+        source_descriptor = None
         digest = digest_state.hexdigest()
         target = target_dir / f"{digest}-{safe_name}"
         if target.exists():
@@ -1029,15 +1050,40 @@ def snapshot_regular_file(
                     f"Persisted evidence snapshot changed: {target}"
                 )
         else:
-            temporary.chmod(0o400)
             os.replace(temporary, target)
+            fsync_evidence_directory(target_dir)
     finally:
+        if target_descriptor is not None:
+            os.close(target_descriptor)
+        if source_descriptor is not None:
+            os.close(source_descriptor)
         temporary.unlink(missing_ok=True)
     return {
         "path": str(target.resolve()),
         "sha256": digest,
         "size": copied_size,
     }
+
+
+def evidence_file_identity(
+    value: os.stat_result,
+) -> tuple[int, int, int, int, int, int]:
+    return (
+        value.st_dev,
+        value.st_ino,
+        value.st_size,
+        value.st_mtime_ns,
+        value.st_ctime_ns,
+        value.st_nlink,
+    )
+
+
+def fsync_evidence_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def guarded_evidence_path(root: Path, value: str) -> Path:
