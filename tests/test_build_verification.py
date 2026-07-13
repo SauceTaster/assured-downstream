@@ -30,6 +30,9 @@ from assured_downstream.release_verification import (
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / "policies" / "build-verification.json"
 TRUST_POLICY_PATH = ROOT / "policies" / "release-verification.json"
+ACTIVE_CASE_PATH = (
+    ROOT / "case-studies" / "001-pilot-cohort" / "bandit-build-canary-v2.json"
+)
 
 
 class BuildVerificationTests(unittest.TestCase):
@@ -41,7 +44,35 @@ class BuildVerificationTests(unittest.TestCase):
         )
         policy = validate_build_verification_policy(json.loads(policy_bytes))
         self.assertEqual(
-            policy["approved_request"]["case_id"], "case-001-bandit-source-canary"
+            policy["approved_request"]["case_id"],
+            "case-001-bandit-source-canary-v2",
+        )
+
+    def test_active_case_binds_policy_identities_and_staged_manifest(self) -> None:
+        policy_bytes = POLICY_PATH.read_bytes()
+        policy = json.loads(policy_bytes)
+        case = json.loads(ACTIVE_CASE_PATH.read_bytes())
+
+        self.assertEqual(case["case_id"], policy["approved_request"]["case_id"])
+        self.assertEqual(
+            case["verification"]["build_policy_sha256"],
+            hashlib.sha256(policy_bytes).hexdigest(),
+        )
+        self.assertEqual(
+            case["workflow_run"]["caller_commit"],
+            policy["signer"]["caller_digest"],
+        )
+        self.assertEqual(
+            case["workflow_run"]["signer_commit"],
+            policy["signer"]["workflow_digest"],
+        )
+        self.assertEqual(
+            case["durable_agent_run"]["staged_evidence_sha256"],
+            case["verification"]["evidence_sha256"],
+        )
+        self.assertNotEqual(
+            case["durable_agent_run"]["source_evidence_snapshot_sha256"],
+            case["durable_agent_run"]["staged_evidence_sha256"],
         )
 
     def test_command_pins_distinct_signer_and_caller_digests(self) -> None:

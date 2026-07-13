@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "status": "verified-evidence-candidate",
+  "case_id": "case-001-bandit-source-canary-v2",
+  "verified_at": "2026-07-13T04:16:47+00:00",
+  "workflow_run": {
+    "id": 29223411225,
+    "url": "https://github.com/SauceTaster/assured-downstream/actions/runs/29223411225",
+    "event": "workflow_dispatch",
+    "conclusion": "success",
+    "caller_commit": "3e715b6be41a36b770a16999457c2783fea71b23",
+    "signer_commit": "90c37838bd227618f36bcc2ae25436e51d2d3a98",
+    "signer_certificate_identity": "https://github.com/SauceTaster/assured-downstream/.github/workflows/reusable-python-build.yml@90c37838bd227618f36bcc2ae25436e51d2d3a98"
+  },
+  "source": {
+    "repository": "PyCQA/bandit",
+    "commit": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+    "tree": "5313408ad294e5a95f214620ec3064f8e40bc608",
+    "filesystem_sha256": "0914573882503b41295ada916f405ee335235c95c35f80795237011ee620578a",
+    "source_date_epoch": "1783382521",
+    "target_repository": "SauceTaster/assured-bandit",
+    "version": "1.9.4"
+  },
+  "builder": {
+    "profile": "python-wheel-v2",
+    "image": "ghcr.io/saucetaster/assured-downstream-python-builder",
+    "digest": "sha256:18916b853d240d87c653175368bd9a8f54edac8f77553d7c0e2b23abb87d5221",
+    "handoff_verifier_commit": "0292fb91ff65c05d0d8717b3cf88883a6a3921e1",
+    "network": "none",
+    "identity_boundary": {
+      "collector_uid": 0,
+      "collector_gid": 0,
+      "build_uid": 65532,
+      "build_gid": 65532,
+      "evidence_uid": 0,
+      "evidence_gid": 0,
+      "evidence_mode": "0700",
+      "raw_trace_owner_uid": 0,
+      "raw_trace_owner_gid": 0,
+      "separate_collector_identity": true,
+      "collector_output_writable_by_build": false,
+      "quiescence_barrier": "private-pid-namespace-sigkill",
+      "killed_process_count": 0,
+      "remaining_process_count": 0
+    },
+    "hostile_canary_reference": {
+      "case_id": "python-wheel-v2-hostile-isolation-canary",
+      "release_tag": "builder-python-wheel-v2-hostile-canary",
+      "asset_sha256": "d8ad50210bb741be040a3452a9067266be1fa87ed263b36678cf1221dc7c306a"
+    }
+  },
+  "artifacts": [
+    {
+      "name": "bandit-1.9.4-py3-none-any.whl",
+      "sha256": "39e66c66ae9e67708ee2df1fbc8d862c88223856cd5ddef7dfdc3c7dbb157b5f"
+    },
+    {
+      "name": "bandit-1.9.4.tar.gz",
+      "sha256": "a2d7d1cd0e739c847ef14bc5ac386422bf0d8c4f875e7d9a5b782b4778d74d76"
+    }
+  ],
+  "bundles": {
+    "provenance": {
+      "predicate_type": "https://slsa.dev/provenance/v1",
+      "sha256": "59819755aa8a47ce3ed21557bc302502826a37eb0f5f9ccfa33c43a6a715ad1b",
+      "verified_transparency_timestamp_count": 1
+    },
+    "sbom": {
+      "predicate_type": "https://spdx.dev/Document/v2.3",
+      "sha256": "b098f6833bb6ceccfcd7b1288662869e5c449c4738bacbf8047133991090be43",
+      "verified_transparency_timestamp_count": 1
+    },
+    "build": {
+      "predicate_type": "https://assured-downstream.dev/attestation/build/v1",
+      "sha256": "1a7d5330aa46e79c42e4f7d1ce71175ec6f8ebcbcdd2ab3d6a68394c9333eb8f",
+      "verified_transparency_timestamp_count": 1
+    }
+  },
+  "trace": {
+    "collector": "strace 6.1",
+    "observed_trace_sha256": "515a9ee2b29fcc71ffb78c3dd3e83f95b52ac4eccb1a21ef4c10728c24db0a8c",
+    "raw_file_count": 14,
+    "parsed_line_count": 36170,
+    "syscall_line_count": 36157,
+    "signal_line_count": 13,
+    "exit_line_count": 0,
+    "unparsed_line_count": 0,
+    "coverage": {
+      "process": true,
+      "file": true,
+      "network": true,
+      "syscall": true
+    }
+  },
+  "verification": {
+    "evidence_sha256": "efc4268f547a936ddf2c2c4a26f47cc538fa7705d3b81fa8bc83e8f6946b3659",
+    "build_policy_sha256": "dbd2f2dd11a3de58ee247d161e27c482817b09158709dd571d83a6d4338dc6c0",
+    "trust_policy_sha256": "abca9090eebb736a72ce30102f812a5ed6f4ffb46dc3e9f3f041fad2d1fac344",
+    "verifier_sha256": "582a40676acf1394fcaf1c8c8bc5bad21806bd8c864b209d37b185c2df45dc92",
+    "sigstore_trusted_root_sha256": "05a094edfa2e8eb7d1b4b37244e28ffb6d86b8b86ce3eb122b644b4335ae4dc1"
+  },
+  "durable_agent_run": {
+    "run_id": "bandit-v2-29223411225",
+    "status": "succeeded",
+    "workflow": "retained-build-verification-v1",
+    "agent": "builder-verifier",
+    "input_event": "BuildVerificationRequested",
+    "output_event": "BuildAttestationsVerified",
+    "processed_work_count": 1,
+    "pending_work_count": 0,
+    "source_evidence_snapshot_sha256": "5d1c0ab335e551fc7be0efa6930da816090f60ae58862650c569089a752e1941",
+    "staged_evidence_sha256": "efc4268f547a936ddf2c2c4a26f47cc538fa7705d3b81fa8bc83e8f6946b3659",
+    "verification_record_sha256": "9db5965757eb11b9255683bfed57c64531aa58df1884319d711eab6a91edfe49"
+  },
+  "independently_verified": {
+    "sigstore_bundles": true,
+    "artifact_subjects": true,
+    "sbom_artifact_binding": true,
+    "trace_parser_completeness": true,
+    "upstream_lineage": false,
+    "builder_isolation": false,
+    "collector_tamper_resistance": false,
+    "workflow_implementation": false,
+    "reproducibility": false,
+    "semantic_safety": false
+  },
+  "retention": {
+    "github_actions_artifact": {
+      "id": 8268929886,
+      "name": "assured-python-retained-evidence",
+      "sha256": "2a465474bdfdc457a5446a7277c3f305de7c12f0a1968cf67506357bafa4fbb3",
+      "size_bytes": 3239202,
+      "expires_at": "2026-08-12T04:14:32Z"
+    },
+    "durable_release_asset": null
+  },
+  "claim_limit": "This verifies retained signatures, distinct caller and signer identities, artifact subjects, SPDX binding, exact v2 predicate content, and independent raw-trace parser completeness. It does not promote Bandit to Attested or independently prove source ancestry, workflow approval, builder or collector resistance, reproducibility, or semantic safety."
+}

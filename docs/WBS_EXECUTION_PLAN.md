@@ -755,12 +755,13 @@ retain these ownership boundaries.
 
 ## Next Implementation Tasks
 
-1. Implement code-anchored lineage, builder, tooling-lock, and workflow-content
+1. Retain the independently verified Bandit v2 bundle as a durable development
+   case-study asset without promoting it to `Attested`.
+2. Implement code-anchored lineage, builder, tooling-lock, and workflow-content
    verification. Compose those results with the completed Sigstore verifier
    before enabling production `Attested`.
-2. Run the first isolated Bandit build without requiring a public secure ref.
-3. Ingest and independently verify the Bandit bundle, then publish the case
-   study with tamper and policy-block controls.
+3. Run the same immutable Bandit request on a second independent host and emit
+   an artifact, SBOM, and normalized-trace comparison record.
 4. Redesign publication approval inside the GitHub account boundary.
 5. Replay WP1 against the eventual organization and add downstream branch
    protection plus scheduled upstream-change ingestion.

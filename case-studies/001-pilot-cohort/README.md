@@ -2,7 +2,7 @@
 
 Status: five pilot forks created, lineage-verified, locally reconciled, and
 analyzed through durable agents. The exact upstream Bandit source now has a
-verified build-evidence canary, and the replacement Python builder has a
+verified v2 build-evidence canary, and the replacement Python builder has a
 retained hostile-source isolation canary; the separate additive `secure/main`
 patch remains local and unpublished.
 
@@ -94,11 +94,20 @@ fork-of-a-fork lineage, and copyleft obligation handling.
   attestation and retained the canary, raw trace, and verification material as
   a prerelease asset with SHA-256
   `d8ad50210bb741be040a3452a9067266be1fa87ed263b36678cf1221dc7c306a`
+- rebuilt the exact Bandit source through `python-wheel-v2`, retained its
+  root-owned traces, SPDX document, and three keyless bundles, then had the
+  separate Builder Verifier Agent reparse all 36,170 trace records and verify
+  the distinct caller and reusable-signer identities
+- retained the v2 result as `verified-evidence-candidate`; source ancestry,
+  workflow approval, builder or collector resistance, reproducibility, and
+  semantic safety remain explicitly unverified
 
 The machine-readable patch evidence is in [`patch-canary.json`](./patch-canary.json).
 It deliberately makes no build, runtime, attestation, or hardened-release claim.
 The live build result is in
 [`bandit-build-canary.json`](./bandit-build-canary.json).
+The replacement v2 build result is in
+[`bandit-build-canary-v2.json`](./bandit-build-canary-v2.json).
 The builder containment result is in
 [`python-builder-v2-canary.json`](./python-builder-v2-canary.json).
 
@@ -121,13 +130,11 @@ as a separate governed migration.
 
 ## Next Run
 
-1. Migrate the exact Bandit source canary onto the verified v2 builder and
-   re-run the retained Builder Verifier lane.
-2. Verify exact Git ancestry and signer workflow content through independent
+1. Verify exact Git ancestry and signer workflow content through independent
    code before allowing production `Attested` to pass.
-3. Rebuild the same source on a second independent host and compare artifact
+2. Rebuild the same source on a second independent host and compare artifact
    hashes, SBOMs, and normalized behavior.
-4. Review the five unapproved Bandit changes separately; no workflow surgery or
+3. Review the five unapproved Bandit changes separately; no workflow surgery or
    release logic should inherit the additive policy approval.
-5. Redesign publication authorization inside the single-account boundary before
+4. Redesign publication authorization inside the single-account boundary before
    any public `secure/main` mutation.

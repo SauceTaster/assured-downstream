@@ -230,6 +230,8 @@ Current prototype status:
 - a live Bandit source canary completed the digest-pinned no-network build,
   complete strace parser pass, permissionless SPDX generation, three keyless
   Sigstore attestations, and portable evidence assembly
+- the Bandit source canary now runs on `python-wheel-v2`, with a root-owned
+  collector and evidence boundary and an unprivileged UID 65532 build process
 - the code-anchored Builder Verifier Agent independently verified the retained
   signer/caller identities, subjects, SPDX binding, predicates, and transparency
   timestamps while correctly retaining `Evidence-candidate` status
@@ -284,8 +286,10 @@ Current prototype status:
 - behavior reports can be compared across independent builds
 - the first Linux strace collector runs in the digest-pinned Python builder and
   requires a complete parser pass before attestation
-- collector/build UID separation, adversarial tamper validation, and a second
-  independent collector host are still pending
+- collector/build UID separation and an enumerated hostile-source tamper canary
+  are complete for `python-wheel-v2`
+- a second independent collector host and broader kernel/runtime resistance
+  testing are still pending
 
 ## Phase 8: Validation Workflows
 
