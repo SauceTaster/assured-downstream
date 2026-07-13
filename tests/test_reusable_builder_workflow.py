@@ -71,7 +71,10 @@ class ReusableBuilderWorkflowTests(unittest.TestCase):
         ):
             path = ROOT / "src" / "assured_downstream" / name
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
-            self.assertIn(f"{digest} src/assured_downstream/{name}", text)
+            self.assertEqual(
+                text.count(f"{digest} src/assured_downstream/{name}"),
+                3,
+            )
 
     def test_container_is_fixed_and_has_no_network_or_secrets(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")

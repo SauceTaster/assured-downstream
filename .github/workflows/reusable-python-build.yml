@@ -273,7 +273,7 @@ jobs:
           set -euo pipefail
           cd assured-tool
           printf '%s  %s\n' face06d049a8925de14fabc068bcaf691f92d208e2f9b097fcf43e4697babeb2 src/assured_downstream/__init__.py | sha256sum -c -
-          printf '%s  %s\n' eec6f6e7f3e6a0e34d252bc1152c83b8efc8ec988443124ae9ea042f3a094907 src/assured_downstream/builder_handoff.py | sha256sum -c -
+          printf '%s  %s\n' e2c3ed4701a537a008c9ff742c2ebe93676c7b32acbc19c05e8cd2131b7ebe5f src/assured_downstream/builder_handoff.py | sha256sum -c -
           printf '%s  %s\n' 778465cc730f68f0c44e12755dc95adcf78168a1ecedbd5d6fa7aa6c89a5c00a src/assured_downstream/catalog.py | sha256sum -c -
           printf '%s  %s\n' 215c02153b405232a570c3957364dfd84f333b37de56b77e1497a769b953de65 src/assured_downstream/evidence.py | sha256sum -c -
           printf '%s  %s\n' 0fd74a45333689775fa925fdaa44444d465ffd77c710e852eb95e2558bd261a6 src/assured_downstream/seed.py | sha256sum -c -
@@ -386,7 +386,7 @@ jobs:
           set -euo pipefail
           cd assured-tool
           printf '%s  %s\n' face06d049a8925de14fabc068bcaf691f92d208e2f9b097fcf43e4697babeb2 src/assured_downstream/__init__.py | sha256sum -c -
-          printf '%s  %s\n' eec6f6e7f3e6a0e34d252bc1152c83b8efc8ec988443124ae9ea042f3a094907 src/assured_downstream/builder_handoff.py | sha256sum -c -
+          printf '%s  %s\n' e2c3ed4701a537a008c9ff742c2ebe93676c7b32acbc19c05e8cd2131b7ebe5f src/assured_downstream/builder_handoff.py | sha256sum -c -
           printf '%s  %s\n' 778465cc730f68f0c44e12755dc95adcf78168a1ecedbd5d6fa7aa6c89a5c00a src/assured_downstream/catalog.py | sha256sum -c -
           printf '%s  %s\n' 215c02153b405232a570c3957364dfd84f333b37de56b77e1497a769b953de65 src/assured_downstream/evidence.py | sha256sum -c -
           printf '%s  %s\n' 0fd74a45333689775fa925fdaa44444d465ffd77c710e852eb95e2558bd261a6 src/assured_downstream/seed.py | sha256sum -c -
