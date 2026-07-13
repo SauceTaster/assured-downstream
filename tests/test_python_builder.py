@@ -88,7 +88,7 @@ class PythonBuilderTests(unittest.TestCase):
         with self.assertRaises(builder.BuilderError):
             builder.load_metadata({**valid, "ASSURED_PROJECT_VERSION": "1.0; id"})
 
-    def test_strace_parser_records_denied_network_and_syscall_counts(self) -> None:
+    def test_strace_parser_records_syscalls_signals_and_process_exits(self) -> None:
         builder = load_entrypoint()
         with tempfile.TemporaryDirectory() as tmp:
             trace_dir = Path(tmp)
@@ -99,6 +99,8 @@ class PythonBuilderTests(unittest.TestCase):
                         '1783382521.000002 openat(AT_FDCWD, "/workspace/source/setup.py", O_RDONLY|O_CLOEXEC) = 3</workspace/source/setup.py> <0.001>',
                         '1783382521.000003 connect(3<socket:[1]>, {sa_family=AF_INET, sin_port=htons(443), sin_addr=inet_addr("151.101.0.223")}, 16) = -1 ENETUNREACH (Network is unreachable) <0.001>',
                         '1783382521.000004 mount("none", "/mnt", "tmpfs", 0, NULL) = -1 EPERM (Operation not permitted) <0.001>',
+                        "1783382521.000005 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_EXITED, si_pid=13, si_uid=65532, si_status=0, si_utime=0, si_stime=0} ---",
+                        "1783382521.000006 +++ exited with 0 +++",
                     ]
                 )
                 + "\n",
@@ -108,7 +110,11 @@ class PythonBuilderTests(unittest.TestCase):
             trace = builder.parse_strace_directory(trace_dir, collector_version="6.1")
 
         self.assertTrue(trace["coverage"]["syscall"])
-        self.assertEqual(trace["parsed_line_count"], 4)
+        self.assertEqual(trace["parsed_line_count"], 6)
+        self.assertEqual(trace["syscall_line_count"], 4)
+        self.assertEqual(trace["signal_line_count"], 1)
+        self.assertEqual(trace["exit_line_count"], 1)
+        self.assertEqual(trace["unparsed_line_count"], 0)
         network = [event for event in trace["events"] if event["kind"] == "network"]
         self.assertEqual(network[0]["host"], "151.101.0.223")
         self.assertEqual(network[0]["outcome"], "failed")
@@ -118,6 +124,14 @@ class PythonBuilderTests(unittest.TestCase):
             if event["kind"] == "syscall" and event["name"] == "mount"
         ]
         self.assertEqual(mount[0]["outcome"], "failed")
+        self.assertIn(
+            {"kind": "signal", "name": "SIGCHLD", "count": 1},
+            trace["events"],
+        )
+        self.assertIn(
+            {"kind": "process-exit", "status": "exited with 0", "count": 1},
+            trace["events"],
+        )
 
     def test_strace_parser_does_not_claim_unparsed_coverage(self) -> None:
         builder = load_entrypoint()

@@ -37,10 +37,21 @@ unpublished.
 The development reusable workflow is allowlisted to that exact caller workflow
 and Bandit request. General agent dispatch remains disabled until a signed,
 replay-resistant build-request verifier replaces the static allowlist. The
-pinned image entrypoint invokes strace; the handoff verifier requires retained
-raw trace files and a complete parser pass before evidence can reach
-attestation. This demonstrates observed collection, not independent proof that
-the collector or container boundary was uncompromised.
+pinned image entrypoint invokes strace; the parser recognizes syscall, signal,
+and process-termination records while failing closed on any other line. The
+handoff verifier requires retained raw trace files and a complete parser pass
+before evidence can reach attestation. This demonstrates observed collection,
+not independent proof that the collector or container boundary was
+uncompromised.
+
+The development image currently runs its collector supervisor and build child
+under the same unprivileged UID. The child can therefore discover and attempt
+to modify collector-owned paths on the shared writable output mount. Exact
+inventory and parser checks catch accidental corruption but do not establish
+tamper resistance against hostile source. Production builder verification must
+separate the collector and build identities, make raw evidence inaccessible to
+the build identity, and exercise an adversarial tamper canary before promoting
+this collector beyond a builder declaration.
 
 ## Build Result
 

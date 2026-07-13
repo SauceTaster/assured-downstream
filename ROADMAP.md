@@ -227,8 +227,9 @@ Current prototype status:
   Sigstore bundles and SPDX artifact references, and validates
   tooling/workflow-risk input shape without granting assurance; upstream
   ancestry remains a signed workflow claim until independently checked
-- live isolated Bandit execution of SBOM/provenance/signature generation is
-  still pending
+- live isolated Bandit source builds run successfully through the digest-pinned
+  no-network builder; the first trace handoff failed closed on unclassified
+  strace records, and the retained attestation lane remains under validation
 
 ## Phase 6: Reproducible Release
 
@@ -278,7 +279,10 @@ Current prototype status:
 - behavior digests cover process, file, network, and syscall/security-event
   categories
 - behavior reports can be compared across independent builds
-- real trace collector integrations are still pending
+- the first Linux strace collector runs in the digest-pinned Python builder and
+  requires a complete parser pass before attestation
+- collector/build UID separation, adversarial tamper validation, and a second
+  independent collector host are still pending
 
 ## Phase 8: Validation Workflows
 

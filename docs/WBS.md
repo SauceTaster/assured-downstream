@@ -208,7 +208,8 @@ Status: comparison primitives built, runners pending.
 
 ### 4.2 Behavior Reproducibility
 
-Status: normalization primitives built, collectors pending.
+Status: normalization primitives and first Linux strace collector built;
+tamper-resistant collection and independent-host comparison pending.
 
 - 4.2.1 Normalize JSON trace events
 - 4.2.2 Compare behavior digests
@@ -216,6 +217,8 @@ Status: normalization primitives built, collectors pending.
 - 4.2.4 Integrate syscall/security-event collection
 - 4.2.5 Define stable allowed divergence rules
 - 4.2.6 Add behavior mismatch reports
+- 4.2.7 Separate collector-owned evidence from the hostile build UID
+- 4.2.8 Add adversarial trace-tampering canaries
 
 ## 5. Stewardship And Custody
 

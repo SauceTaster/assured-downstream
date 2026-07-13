@@ -28,6 +28,15 @@ SYSCALL_PATTERN = re.compile(
     r"(?P<name>[A-Za-z0-9_]+)\((?P<args>.*)\)\s+=\s+"
     r"(?P<result>.*?)(?:\s+<[0-9.]+>)?$"
 )
+SIGNAL_PATTERN = re.compile(
+    r"^(?P<timestamp>[0-9]+\.[0-9]+)\s+---\s+"
+    r"(?P<name>SIG[A-Z0-9]+)\s+\{.*\}\s+---$"
+)
+EXIT_PATTERN = re.compile(
+    r"^(?P<timestamp>[0-9]+\.[0-9]+)\s+\+\+\+\s+"
+    r"(?P<status>exited with [0-9]+|killed by SIG[A-Z0-9]+(?: \(core dumped\))?)"
+    r"\s+\+\+\+$"
+)
 QUOTED_PATTERN = re.compile(r'"((?:[^"\\]|\\.)*)"')
 FILE_OPERATIONS = {
     "creat": "create",
@@ -144,6 +153,9 @@ def main() -> int:
             "coverage": trace["coverage"],
             "raw_file_count": trace["raw_file_count"],
             "parsed_line_count": trace["parsed_line_count"],
+            "syscall_line_count": trace["syscall_line_count"],
+            "signal_line_count": trace["signal_line_count"],
+            "exit_line_count": trace["exit_line_count"],
             "unparsed_line_count": trace["unparsed_line_count"],
         },
         "claim_limit": (
@@ -294,14 +306,30 @@ def parse_strace_directory(
     raw_files = sorted(path for path in root.glob("strace.*") if path.is_file())
     events: collections.Counter[tuple[str, ...]] = collections.Counter()
     parsed = 0
+    syscalls = 0
+    signals = 0
+    exits = 0
     unparsed = 0
     for path in raw_files:
         for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
             match = SYSCALL_PATTERN.match(line)
             if match is None:
+                signal = SIGNAL_PATTERN.match(line)
+                if signal is not None:
+                    parsed += 1
+                    signals += 1
+                    events[("signal", signal.group("name"))] += 1
+                    continue
+                process_exit = EXIT_PATTERN.match(line)
+                if process_exit is not None:
+                    parsed += 1
+                    exits += 1
+                    events[("process-exit", process_exit.group("status"))] += 1
+                    continue
                 unparsed += 1
                 continue
             parsed += 1
+            syscalls += 1
             name = match.group("name")
             arguments = match.group("args")
             result = match.group("result")
@@ -337,6 +365,9 @@ def parse_strace_directory(
         ),
         "raw_file_count": len(raw_files),
         "parsed_line_count": parsed,
+        "syscall_line_count": syscalls,
+        "signal_line_count": signals,
+        "exit_line_count": exits,
         "unparsed_line_count": unparsed,
         "events": [event_from_key(key, count) for key, count in sorted(events.items())],
     }
@@ -392,6 +423,10 @@ def event_from_key(key: tuple[str, ...], count: int) -> dict[str, Any]:
             "outcome": key[2],
             "count": count,
         }
+    if kind == "signal":
+        return {"kind": kind, "name": key[1], "count": count}
+    if kind == "process-exit":
+        return {"kind": kind, "status": key[1], "count": count}
     if kind == "file":
         return {
             "kind": kind,
