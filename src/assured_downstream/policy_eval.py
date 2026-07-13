@@ -101,10 +101,7 @@ def evaluate_release_candidate(
             )
 
     if target_at_least(target, "Reproducible"):
-        if not evidence_comparison:
-            failures.append("missing evidence comparison for reproducibility target")
-        elif not evidence_comparison.get("ok"):
-            failures.append("evidence comparison did not match")
+        validate_reproducibility_gate_shape(evidence_comparison, failures)
 
     if target_at_least(target, "Behavior-Reproducible"):
         if not behavior_comparison:
@@ -146,6 +143,11 @@ def evaluate_release_candidate(
                 if workflow_risk_verification is None
                 else bool(workflow_risk_verification.get("ok"))
             ),
+            "reproducibility_candidate_gate_ok": (
+                None
+                if evidence_comparison is None
+                else evidence_comparison.get("passed") is True
+            ),
         },
     }
 
@@ -161,6 +163,35 @@ def require_role(
 ) -> None:
     if not evidence_roles.get(role):
         failures.append(f"missing required evidence role: {role}")
+
+
+def validate_reproducibility_gate_shape(
+    gate: dict[str, Any] | None,
+    failures: list[str],
+) -> None:
+    if gate is None:
+        failures.append(
+            "missing durable reproducibility candidate gate for reproducibility target"
+        )
+        return
+    if gate.get("schema_version") != 1:
+        failures.append("reproducibility gate schema is invalid")
+    if gate.get("gate") != "artifact-reproducibility-candidate":
+        failures.append("evidence comparison is not a reproducibility candidate gate")
+    if gate.get("authority") != "durable-reproducibility-candidate-gate":
+        failures.append("reproducibility gate authority is invalid")
+    if gate.get("passed") is not True:
+        failures.append("evidence comparison did not match")
+    if gate.get("promotion_authorized") is not False:
+        failures.append("reproducibility candidate gate overstates promotion authority")
+    comparison = gate.get("comparison")
+    if (
+        not isinstance(comparison, dict)
+        or not is_sha256(comparison.get("sha256"))
+        or type(comparison.get("size")) is not int
+        or comparison["size"] < 1
+    ):
+        failures.append("reproducibility gate comparison reference is invalid")
 
 
 def validate_attestation_claim_shape(

@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "status": "rebuild-mismatch-needs-human-review",
+  "case_id": "case-001-bandit-source-canary-v2-repro-01",
+  "recorded_at": "2026-07-13T05:18:23+00:00",
+  "source": {
+    "repository": "PyCQA/bandit",
+    "commit": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+    "tree": "5313408ad294e5a95f214620ec3064f8e40bc608",
+    "target_repository": "SauceTaster/assured-bandit",
+    "version": "1.9.4",
+    "builder_profile": "python-wheel-v2",
+    "builder_image": "ghcr.io/saucetaster/assured-downstream-python-builder@sha256:18916b853d240d87c653175368bd9a8f54edac8f77553d7c0e2b23abb87d5221"
+  },
+  "evidence_sets": [
+    {
+      "side": "left",
+      "declared_execution_id": "github-actions:29223411225",
+      "workflow_run_url": "https://github.com/SauceTaster/assured-downstream/actions/runs/29223411225",
+      "caller_commit": "3e715b6be41a36b770a16999457c2783fea71b23",
+      "source_manifest_sha256": "5d1c0ab335e551fc7be0efa6930da816090f60ae58862650c569089a752e1941",
+      "staged_manifest_sha256": "78644e605c063f45fb505f0d527bed4b13bd7fc78985f46305bb3b74d797f86e",
+      "verification_record_sha256": "f05a91e1fa5d22f6d6b16f2fc1a276a329cadbd6520eee11b6c1166b23358a2f",
+      "github_actions_artifact": {
+        "id": 8268929886,
+        "sha256": "2a465474bdfdc457a5446a7277c3f305de7c12f0a1968cf67506357bafa4fbb3",
+        "size_bytes": 3239202,
+        "expires_at": "2026-08-12T04:14:32Z"
+      }
+    },
+    {
+      "side": "right",
+      "declared_execution_id": "github-actions:29224510682",
+      "workflow_run_url": "https://github.com/SauceTaster/assured-downstream/actions/runs/29224510682",
+      "caller_commit": "924c50d579f7d0ea213c29a33ac29e538743891b",
+      "source_manifest_sha256": "728915ad4409a05524a12408bc00c41a2759fa4886fc96e2b4fc31dc2d0eed10",
+      "staged_manifest_sha256": "888c56f73731ce94ff1dc930ebcf23c1768db97ed6ca8b506f728b81f0c6a6f8",
+      "verification_record_sha256": "41dd968ae816c769ab2de00efdcc0daca174b56334a7bef7f84c4a583a0920d6",
+      "github_actions_artifact": {
+        "id": 8269278349,
+        "sha256": "e02b7bc93a11518e25198bbb3a8a359692a55d6188ca48414e2cc6a9a79f96b5",
+        "size_bytes": 3235086,
+        "expires_at": "2026-08-12T04:41:10Z"
+      }
+    }
+  ],
+  "verification": {
+    "fresh_sigstore_verification_per_evidence_set": true,
+    "manifest_bytes_bound_to_verification_record": true,
+    "build_policy_sha256": "f17a82d87367e303f0275688d1a13805d199fea41a82e2cfae5414ded114ac60",
+    "trust_policy_sha256": "abca9090eebb736a72ce30102f812a5ed6f4ffb46dc3e9f3f041fad2d1fac344",
+    "signer_commit": "90c37838bd227618f36bcc2ae25436e51d2d3a98",
+    "distinct_attestation_sets": true,
+    "distinct_builder_windows": true,
+    "declared_execution_identifiers_attested": false,
+    "provider_independence": false
+  },
+  "artifact_comparison": {
+    "exact_match": false,
+    "payload_equivalent": true,
+    "artifacts": [
+      {
+        "name": "bandit-1.9.4-py3-none-any.whl",
+        "classification": "exact-match",
+        "left_sha256": "39e66c66ae9e67708ee2df1fbc8d862c88223856cd5ddef7dfdc3c7dbb157b5f",
+        "right_sha256": "39e66c66ae9e67708ee2df1fbc8d862c88223856cd5ddef7dfdc3c7dbb157b5f"
+      },
+      {
+        "name": "bandit-1.9.4.tar.gz",
+        "classification": "archive-metadata-only",
+        "left_sha256": "a2d7d1cd0e739c847ef14bc5ac386422bf0d8c4f875e7d9a5b782b4778d74d76",
+        "right_sha256": "d4b6c36c33225a63d0fbce8945674dcf7a3deedfd46d74d6f1c6ec21ccd8b4e3",
+        "payload_sha256": "4f1c79d5eb8506e5e223f7fdff544b74c123c3a1615d0079c027b65cba05881b",
+        "payload_size_bytes": 417748,
+        "member_count": 89,
+        "metadata_difference_fields": [
+          "gzip_mtime",
+          "mtime"
+        ]
+      }
+    ]
+  },
+  "sbom_comparison": {
+    "exact_match": false,
+    "left_sha256": "bba148920bccac6c6939a4802f4254b03823d0e7920336138da8265a8e37f5cf",
+    "right_sha256": "b9a57794036b6ee17b50f0522bf3fef5e770fb9c1e282c22679282da7fef7d02",
+    "package_inventory_match": true,
+    "package_inventory_sha256": "7e5c7a7d6b15ced62c45e8e6758c04f95973be3c2cdefce91b262d3c68c8ad40",
+    "artifact_bindings_match": false,
+    "volatile_fields": [
+      "creationInfo.created",
+      "documentNamespace"
+    ]
+  },
+  "stable_comparisons": {
+    "source_inventory_match": true,
+    "source_inventory_sha256": "c21c46a48673709bc2e205cc9f2d55b2f2bf0bcd202aca7971bcdabf977a8724",
+    "builder_projection_match": true,
+    "builder_projection_sha256": "765ef88dcf37aa019294186273e166eb482df257fe0d7c999630e8db0cb28baa",
+    "raw_trace_summary_match": true,
+    "normalized_behavior_match": true,
+    "normalized_behavior_sha256": "8fc6b744e2e074cc7d7ac959182f39e7b0e33d04c1d48e04e26e9cb8e7fc370b",
+    "behavior_is_promotion_gate": false
+  },
+  "durable_agent_run": {
+    "run_id": "bandit-v2-repro-reviewed-29223411225-29224510682",
+    "workflow": "retained-build-reproducibility-v1",
+    "status": "needs_human_review",
+    "agents": [
+      "repro",
+      "governor"
+    ],
+    "events": [
+      "RebuildComparisonRequested",
+      "RebuildMismatch",
+      "GateBlocked"
+    ],
+    "processed_work_count": 2,
+    "pending_work_count": 0,
+    "verified_artifact_count": 9,
+    "comparison_sha256": "4adce568bd25795f050438bbb125dc21e67949f1b3ecd9a403e8390df55c801e",
+    "mismatch_review_sha256": "983ad251c8cb1913c8ddbcd3a04f9b21d6865678bf789ea647f5c028754eec18",
+    "gate_sha256": "f57ee5409dae4d21a2096ea7094bc2ef301ce1efda9dc76280f9a4fc9eacb5d2"
+  },
+  "gate": {
+    "name": "artifact-reproducibility-candidate",
+    "passed": false,
+    "promotion_authorized": false,
+    "comparison_matched": false,
+    "authority": "durable-reproducibility-candidate-gate",
+    "all_integrity_checks_passed": true,
+    "blocking_findings": [
+      "artifact-byte-mismatch:bandit-1.9.4.tar.gz:archive-metadata-only",
+      "sbom-byte-mismatch:sbom.spdx.json:semantic-or-binding-mismatch"
+    ]
+  },
+  "independently_verified": {
+    "sigstore_bundles": true,
+    "artifact_subjects": true,
+    "spdx_artifact_binding_per_evidence_set": true,
+    "manifest_to_verification_binding": true,
+    "artifact_reproducibility": false,
+    "behavior_reproducibility": false,
+    "provider_independence": false,
+    "upstream_lineage": false,
+    "builder_isolation": false,
+    "collector_tamper_resistance": false,
+    "workflow_implementation": false,
+    "semantic_safety": false
+  },
+  "next_builder_requirements": [
+    "make Python sdist gzip and tar member mtimes deterministic in a new immutable builder profile",
+    "make SPDX creation time and document namespace deterministic",
+    "bind GitHub run id and run attempt in the signed build predicate",
+    "repeat two executions from one exact caller commit before any reproducibility candidate"
+  ],
+  "claim_limit": "This case proves the Repro and Governor agents can freshly reverify and compare two retained evidence sets, classify a payload-equivalent archive metadata mismatch, and durably block promotion. It does not establish a Reproducible release, independent hosts, attested workflow run identifiers, behavior-reproducible assurance, source ancestry, builder or collector resistance, or semantic safety."
+}

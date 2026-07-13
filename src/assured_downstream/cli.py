@@ -75,6 +75,12 @@ from assured_downstream.recon import inspect_repository
 from assured_downstream.release_profile import plan_release_profile
 from assured_downstream.release_render import render_release_workflow
 from assured_downstream.release_verification import verify_release_attestations
+from assured_downstream.reproducibility_agents import (
+    REPRODUCIBILITY_WORKFLOW,
+    reproducibility_handlers,
+    reproducibility_routes,
+    run_reproducibility_agent_system,
+)
 from assured_downstream.scoring import score_catalog
 from assured_downstream.seed import parse_seed_source
 from assured_downstream.selection import load_candidate_policy
@@ -405,6 +411,32 @@ def build_parser() -> argparse.ArgumentParser:
     build_verification_run.add_argument("--enqueue-only", action="store_true")
     build_verification_run.set_defaults(func=command_build_verification_run)
 
+    reproducibility_run = subparsers.add_parser(
+        "reproducibility-run",
+        help=(
+            "Reverify and compare two retained builds through the durable Repro "
+            "Agent."
+        ),
+    )
+    reproducibility_run.add_argument(
+        "--left-evidence", required=True, type=Path
+    )
+    reproducibility_run.add_argument(
+        "--right-evidence", required=True, type=Path
+    )
+    reproducibility_run.add_argument("--left-execution-id", required=True)
+    reproducibility_run.add_argument("--right-execution-id", required=True)
+    reproducibility_run.add_argument("--policy", required=True, type=Path)
+    reproducibility_run.add_argument(
+        "--trust-policy", required=True, type=Path
+    )
+    reproducibility_run.add_argument("--run-dir", required=True, type=Path)
+    reproducibility_run.add_argument("--database", type=Path)
+    reproducibility_run.add_argument("--run-id")
+    reproducibility_run.add_argument("--max-items", type=int, default=20)
+    reproducibility_run.add_argument("--enqueue-only", action="store_true")
+    reproducibility_run.set_defaults(func=command_reproducibility_run)
+
     agent_worker = subparsers.add_parser(
         "agent-worker",
         help="Drain leased work for one durable agent run.",
@@ -425,6 +457,7 @@ def build_parser() -> argparse.ArgumentParser:
                     *authorized_publication_handlers(),
                     *release_evidence_handlers(),
                     *build_verification_handlers(),
+                    *reproducibility_handlers(),
                 ]
             }
         ),
@@ -1076,6 +1109,29 @@ def command_build_verification_run(args: argparse.Namespace) -> int:
     return 0 if result["status"] in {"running", "succeeded"} else 2
 
 
+def command_reproducibility_run(args: argparse.Namespace) -> int:
+    result = run_reproducibility_agent_system(
+        left_evidence_path=args.left_evidence,
+        right_evidence_path=args.right_evidence,
+        left_execution_id=args.left_execution_id,
+        right_execution_id=args.right_execution_id,
+        policy_path=args.policy,
+        trust_policy_path=args.trust_policy,
+        run_dir=args.run_dir,
+        database_path=args.database,
+        run_id=args.run_id,
+        max_items=args.max_items,
+        enqueue_only=args.enqueue_only,
+    )
+    print(f"reproducibility run: {result['run_id']}")
+    print(f"status: {result['status']}")
+    print(f"processed work attempts: {result['processed_count']}")
+    print(f"pending work: {result['pending_count']}")
+    print(f"database: {result['database_path']}")
+    print(f"summary: {result['summary_path']}")
+    return 0 if result["status"] in {"running", "succeeded"} else 2
+
+
 def command_agent_worker(args: argparse.Namespace) -> int:
     store = AgentStore(args.database)
     run_id = args.run_id or store.latest_run_id()
@@ -1095,6 +1151,9 @@ def command_agent_worker(args: argparse.Namespace) -> int:
     elif workflow == BUILD_VERIFICATION_WORKFLOW:
         available_handlers = build_verification_handlers()
         routes = build_verification_routes()
+    elif workflow == REPRODUCIBILITY_WORKFLOW:
+        available_handlers = reproducibility_handlers()
+        routes = reproducibility_routes()
     elif workflow == "discovery-to-fork-plan":
         available_handlers = first_lane_handlers()
     else:

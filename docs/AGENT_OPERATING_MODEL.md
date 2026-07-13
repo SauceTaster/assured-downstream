@@ -111,6 +111,9 @@ DiscoveryRequested
   -> ReleaseEvidenceReady
   -> ReleaseAttestationsVerified
   -> GatePassed | GateBlocked
+  -> RebuildComparisonRequested
+  -> RebuildCompared | RebuildMismatch
+  -> ReproducibilityCandidateReady | GateBlocked
   -> ReleasePublished
   -> ForkPresentationReady
   -> ProjectWatched
@@ -123,7 +126,7 @@ UpstreamChanged
 AdvisoryFound
 ToolRefreshDue
 PolicyRefreshDue
-RebuildRequested
+RebuildComparisonRequested
 ```
 
 Failure events:
@@ -252,6 +255,12 @@ Core artifacts:
 
 The lane answers: "What was built, from what, by whom, under what controls, and
 can the claim be independently checked?"
+
+The Repro Agent independently reruns retained-bundle verification for both
+evidence sets before comparing them. Governor consumes both match and mismatch
+events. Stage 1 can emit a non-authorizing reproducibility candidate or a durable
+block; it does not claim provider-independent hosts, and normalized behavior is
+diagnostic until artifact reproducibility is stable.
 
 ### Publication And Stewardship Lane
 

@@ -197,7 +197,9 @@ GitHub attestation ingestion remain.
 
 ### 4.1 Artifact Reproducibility
 
-Status: comparison primitives built, runners pending.
+Status: durable Repro/Governor comparison is implemented and exercised over two
+real retained Bandit evidence sets. The first case blocked on sdist and SPDX byte
+drift. Deterministic builder repair and provider-independent runners remain.
 
 - 4.1.1 Compare evidence manifests
 - 4.1.2 Compare artifact hashes across hosts
@@ -208,8 +210,10 @@ Status: comparison primitives built, runners pending.
 
 ### 4.2 Behavior Reproducibility
 
-Status: normalization primitives and first Linux strace collector built;
-tamper-resistant collection and independent-host comparison pending.
+Status: trace normal form v2 and the first Linux strace collector are built. Two
+Bandit observations match diagnostically after enumerated temp-path
+normalization; behavior gating, tamper-resistant collection proof, and
+independent-host comparison remain pending.
 
 - 4.2.1 Normalize JSON trace events
 - 4.2.2 Compare behavior digests

@@ -266,6 +266,16 @@ The lane emits `EvidenceCandidateReady`, which grants no assurance and cannot
 publish a release; code-anchored lineage, tooling, workflow, and builder
 verification remain next.
 
+`build-verification-run` snapshots one retained evidence bundle and drives the
+Builder Verifier Agent. `reproducibility-run` snapshots two bundles separately,
+freshly runs that verifier for each, and hands exact artifact, SPDX, material,
+builder, archive-payload, and diagnostic behavior results from Repro Agent to
+Governor. A mismatch emits `RebuildMismatch` followed by `GateBlocked`; an exact
+match can emit only `ReproducibilityCandidateReady`. Neither path authorizes
+release promotion or claims independent hosts. The first real Bandit pair
+correctly blocked on sdist metadata and SPDX byte drift while retaining matching
+wheel and normalized behavior evidence.
+
 `create-project-packet` produces passive fork metadata, lineage, an overlay
 summary, and optional fetch commands. Assured Downstream does not create pull
 requests, issues, comments, email, or other outbound maintainer contact.

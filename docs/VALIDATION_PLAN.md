@@ -159,6 +159,32 @@ The local synthetic control suite passes this tier. It does not validate a real
 GitHub certificate or establish upstream ancestry; T2 must ingest genuine
 bundles from the generated workflow.
 
+### T1.10 - Retained Rebuild Comparison Controls
+
+Purpose: prove two retained evidence sets are freshly reverified, compared, and
+routed through a durable Governor without granting unsupported reproducibility
+or host-independence claims.
+
+Pass condition:
+
+- each parsed evidence manifest is hash-bound to its fresh Builder Verifier
+  record
+- exact artifact and SPDX bytes are required for a reproducibility candidate
+- archive payload equivalence is diagnostic and cannot override a byte mismatch
+- malformed, oversized, linked, duplicate-path, or escaping archives fail closed
+- behavior comparison remains diagnostic until artifact reproducibility is
+  stable
+- mismatch emits `RebuildMismatch`, then `GateBlocked`, with
+  `promotion_authorized: false`
+- a loose caller-supplied `{"ok": true}` comparison cannot satisfy release
+  policy shape
+
+The first real Bandit pair passed the control behavior and correctly failed the
+artifact outcome on 2026-07-13. The wheel and normalized behavior matched; the
+sdist payload matched but gzip/tar mtimes changed, and SPDX bytes also changed.
+The durable run remained `needs_human_review`. This is a successful validation
+of mismatch handling, not a `Reproducible` release.
+
 ### T2 - Sandbox Owner Attested Case Study
 
 Purpose: prove an end-to-end downstream fork can produce evidence.

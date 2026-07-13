@@ -37,7 +37,7 @@ class PolicyEvalTests(unittest.TestCase):
             ),
             target="Reproducible",
             evidence_verification={"ok": True},
-            evidence_comparison={"ok": False},
+            evidence_comparison=reproducibility_gate(passed=False),
         )
 
         self.assertEqual(result["decision"], "block")
@@ -52,11 +52,29 @@ class PolicyEvalTests(unittest.TestCase):
             ),
             target="Behavior-Reproducible",
             evidence_verification={"ok": True},
-            evidence_comparison={"ok": True},
+            evidence_comparison=reproducibility_gate(passed=True),
             behavior_comparison={"ok": True},
         )
 
         self.assertEqual(result["decision"], "candidate")
+
+    def test_reproducible_candidate_rejects_unbound_ok_flag(self) -> None:
+        result = evaluate_with_verifications(
+            evidence=manifest(
+                artifacts=[{"name": "tool"}],
+                sboms=[{"name": "sbom.spdx.json"}],
+                attestations=[{"name": "build.intoto.json"}],
+            ),
+            target="Reproducible",
+            evidence_verification={"ok": True},
+            evidence_comparison={"ok": True},
+        )
+
+        self.assertEqual(result["decision"], "block")
+        self.assertIn(
+            "reproducibility candidate gate",
+            " ".join(result["failures"]),
+        )
 
     def test_attested_release_requires_verified_evidence(self) -> None:
         result = evaluate_with_verifications(
@@ -207,6 +225,21 @@ def workflow_risk_verification() -> dict:
         "ok": True,
         "analyzed_workflow_sha256": "3" * 64,
         "findings": [],
+    }
+
+
+def reproducibility_gate(*, passed: bool) -> dict:
+    return {
+        "schema_version": 1,
+        "gate": "artifact-reproducibility-candidate",
+        "passed": passed,
+        "authority": "durable-reproducibility-candidate-gate",
+        "promotion_authorized": False,
+        "comparison": {
+            "path": "/evidence/rebuild-comparison.json",
+            "sha256": "4" * 64,
+            "size": 1024,
+        },
     }
 
 

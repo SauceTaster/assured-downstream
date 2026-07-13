@@ -5,6 +5,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 .coverage
+.DS_Store
 htmlcov/
 build/
 dist/

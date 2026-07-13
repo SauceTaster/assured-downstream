@@ -8,7 +8,8 @@
     "certificate_identity": "https://github.com/SauceTaster/assured-downstream/.github/workflows/reusable-python-build.yml@90c37838bd227618f36bcc2ae25436e51d2d3a98",
     "caller_workflow_path": ".github/workflows/case-study-bandit-build.yml",
     "caller_digests": [
-      "3e715b6be41a36b770a16999457c2783fea71b23"
+      "3e715b6be41a36b770a16999457c2783fea71b23",
+      "924c50d579f7d0ea213c29a33ac29e538743891b"
     ],
     "source_ref": "refs/heads/main",
     "trigger": "workflow_dispatch",

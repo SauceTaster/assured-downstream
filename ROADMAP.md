@@ -257,9 +257,14 @@ Exit criteria:
 
 Current prototype status:
 
-- evidence manifests can be compared across independent builds
-- comparison matches evidence files by role, name, size, and SHA-256
-- mismatch reports are machine-readable and CLI-visible
+- the durable Repro Agent snapshots and freshly reverifies two retained evidence
+  sets before comparison
+- exact artifact and SPDX bytes, source materials, and stable builder controls
+  are compared; tar payload equivalence is reported without overriding byte drift
+- mismatch packets route to Governor and produce a non-authorizing
+  `GateBlocked` decision
+- the first real Bandit pair blocked on sdist/SPDX drift; provider-independent
+  execution and a passed `Reproducible` candidate remain
 
 ## Phase 7: Runtime and Behavior Evidence
 

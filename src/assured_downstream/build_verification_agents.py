@@ -237,12 +237,29 @@ def run_build_verification_agent_system(
     return result
 
 
-def snapshot_evidence_bundle(evidence_path: Path, *, run_dir: Path) -> dict[str, Any]:
+def snapshot_evidence_bundle(
+    evidence_path: Path,
+    *,
+    run_dir: Path,
+    namespace: str | None = None,
+) -> dict[str, Any]:
+    if namespace is not None and (
+        not namespace
+        or len(namespace) > 64
+        or any(
+            character not in "abcdefghijklmnopqrstuvwxyz0123456789-"
+            for character in namespace
+        )
+    ):
+        raise EvidenceLaneError("Evidence snapshot namespace is invalid")
+    input_root = run_dir / "inputs"
+    if namespace is not None:
+        input_root /= namespace
     source_manifest = evidence_path.expanduser()
     source_root = source_manifest.parent.resolve()
     source_manifest_snapshot = snapshot_regular_file(
         source_manifest,
-        target_dir=run_dir / "inputs" / "source",
+        target_dir=input_root / "source",
         label="source-evidence.json",
     )
     manifest = read_json(Path(source_manifest_snapshot["path"]))
@@ -269,7 +286,7 @@ def snapshot_evidence_bundle(evidence_path: Path, *, run_dir: Path) -> dict[str,
             )
             snapshot = snapshot_regular_file(
                 source,
-                target_dir=run_dir / "inputs" / "evidence" / role,
+                target_dir=input_root / "evidence" / role,
                 label=f"{position}-{source.name}",
             )
             if snapshot["sha256"] != entry.get("sha256"):
@@ -279,9 +296,11 @@ def snapshot_evidence_bundle(evidence_path: Path, *, run_dir: Path) -> dict[str,
             staged_entry.update(snapshot)
             staged_entries.append(staged_entry)
         staged_roles[role] = staged_entries
-    staged_manifest = run_dir / "inputs" / "evidence.json"
+    staged_manifest = input_root / "evidence.json"
     write_json_atomic(staged_manifest, staged)
-    return artifact_reference(staged_manifest)
+    reference = artifact_reference(staged_manifest)
+    reference["source_manifest_sha256"] = source_manifest_snapshot["sha256"]
+    return reference
 
 
 def ensure_build_verification_run(

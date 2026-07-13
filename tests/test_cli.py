@@ -108,6 +108,31 @@ class CliTests(unittest.TestCase):
         self.assertEqual(args.policy, Path("policies/release-verification.json"))
         self.assertEqual(args.output, Path("verification.json"))
 
+    def test_reproducibility_run_requires_two_declared_executions(self) -> None:
+        args = build_parser().parse_args(
+            [
+                "reproducibility-run",
+                "--left-evidence",
+                "left/evidence.json",
+                "--right-evidence",
+                "right/evidence.json",
+                "--left-execution-id",
+                "github-actions:1",
+                "--right-execution-id",
+                "github-actions:2",
+                "--policy",
+                "policies/build-verification.json",
+                "--trust-policy",
+                "policies/release-verification.json",
+                "--run-dir",
+                "runs/repro-001",
+            ]
+        )
+
+        self.assertEqual(args.left_execution_id, "github-actions:1")
+        self.assertEqual(args.right_execution_id, "github-actions:2")
+        self.assertEqual(args.run_dir, Path("runs/repro-001"))
+
     def test_checkout_run_parser_keeps_sync_execution_explicit(self) -> None:
         args = build_parser().parse_args(
             [

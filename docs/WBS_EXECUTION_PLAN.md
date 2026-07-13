@@ -5,7 +5,7 @@ agent-sized work packages that can be built in parallel without widening the
 MVP beyond a working assured downstream lane.
 
 Synthesized from four read-only Codex worker reviews on 2026-07-09 and updated
-through the retained-bundle verifier review on 2026-07-12:
+through the retained two-run Repro Agent review on 2026-07-13:
 
 - control plane and operations
 - recon, overlay, and release rendering
@@ -14,7 +14,7 @@ through the retained-bundle verifier review on 2026-07-12:
 
 ## Implementation Snapshot
 
-As of the 2026-07-12 prototype pass:
+As of the 2026-07-13 prototype pass:
 
 - WP0 core is implemented: pilot runs write a run index, selection reasons, and
   allow/suppress policy decisions.
@@ -41,9 +41,17 @@ As of the 2026-07-12 prototype pass:
   lineage, and builder claims remain untrusted. Production `Attested` remains
   deliberately blocked pending those code-anchored checks.
 - WP6 now renders separate build, unprivileged inspection/SBOM, and privileged
-  attestation jobs, portable evidence bundles, and a durable five-agent
-  ingestion lane. Real isolated execution and ingestion of genuine GitHub
-  bundles remain.
+  attestation jobs, portable evidence bundles, and durable evidence lanes. The
+  Python v2 path has completed real GitHub-hosted executions and fresh retained
+  Sigstore verification; other ecosystems remain.
+- WP11 stage 1 is implemented and exercised on two retained Bandit evidence
+  sets: the Repro Agent freshly reverifies both manifests, performs defensive
+  archive/SBOM/material/builder comparison, and routes mismatches to a durable
+  Governor gate. The first case correctly failed exact reproducibility because
+  sdist and SPDX bytes differ.
+- WP12 diagnostics have advanced without becoming a gate: trace normal form v2
+  preserves counts, outcomes, and signals while normalizing enumerated Python
+  temp paths. Both Bandit observations produced the same normalized digest.
 - WP8/WP9 are implemented locally: passive fork publication packets, optional
   fetch instructions, and custodian governance fields exist.
 - A local `self-test` command now exercises first-lane fixtures, Attested
@@ -52,18 +60,19 @@ As of the 2026-07-12 prototype pass:
 
 Current critical path:
 
-1. WP7: implement code-anchored lineage, builder, tooling, and workflow-content
-   verifiers. Sigstore certificate, subject, SBOM, and predicate-content
-   verification is implemented; signed workflow claims are not yet independent
-   proof of ancestry or isolation.
-2. Run the first isolated Bandit build from the exact retained local commit in a
-   disposable Linux builder and ingest its evidence bundle.
-3. Turn that run into the first honest case study, including blocked and
-   tampered-evidence controls.
-4. Redesign remote authorization inside the single-account boundary, then test
+1. Version the Python builder so sdist gzip/tar mtimes and SPDX creation metadata
+   are deterministic; run the same exact caller twice and require a green
+   Governor reproducibility candidate.
+2. Bind workflow run id and attempt into the signed build predicate, while
+   keeping provider-independent rebuilds a separate future proof requirement.
+3. WP7: implement code-anchored lineage, builder, tooling, and workflow-content
+   verifiers. Signed workflow claims are not yet separate proof of ancestry or
+   isolation.
+4. Add real Java and .NET build/evidence profiles after the corrected Python
+   two-run case passes.
+5. Redesign remote authorization inside the single-account boundary, then test
    public secure-ref publication separately from build safety.
-5. Add organization replay, branch protection, and scheduled upstream detection.
-6. Run WP10, then start WP11 only after a green Attested sandbox run.
+6. Add organization replay, branch protection, and scheduled upstream detection.
 
 ## Operating Rules
 
@@ -656,6 +665,9 @@ Do not scope creep:
 
 Owner: Evidence/Repro Agent.
 
+Status: comparator, durable Repro/Governor handoff, mismatch packet, and blocked
+real Bandit case implemented. A `Reproducible` candidate has not passed.
+
 WBS refs: 4.1.4, 4.1.5, 4.1.6, 6.2.2.
 
 Purpose: add reproducible artifact claims after the Attested path is real.
@@ -663,13 +675,13 @@ Purpose: add reproducible artifact claims after the Attested path is real.
 Inputs:
 
 - release profile build commands
-- two rebuild host results
+- two retained rebuild results with explicit provider-independence status
 - evidence manifests
 
 Outputs:
 
-- host A evidence manifest
-- host B evidence manifest
+- evidence set A manifest
+- evidence set B manifest
 - comparison report
 - mismatch review packet
 - `Reproducible` release evaluation
@@ -696,6 +708,9 @@ Do not scope creep:
 ### WP12 - Behavior Reproducibility Stage 1
 
 Owner: Evidence/Repro Agent with Governor/Safety Agent.
+
+Status: Linux trace collection and diagnostic normal form v2 are implemented for
+the Python builder. No behavior gate or independence claim is enabled.
 
 WBS refs: 4.2.3, 4.2.4, 4.2.5, 4.2.6, 6.2.3.
 
@@ -755,17 +770,20 @@ retain these ownership boundaries.
 
 ## Next Implementation Tasks
 
-1. Implement code-anchored lineage, builder, tooling-lock, and workflow-content
-   verification. Compose those results with the completed Sigstore verifier
-   before enabling production `Attested`.
-2. Run the same immutable Bandit request on a second independent host and emit
-   an artifact, SBOM, and normalized-trace comparison record.
-3. Redesign publication approval inside the GitHub account boundary.
-4. Replay WP1 against the eventual organization and add downstream branch
+1. Add deterministic sdist and SPDX handling in a new immutable Python builder
+   profile; retain the v2 mismatch as evidence instead of rewriting it.
+2. Repeat two Bandit executions from one exact caller commit and require exact
+   artifacts, exact SPDX bytes, and a passed durable Governor candidate gate.
+3. Add signed workflow run identity fields, then schedule a genuinely
+   provider-independent rebuild as a stronger follow-up.
+4. Implement code-anchored lineage, builder, tooling-lock, and workflow-content
+   verification before enabling production `Attested`.
+5. Build Java and .NET evidence profiles and run real cohort cases.
+6. Redesign publication approval inside the GitHub account boundary.
+7. Replay WP1 against the eventual organization and add downstream branch
    protection plus scheduled upstream-change ingestion.
-5. Run WP10: full sandbox MVP over one first-lane seed and fixture-like real
+8. Run WP10: full sandbox MVP over one first-lane seed and fixture-like real
    candidates across the supported language set.
-6. Start WP11 only after WP10 produces a green Attested run.
 
 WP12 should still wait until artifact reproducibility is stable.
 

@@ -75,8 +75,8 @@
       "name": "Governor Agent",
       "purpose": "Enforce policies, block unsafe transitions, require evidence before claims, and route uncertainty to humans.",
       "owns": ["policy decisions", "release gates", "claim discipline"],
-      "input_events": ["CandidateSelected", "OverlayProposed", "ReleaseAttestationsVerified", "RebuildCompared", "BehaviorCompared"],
-      "output_events": ["GatePassed:CandidateSelected", "EvidenceCandidateReady", "GatePassed:Attested", "GatePassed:Reproducible", "GateBlocked", "NeedsHumanReview"],
+      "input_events": ["CandidateSelected", "OverlayProposed", "ReleaseAttestationsVerified", "RebuildCompared", "RebuildMismatch", "BehaviorCompared"],
+      "output_events": ["GatePassed:CandidateSelected", "EvidenceCandidateReady", "GatePassed:Attested", "ReproducibilityCandidateReady", "GateBlocked", "NeedsHumanReview"],
       "tools": ["evaluate-release", "approved tooling policy", "pin lock checks", "risk signal checks"],
       "human_gates": ["all blocked release overrides", "custodian claims", "public validation claims"]
     },
@@ -213,12 +213,12 @@
     {
       "id": "repro",
       "name": "Repro Agent",
-      "purpose": "Run independent rebuilds and compare artifacts, SBOMs, materials, provenance, and normalized behavior.",
+      "purpose": "Reverify retained rebuilds and compare exact artifacts, safe archive payloads, SBOMs, materials, builder controls, and diagnostic normalized behavior without overstating host independence.",
       "owns": ["rebuild manifests", "comparison reports", "mismatch packets"],
-      "input_events": ["ReleaseAttestationsVerified", "RebuildRequested"],
-      "output_events": ["RebuildCompared", "RebuildMismatch", "BehaviorCompared", "BehaviorMismatch"],
-      "tools": ["compare-evidence", "compare-behavior", "independent runners"],
-      "human_gates": ["artifact mismatch", "behavior mismatch", "allowed divergence update"]
+      "input_events": ["RebuildComparisonRequested"],
+      "output_events": ["RebuildCompared", "RebuildMismatch", "RebuildComparisonRejected"],
+      "tools": ["verify-build-attestations", "safe archive payload comparison", "SPDX comparison", "compare-behavior"],
+      "human_gates": ["artifact mismatch", "allowed archive divergence update"]
     },
     {
       "id": "release",

@@ -3,8 +3,10 @@
 Status: five pilot forks created, lineage-verified, locally reconciled, and
 analyzed through durable agents. The exact upstream Bandit source now has a
 verified v2 build-evidence canary, and the replacement Python builder has a
-retained hostile-source isolation canary; the separate additive `secure/main`
-patch remains local and unpublished.
+retained hostile-source isolation canary. Two distinct v2 executions have now
+been compared by the Repro and Governor agents; an sdist/SPDX mismatch correctly
+blocked reproducibility promotion. The separate additive `secure/main` patch
+remains local and unpublished.
 
 ## Objective
 
@@ -101,6 +103,25 @@ fork-of-a-fork lineage, and copyleft obligation handling.
 - retained the v2 result as `verified-evidence-candidate`; source ancestry,
   workflow approval, builder or collector resistance, reproducibility, and
   semantic safety remain explicitly unverified
+- repeated the immutable Bandit source request in a second GitHub-hosted
+  execution and freshly reverified all six retained Sigstore verification paths
+  under one bounded two-caller policy
+- ran the dedicated Repro Agent over content-addressed snapshots of both
+  evidence sets; each parsed manifest was bound to the exact digest returned by
+  its fresh Builder Verifier invocation
+- confirmed the wheel, source inventory, stable builder projection, raw trace
+  summary, SPDX package inventory, and normalized behavior digest match
+- classified the sdist failure as payload-equivalent archive metadata drift:
+  all 89 members, modes, sizes, and contents match, while gzip and tar member
+  mtimes differ
+- retained the SPDX mismatch separately: package inventory matches, while the
+  sdist binding, creation time, and random document namespace differ
+- routed `RebuildMismatch` to the Governor, which emitted `GateBlocked`, kept
+  the durable run at `needs_human_review`, and recorded
+  `promotion_authorized: false`
+- reran the Luna security review after adding exact manifest-to-verifier digest
+  binding and the Governor handoff; neither prior blocker remained and no new
+  finding was reported
 - published the original v2 evidence and durable verifier ledger as a
   development prerelease asset with SHA-256
   `e1522e0070b8ea7f0aa6bfd704f156c405e8fa63356ec527689ec867605a18b0`
@@ -111,6 +132,8 @@ The live build result is in
 [`bandit-build-canary.json`](./bandit-build-canary.json).
 The replacement v2 build result is in
 [`bandit-build-canary-v2.json`](./bandit-build-canary-v2.json).
+The two-run mismatch and durable Governor decision are in
+[`bandit-reproducibility-v2.json`](./bandit-reproducibility-v2.json).
 The builder containment result is in
 [`python-builder-v2-canary.json`](./python-builder-v2-canary.json).
 
@@ -133,11 +156,14 @@ as a separate governed migration.
 
 ## Next Run
 
-1. Verify exact Git ancestry and signer workflow content through independent
-   code before allowing production `Attested` to pass.
-2. Rebuild the same source on a second independent host and compare artifact
-   hashes, SBOMs, and normalized behavior.
-3. Review the five unapproved Bandit changes separately; no workflow surgery or
+1. Create a new immutable Python builder profile that normalizes sdist gzip/tar
+   mtimes and deterministic SPDX metadata, then repeat two executions from one
+   exact caller commit.
+2. Bind GitHub run id and run attempt into the signed build predicate before
+   using execution identity for a stronger independence claim.
+3. Verify exact Git ancestry and signer workflow content through separate code
+   before allowing production `Attested` to pass.
+4. Review the five unapproved Bandit changes separately; no workflow surgery or
    release logic should inherit the additive policy approval.
-4. Redesign publication authorization inside the single-account boundary before
+5. Redesign publication authorization inside the single-account boundary before
    any public `secure/main` mutation.
