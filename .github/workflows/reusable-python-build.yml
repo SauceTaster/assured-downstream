@@ -36,8 +36,8 @@ permissions:
 
 env:
   BUILDER_IMAGE: ghcr.io/saucetaster/assured-downstream-python-builder
-  BUILDER_DIGEST: sha256:6214c96cdb53941e169b3a1a01e603a51a3347bb50f820e081ddda0dec46d472
-  HANDOFF_COMMIT: 5eb8417e519f918d7c58f9678e71279c72ddac91
+  BUILDER_DIGEST: sha256:18916b853d240d87c653175368bd9a8f54edac8f77553d7c0e2b23abb87d5221
+  HANDOFF_COMMIT: 2008d200b86ac20e745b52b293a125bf20fe45cc
 
 jobs:
   build:
@@ -88,14 +88,14 @@ jobs:
           test "$UPSTREAM_COMMIT" = "c45446eaa30c4f28289c3b8ba9a955e1d78ba715"
           test "$TARGET_REPOSITORY" = "SauceTaster/assured-bandit"
           test "$PROJECT_VERSION" = "1.9.4"
-          test "$RELEASE_TAG" = "case-001-bandit-source-canary"
-          test "$CASE_ID" = "case-001-bandit-source-canary"
+          test "$RELEASE_TAG" = "case-001-bandit-source-canary-v2"
+          test "$CASE_ID" = "case-001-bandit-source-canary-v2"
 
       - name: Checkout immutable handoff verifier
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: SauceTaster/assured-downstream
-          ref: 5eb8417e519f918d7c58f9678e71279c72ddac91
+          ref: 2008d200b86ac20e745b52b293a125bf20fe45cc
           path: assured-control
           persist-credentials: false
           fetch-depth: 1
@@ -112,7 +112,7 @@ jobs:
           cp assured-control/src/assured_downstream/seed.py "$tool_root/"
           cd "$RUNNER_TEMP/assured-tool"
           printf '%s  %s\n' face06d049a8925de14fabc068bcaf691f92d208e2f9b097fcf43e4697babeb2 src/assured_downstream/__init__.py | sha256sum -c -
-          printf '%s  %s\n' e2c3ed4701a537a008c9ff742c2ebe93676c7b32acbc19c05e8cd2131b7ebe5f src/assured_downstream/builder_handoff.py | sha256sum -c -
+          printf '%s  %s\n' 9afd067a754d6f38a06f4f7beb43db34c181d67c52eb6d72c33a6a4bf6f66c1a src/assured_downstream/builder_handoff.py | sha256sum -c -
           printf '%s  %s\n' 778465cc730f68f0c44e12755dc95adcf78168a1ecedbd5d6fa7aa6c89a5c00a src/assured_downstream/catalog.py | sha256sum -c -
           printf '%s  %s\n' 215c02153b405232a570c3957364dfd84f333b37de56b77e1497a769b953de65 src/assured_downstream/evidence.py | sha256sum -c -
           printf '%s  %s\n' 0fd74a45333689775fa925fdaa44444d465ffd77c710e852eb95e2558bd261a6 src/assured_downstream/seed.py | sha256sum -c -
@@ -168,24 +168,29 @@ jobs:
         run: |
           set -euo pipefail
           output="$RUNNER_TEMP/assured-build-output"
-          sudo install -d -o 65532 -g 65532 -m 0755 "$output"
+          sudo install -d -o 0 -g 0 -m 0700 "$output"
           timeout --signal=KILL 20m docker run --rm \
             --network none \
             --read-only \
             --cap-drop ALL \
+            --cap-add CHOWN \
+            --cap-add KILL \
+            --cap-add SETGID \
+            --cap-add SETUID \
+            --cap-add SYS_PTRACE \
             --security-opt no-new-privileges:true \
             --pids-limit 512 \
             --memory 2g \
             --memory-swap 2g \
             --cpus 2 \
-            --user 65532:65532 \
+            --user 0:0 \
             --ulimit core=0 \
             --ulimit nofile=1024:1024 \
             --ipc none \
             --mount "type=bind,src=$GITHUB_WORKSPACE/assured-source,dst=/input,readonly" \
             --mount "type=bind,src=$output,dst=/out" \
-            --tmpfs /workspace:rw,noexec,nosuid,nodev,size=1073741824,uid=65532,gid=65532,mode=0700 \
-            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=536870912,uid=65532,gid=65532,mode=0700 \
+            --tmpfs /workspace:rw,noexec,nosuid,nodev,size=1073741824,uid=0,gid=0,mode=0755 \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=536870912,uid=0,gid=0,mode=1777 \
             --env "ASSURED_SOURCE_REPOSITORY=$SOURCE_REPOSITORY" \
             --env "ASSURED_SOURCE_COMMIT=$SOURCE_COMMIT" \
             --env "ASSURED_SOURCE_TREE=$SOURCE_TREE" \
@@ -194,6 +199,9 @@ jobs:
             --env "ASSURED_BUILDER_IMAGE=$BUILDER_IMAGE" \
             --env "ASSURED_BUILDER_IMAGE_DIGEST=$BUILDER_DIGEST" \
             "$BUILDER_IMAGE@$BUILDER_DIGEST"
+          test -z "$(sudo find "$output" -xdev ! -user root -print -quit)"
+          sudo test ! -e "$output/tamper-marker"
+          sudo chmod -R a=rX "$output"
 
       - name: Validate isolated builder handoff
         env:
@@ -273,7 +281,7 @@ jobs:
           set -euo pipefail
           cd assured-tool
           printf '%s  %s\n' face06d049a8925de14fabc068bcaf691f92d208e2f9b097fcf43e4697babeb2 src/assured_downstream/__init__.py | sha256sum -c -
-          printf '%s  %s\n' e2c3ed4701a537a008c9ff742c2ebe93676c7b32acbc19c05e8cd2131b7ebe5f src/assured_downstream/builder_handoff.py | sha256sum -c -
+          printf '%s  %s\n' 9afd067a754d6f38a06f4f7beb43db34c181d67c52eb6d72c33a6a4bf6f66c1a src/assured_downstream/builder_handoff.py | sha256sum -c -
           printf '%s  %s\n' 778465cc730f68f0c44e12755dc95adcf78168a1ecedbd5d6fa7aa6c89a5c00a src/assured_downstream/catalog.py | sha256sum -c -
           printf '%s  %s\n' 215c02153b405232a570c3957364dfd84f333b37de56b77e1497a769b953de65 src/assured_downstream/evidence.py | sha256sum -c -
           printf '%s  %s\n' 0fd74a45333689775fa925fdaa44444d465ffd77c710e852eb95e2558bd261a6 src/assured_downstream/seed.py | sha256sum -c -
@@ -386,7 +394,7 @@ jobs:
           set -euo pipefail
           cd assured-tool
           printf '%s  %s\n' face06d049a8925de14fabc068bcaf691f92d208e2f9b097fcf43e4697babeb2 src/assured_downstream/__init__.py | sha256sum -c -
-          printf '%s  %s\n' e2c3ed4701a537a008c9ff742c2ebe93676c7b32acbc19c05e8cd2131b7ebe5f src/assured_downstream/builder_handoff.py | sha256sum -c -
+          printf '%s  %s\n' 9afd067a754d6f38a06f4f7beb43db34c181d67c52eb6d72c33a6a4bf6f66c1a src/assured_downstream/builder_handoff.py | sha256sum -c -
           printf '%s  %s\n' 778465cc730f68f0c44e12755dc95adcf78168a1ecedbd5d6fa7aa6c89a5c00a src/assured_downstream/catalog.py | sha256sum -c -
           printf '%s  %s\n' 215c02153b405232a570c3957364dfd84f333b37de56b77e1497a769b953de65 src/assured_downstream/evidence.py | sha256sum -c -
           printf '%s  %s\n' 0fd74a45333689775fa925fdaa44444d465ffd77c710e852eb95e2558bd261a6 src/assured_downstream/seed.py | sha256sum -c -

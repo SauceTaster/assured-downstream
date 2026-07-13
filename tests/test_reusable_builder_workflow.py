@@ -13,9 +13,6 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "reusable-python-build.yml"
 CASE_WORKFLOW = ROOT / ".github" / "workflows" / "case-study-bandit-build.yml"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
-TRANSITIONAL_V1_HANDOFF_SHA256 = (
-    "e2c3ed4701a537a008c9ff742c2ebe93676c7b32acbc19c05e8cd2131b7ebe5f"
-)
 
 
 class ReusableBuilderWorkflowTests(unittest.TestCase):
@@ -44,7 +41,7 @@ class ReusableBuilderWorkflowTests(unittest.TestCase):
         text = WORKFLOW.read_text(encoding="utf-8")
         workflow = parse_workflow_yaml(text)
         policy = json.loads(
-            (ROOT / "policies" / "builders" / "python-wheel-v1.json").read_text()
+            (ROOT / "policies" / "builders" / "python-wheel-v2.json").read_text()
         )
         expected_actions = policy["reusable_workflow"]["actions"]
 
@@ -67,6 +64,7 @@ class ReusableBuilderWorkflowTests(unittest.TestCase):
         text = WORKFLOW.read_text(encoding="utf-8")
         for name in (
             "__init__.py",
+            "builder_handoff.py",
             "catalog.py",
             "evidence.py",
             "seed.py",
@@ -77,13 +75,6 @@ class ReusableBuilderWorkflowTests(unittest.TestCase):
                 text.count(f"{digest} src/assured_downstream/{name}"),
                 3,
             )
-        self.assertEqual(
-            text.count(
-                f"{TRANSITIONAL_V1_HANDOFF_SHA256} "
-                "src/assured_downstream/builder_handoff.py"
-            ),
-            3,
-        )
 
     def test_container_is_fixed_and_has_no_network_or_secrets(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
@@ -92,12 +83,21 @@ class ReusableBuilderWorkflowTests(unittest.TestCase):
             "--network none",
             "--read-only",
             "--cap-drop ALL",
+            "--cap-add CHOWN",
+            "--cap-add KILL",
+            "--cap-add SETGID",
+            "--cap-add SETUID",
+            "--cap-add SYS_PTRACE",
             "--security-opt no-new-privileges:true",
             "--pids-limit 512",
             "--memory 2g",
-            "--user 65532:65532",
+            "--user 0:0",
             "--ipc none",
             "dst=/input,readonly",
+            "sudo install -d -o 0 -g 0 -m 0700",
+            'sudo find "$output" -xdev ! -user root',
+            'sudo test ! -e "$output/tamper-marker"',
+            'sudo chmod -R a=rX "$output"',
         ):
             self.assertIn(control, text)
         self.assertNotIn("secrets: inherit", text)
