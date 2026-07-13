@@ -13,7 +13,7 @@ jobs:
       attestations: write # Store attestations for this controlled caller.
       contents: read
       id-token: write # Request keyless certificates only in the called attest job.
-    uses: SauceTaster/assured-downstream/.github/workflows/reusable-python-build-v3.yml@28855929fe7b5b65d1ed3eb10fdbc0e241b39329
+    uses: SauceTaster/assured-downstream/.github/workflows/reusable-python-build-v3.yml@a82cb381d8d9a5fae10d1a989e58b03a174590fc
     with:
       source_repository: PyCQA/bandit
       source_commit: c45446eaa30c4f28289c3b8ba9a955e1d78ba715
