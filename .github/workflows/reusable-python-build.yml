@@ -203,6 +203,42 @@ jobs:
           PROJECT_VERSION: ${{ inputs.project_version }}
         run: |
           set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import stat
+          from pathlib import Path
+
+          path = Path(os.environ["RUNNER_TEMP"]) / "assured-build-output/traces/observed-trace.json"
+          metadata = path.lstat()
+          if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1 or metadata.st_size > 1048576:
+              raise SystemExit("trace summary is not a bounded standalone regular file")
+          trace = json.loads(path.read_text(encoding="utf-8"))
+          summary = {
+              "coverage": trace.get("coverage"),
+              "coverage_basis": trace.get("coverage_basis"),
+              "raw_file_count": trace.get("raw_file_count"),
+              "parsed_line_count": trace.get("parsed_line_count"),
+              "unparsed_line_count": trace.get("unparsed_line_count"),
+          }
+          counts = (
+              summary["raw_file_count"],
+              summary["parsed_line_count"],
+              summary["unparsed_line_count"],
+          )
+          if (
+              not isinstance(summary["coverage"], dict)
+              or set(summary["coverage"]) != {"process", "file", "network", "syscall"}
+              or not all(isinstance(value, bool) for value in summary["coverage"].values())
+              or summary["coverage_basis"] not in {
+                  "complete-parser-pass",
+                  "insufficient-parser-pass",
+              }
+              or not all(isinstance(value, int) and not isinstance(value, bool) and value >= 0 for value in counts)
+          ):
+              raise SystemExit("trace summary fields are malformed")
+          print("collector_summary=" + json.dumps(summary, sort_keys=True))
+          PY
           export PYTHONPATH="$RUNNER_TEMP/assured-tool/src"
           python3 -m assured_downstream.builder_handoff validate \
             --root "$RUNNER_TEMP/assured-build-output" \

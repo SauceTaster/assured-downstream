@@ -93,6 +93,8 @@ class ReusableBuilderWorkflowTests(unittest.TestCase):
         self.assertNotIn("${{ inputs.command", text)
         self.assertNotRegex(text, r"\+\s+--")
         self.assertNotIn("validate +", text)
+        self.assertIn("collector_summary=", text)
+        self.assertNotIn('trace.get("events")', text)
         self.assertIn('test "$CALLER_OWNER" = "SauceTaster"', text)
         self.assertIn(
             'test "$CALLER_REPOSITORY" = "SauceTaster/assured-downstream"',
