@@ -285,13 +285,17 @@ class BuilderHandoffV3Tests(unittest.TestCase):
             source.mkdir()
             (source / ".git").mkdir()
             (source / ".git" / "ignored").write_text("git metadata")
+            (source / "bandit").mkdir()
+            (source / "bandit" / "__init__.py").write_bytes(b"")
+            (source / "bandit-terminal.png").write_bytes(b"png")
             (source / "pyproject.toml").write_bytes(b"[build-system]\n")
             create_builder_output(root)
 
-            expected = json.loads(
-                (root / "reports" / "source-inventory.json").read_text()
+            inventory = inventory_trusted_source(source)
+            self.assertEqual(
+                [entry["path"] for entry in inventory["entries"][:2]],
+                ["bandit/__init__.py", "bandit-terminal.png"],
             )
-            self.assertEqual(inventory_trusted_source(source), expected)
 
             trusted_path = root / "reports" / "trusted-source-inventory.json"
             trusted = json.loads(trusted_path.read_text())

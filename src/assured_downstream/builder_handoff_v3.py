@@ -487,7 +487,7 @@ def validate_source_inventory(value: dict[str, Any]) -> str:
             or "\x00" in entry["target"]
         ):
             raise BuilderHandoffError("source symlink inventory entry is invalid")
-    if paths != sorted(paths):
+    if paths != sorted(paths, key=lambda path: PurePosixPath(path).parts):
         raise BuilderHandoffError("source inventory order is not canonical")
     calculated = hashlib.sha256(
         json.dumps(entries, sort_keys=True, separators=(",", ":")).encode()
@@ -627,7 +627,7 @@ def inventory_trusted_source(source_root: Path) -> dict[str, Any]:
             )
             if len(entries) > 100_000:
                 raise BuilderHandoffError("trusted source has too many entries")
-    entries.sort(key=lambda entry: entry["path"])
+    entries.sort(key=lambda entry: PurePosixPath(entry["path"]).parts)
     tree_sha256 = hashlib.sha256(
         json.dumps(entries, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
