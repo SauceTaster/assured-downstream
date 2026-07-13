@@ -18,7 +18,7 @@ from assured_downstream.evidence import (
 PROFILE_ID = "python-wheel-v1"
 BUILDER_IMAGE = "ghcr.io/saucetaster/assured-downstream-python-builder"
 BUILDER_DIGEST = (
-    "sha256:fabfecbd48689108af585a49c6c9ee5522bb02aad716fcdc84a8799560ab791b"
+    "sha256:6214c96cdb53941e169b3a1a01e603a51a3347bb50f820e081ddda0dec46d472"
 )
 CUSTOM_PREDICATE_TYPE = (
     "https://assured-downstream.dev/attestation/build/v1"
