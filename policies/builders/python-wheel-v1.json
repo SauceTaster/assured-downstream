@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "status": "bootstrap-reviewed-not-yet-published",
+  "profile_id": "python-wheel-v1",
+  "platform": "linux/amd64",
+  "image": "ghcr.io/saucetaster/assured-downstream-python-builder",
+  "base_image": {
+    "name": "python:3.12.11-slim-bookworm",
+    "index_digest": "sha256:519591d6871b7bc437060736b9f7456b8731f1499a57e22e6c285135ae657bf7",
+    "linux_amd64_manifest_digest": "sha256:c00fc7b44d844b6da22861ec24af43968a5200eac4ec607b4725d585165d6b49"
+  },
+  "system_packages": [
+    {
+      "name": "libunwind8",
+      "version": "1.6.2-3",
+      "architecture": "amd64",
+      "url": "https://deb.debian.org/debian/pool/main/libu/libunwind/libunwind8_1.6.2-3_amd64.deb",
+      "sha256": "7b297868682836e4c87be349f17e4a56bc287586e3576503e84a5cb5485ce925"
+    },
+    {
+      "name": "strace",
+      "version": "6.1-0.1",
+      "architecture": "amd64",
+      "url": "https://deb.debian.org/debian/pool/main/s/strace/strace_6.1-0.1_amd64.deb",
+      "sha256": "1942d086a6244a1a9643489d3b0aa604ac44b88991d6c69217a63a193671bd4f"
+    }
+  ],
+  "python_lock": "builders/python/requirements.lock",
+  "runtime": {
+    "entrypoint": ["python", "-I", "/opt/assured-downstream/entrypoint.py"],
+    "uid": 65532,
+    "gid": 65532,
+    "network": "none",
+    "read_only_root": true,
+    "capabilities": [],
+    "no_new_privileges": true,
+    "source_mount": "/input:ro",
+    "workspace": "/workspace",
+    "output_mount": "/out:rw",
+    "command_arguments_allowed": false
+  },
+  "bootstrap_actions": {
+    "actions/attest": "a1948c3f048ba23858d222213b7c278aabede763",
+    "actions/checkout": "34e114876b0b11c390a56381ad16ebd13914f8d5",
+    "actions/upload-artifact": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+    "docker/build-push-action": "263435318d21b8e681c14492fe198d362a7d2c83",
+    "docker/login-action": "5e57cd118135c172c3672efd75eb46360885c0ef",
+    "docker/setup-buildx-action": "8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"
+  },
+  "published_image_digest": null,
+  "claim_limit": "This policy pins bootstrap inputs. It does not establish hermetic image construction, independent rebuild equivalence, or runtime containment until the published image and execution evidence are independently verified."
+}

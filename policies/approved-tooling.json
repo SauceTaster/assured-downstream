@@ -35,8 +35,26 @@
     },
     {
       "name": "anchore/sbom-action",
-      "ref": "v0",
+      "ref": "v0.24.0",
       "usage": "Syft-backed SBOM generation",
+      "requires_full_sha_pin": true
+    },
+    {
+      "name": "docker/build-push-action",
+      "ref": "v6.18.0",
+      "usage": "Builder image bootstrap and registry publication",
+      "requires_full_sha_pin": true
+    },
+    {
+      "name": "docker/login-action",
+      "ref": "v3.6.0",
+      "usage": "Ephemeral GitHub token authentication to GHCR",
+      "requires_full_sha_pin": true
+    },
+    {
+      "name": "docker/setup-buildx-action",
+      "ref": "v3.12.0",
+      "usage": "BuildKit initialization for builder image bootstrap",
       "requires_full_sha_pin": true
     },
     {

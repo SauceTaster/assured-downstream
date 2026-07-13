@@ -3,6 +3,48 @@
 Status: dev/idea-stage notes. These notes record implementation-shaping
 research, not final security claims.
 
+## 2026-07-12: Central Reusable Builder Boundary
+
+Question: how should a controlled build service represent a downstream caller,
+the source being built, and the workflow that is authorized to sign evidence?
+
+Decision: model them as separate identities. The caller repository and commit
+select a job, an exact source repository/commit/tree identifies the input, and
+the immutable reusable workflow plus image digest identify the builder. GitHub
+OIDC exposes the caller through ordinary workflow claims and the called builder
+through `job_workflow_ref` and `job_workflow_sha`; neither substitutes for
+independent source-lineage verification.
+
+The first profile is intentionally narrow: Linux/amd64, CPython 3.12, and
+pure-Python setuptools/PBR wheel and sdist output. The base image is pinned by
+OCI index digest, Python build wheels are exact-version/hash locked, and the
+Debian strace and libunwind runtime packages are downloaded by exact version
+and verified by SHA-256.
+The runtime accepts metadata only, copies a read-only source mount into an
+ephemeral workspace, executes one fixed argv under strace, and runs without
+network, capabilities, secrets, or a writable root filesystem.
+
+This is a staged bootstrap, not a circular trust claim. The image publication
+workflow first produces a GHCR digest and GitHub/Sigstore attestation. A later
+commit must pin that resulting digest into the reusable build workflow before
+upstream source can execute. Hermetic bootstrap, independent image rebuilds,
+and trace equivalence remain later gates.
+
+Sources:
+
+- GitHub reusable workflow OIDC claims:
+  https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-with-reusable-workflows
+- GitHub artifact attestations with reusable workflows:
+  https://docs.github.com/en/actions/how-tos/secure-your-work/use-artifact-attestations/increase-security-rating
+- Docker default seccomp profile:
+  https://docs.docker.com/engine/security/seccomp/
+- Debian bookworm package index and package pool:
+  https://deb.debian.org/debian/dists/bookworm/main/binary-amd64/Packages.xz
+- Docker Registry HTTP API for the Python base manifest:
+  https://registry-1.docker.io/v2/library/python/manifests/3.12.11-slim-bookworm
+- PyPI JSON API for locked build wheels:
+  https://pypi.org/pypi/build/json
+
 ## 2026-07-09: MVP Release Attestation Lane
 
 Question: what should the first working attested-release lane render?
