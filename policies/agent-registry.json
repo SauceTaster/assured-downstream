@@ -75,8 +75,8 @@
       "name": "Governor Agent",
       "purpose": "Enforce policies, block unsafe transitions, require evidence before claims, and route uncertainty to humans.",
       "owns": ["policy decisions", "release gates", "claim discipline"],
-      "input_events": ["CandidateSelected", "OverlayProposed", "ReleaseAttestationsVerified", "RebuildCompared", "RebuildMismatch", "BehaviorCompared"],
-      "output_events": ["GatePassed:CandidateSelected", "EvidenceCandidateReady", "GatePassed:Attested", "ReproducibilityCandidateReady", "GateBlocked", "NeedsHumanReview"],
+      "input_events": ["CandidateSelected", "OverlayProposed", "ReleaseAttestationsVerified", "RebuildCompared", "RebuildMismatch", "RebuildV3Compared", "RebuildV3Mismatch", "BehaviorCompared"],
+      "output_events": ["GatePassed:CandidateSelected", "EvidenceCandidateReady", "GatePassed:Attested", "ReproducibilityCandidateReady", "ReproducibilityV3CandidateReady", "GateBlocked", "NeedsHumanReview"],
       "tools": ["evaluate-release", "approved tooling policy", "pin lock checks", "risk signal checks"],
       "human_gates": ["all blocked release overrides", "custodian claims", "public validation claims"]
     },
@@ -205,9 +205,9 @@
       "name": "Builder Verifier Agent",
       "purpose": "Verify retained reusable-workflow Sigstore bundles while keeping caller, signer, source, target, and builder identities distinct.",
       "owns": ["build attestation verification record", "builder signer policy", "build evidence rejection reasons"],
-      "input_events": ["BuildVerificationRequested"],
-      "output_events": ["BuildAttestationsVerified", "BuildAttestationsRejected"],
-      "tools": ["verify-build-attestations", "pinned gh verifier", "retained Sigstore bundles", "SPDX binding verifier"],
+      "input_events": ["BuildVerificationRequested", "BuildVerificationV3Requested"],
+      "output_events": ["BuildAttestationsVerified", "BuildAttestationsRejected", "BuildAttestationsV3Verified", "BuildAttestationsV3Rejected"],
+      "tools": ["verify-build-attestations", "build-verification-v3-run", "pinned gh verifier", "retained Sigstore bundles", "SPDX binding verifier", "archive transform verifier", "raw trace replay"],
       "human_gates": ["builder policy rotation", "reusable signer change", "caller workflow change", "predicate schema change"]
     },
     {
@@ -215,9 +215,9 @@
       "name": "Repro Agent",
       "purpose": "Reverify retained rebuilds and compare exact artifacts, safe archive payloads, SBOMs, materials, builder controls, and diagnostic normalized behavior without overstating host independence.",
       "owns": ["rebuild manifests", "comparison reports", "mismatch packets"],
-      "input_events": ["RebuildComparisonRequested"],
-      "output_events": ["RebuildCompared", "RebuildMismatch", "RebuildComparisonRejected"],
-      "tools": ["verify-build-attestations", "safe archive payload comparison", "SPDX comparison", "compare-behavior"],
+      "input_events": ["RebuildComparisonRequested", "RebuildComparisonV3Requested"],
+      "output_events": ["RebuildCompared", "RebuildMismatch", "RebuildComparisonRejected", "RebuildV3Compared", "RebuildV3Mismatch", "RebuildComparisonV3Rejected"],
+      "tools": ["verify-build-attestations", "reproducibility-v3-run", "safe archive payload comparison", "SPDX comparison", "compare-behavior"],
       "human_gates": ["artifact mismatch", "allowed archive divergence update"]
     },
     {

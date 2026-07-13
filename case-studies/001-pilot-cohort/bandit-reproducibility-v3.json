@@ -1,0 +1,227 @@
+{
+  "schema_version": 1,
+  "status": "same-provider-artifact-and-behavior-reproducibility-candidate",
+  "case_id": "case-001-bandit-source-canary-v3-repro-01",
+  "recorded_at": "2026-07-13T16:15:50+00:00",
+  "source": {
+    "repository": "PyCQA/bandit",
+    "commit": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+    "tree": "5313408ad294e5a95f214620ec3064f8e40bc608",
+    "filesystem_sha256": "0914573882503b41295ada916f405ee335235c95c35f80795237011ee620578a",
+    "source_date_epoch": "1783382521",
+    "target_repository": "SauceTaster/assured-bandit",
+    "version": "1.9.4"
+  },
+  "trust_chain": {
+    "caller_workflow_commit": "8d193e44f863006bbe16f9b7148337bcc0079b34",
+    "called_workflow_commit": "a82cb381d8d9a5fae10d1a989e58b03a174590fc",
+    "handoff_commit": "469ad1ca91f803e05616ec4f289add51a3ad0fa6",
+    "handoff_sha256": "fa6beace9189e145bcf9e0a743537e200438234653d5d34b1a2868646c6716b1",
+    "archive_verifier_sha256": "8e739a88191e01268455f524c6c455036090d3306e2e6ae19415e74d779a14b4",
+    "builder_image": "ghcr.io/saucetaster/assured-downstream-python-builder@sha256:5f52c4bfe05c4947877d6d80f2124062b79a46764cc2161dc4caaa631d65833a",
+    "build_predicate_type": "https://assured-downstream.dev/attestation/build/v2",
+    "build_policy_sha256": "482715bca2901d3d62dc86d86e5346c7653f720180cec79783da5f05c4f71c76",
+    "trust_policy_sha256": "abca9090eebb736a72ce30102f812a5ed6f4ffb46dc3e9f3f041fad2d1fac344",
+    "verifier_sha256": "582a40676acf1394fcaf1c8c8bc5bad21806bd8c864b209d37b185c2df45dc92",
+    "code_trust_root_module": "src/assured_downstream/build_verification_trust_v3.py",
+    "code_trust_root_sha256": "7258358e7a24ce020575ff51641f73bacc4ae1e09fb2d08eba7585dffc9a1e92",
+    "portable_verifier_sha256": "790785a2b5675cfbd59e4498354d96dd2c5616b9f15a3aef307e538b1a7378db",
+    "portable_archive_validator_sha256": "bf86ea2b8cd595cec6260da1276afb21ccb91ad6defd65552cf4ed61e92bb4a0",
+    "sigstore_trusted_root_sha256": "05a094edfa2e8eb7d1b4b37244e28ffb6d86b8b86ce3eb122b644b4335ae4dc1"
+  },
+  "executions": [
+    {
+      "side": "left",
+      "execution_id": "github-actions:29261239215",
+      "workflow_run_url": "https://github.com/SauceTaster/assured-downstream/actions/runs/29261239215",
+      "builder_window": {
+        "started_at": "2026-07-13T15:12:35Z",
+        "finished_at": "2026-07-13T15:12:39Z"
+      },
+      "source_manifest_sha256": "a4374079cf2cf9334ed203a3912f42b79e1d8259e00bca666b369612b1a251d6",
+      "staged_manifest_sha256": "beb6f1edbc96473ef921904741709505780390f6c4e389f51098757edaf7e4b4",
+      "verification_record_sha256": "eeff468b52c8e9ea1f343f99d052df1f3704e237d7bc33c068d0a5878b1c6e16",
+      "github_actions_artifact": {
+        "id": 8283463311,
+        "name": "assured-python-v3-retained-evidence",
+        "sha256": "887873d978657795d9e6d0837e5677c718166fd5b5334779c92071cd81f22fd9",
+        "size_bytes": 3479178,
+        "expires_at": "2026-08-12T15:13:15Z"
+      },
+      "sigstore_bundles": {
+        "provenance": "7902180c37764782d029d57013c1d6713dc153cb303ea28440800e63b1d1755f",
+        "sbom": "e24edf1c88878ef95092e990bb928dc07f04c27c160fd7897035acff7068270d",
+        "build": "304bca5bdee57bd86800b7ee7b26bd5845c4b75588314a01da2fcc20ed29479d"
+      }
+    },
+    {
+      "side": "right",
+      "execution_id": "github-actions:29261279150",
+      "workflow_run_url": "https://github.com/SauceTaster/assured-downstream/actions/runs/29261279150",
+      "builder_window": {
+        "started_at": "2026-07-13T15:13:12Z",
+        "finished_at": "2026-07-13T15:13:16Z"
+      },
+      "source_manifest_sha256": "1de4222a1ac562b4b285e375a223948e82d0107e69ca5b69e535cadb49b974cf",
+      "staged_manifest_sha256": "11171c1b06459a105df4a99bbd37c2a316caf1602f256feed74cd2994e5b139d",
+      "verification_record_sha256": "2718c7c0796769a8872965298ab18664a658ebfae118e396bacb767ac42677c3",
+      "github_actions_artifact": {
+        "id": 8283480454,
+        "name": "assured-python-v3-retained-evidence",
+        "sha256": "6d0efe47699d33ee496f05eaa4cc7b063006bf1506770ce22075eedfe9a3c5d5",
+        "size_bytes": 3474862,
+        "expires_at": "2026-08-12T15:13:47Z"
+      },
+      "sigstore_bundles": {
+        "provenance": "9cac24e471ff989e77674c397ff3671c3c336650e36ef5cec8e12fed687b2c14",
+        "sbom": "2f759fc952fd2f96356c8b3bbbb763c37b9d5c81dce3fe137080a2a00ba76504",
+        "build": "cb5069d0b472ee29fccfdea7a363278567ecf30b7e404106f520e16f79c0989b"
+      }
+    }
+  ],
+  "artifact_comparison": {
+    "exact_match": true,
+    "artifacts": [
+      {
+        "name": "dist/bandit-1.9.4-py3-none-any.whl",
+        "sha256": "39e66c66ae9e67708ee2df1fbc8d862c88223856cd5ddef7dfdc3c7dbb157b5f",
+        "size_bytes": 131704
+      },
+      {
+        "name": "dist/bandit-1.9.4.tar.gz",
+        "sha256": "b70b7bf3e18f0a2a76000b8f099c3f9eb0f732288e0d70f14d6fcaebe86b8595",
+        "size_bytes": 90236
+      }
+    ],
+    "raw_sdist": {
+      "exact_match": false,
+      "left_sha256": "477a0a964ab13e2249212470f6edf4c8f8c6907cab8d45faa52d135e43172108",
+      "right_sha256": "6311ef646f9a09c7b526ad6441bde1175e791915875d694702c9c0271d0f036f",
+      "semantic_payload_sha256": "beea8c817764552e2e58fe6d5065746aa5a4649b6adb18fe26d043d6936fd724",
+      "payload_size_bytes": 417748,
+      "member_count": 89,
+      "canonicalization_removed_difference": true
+    }
+  },
+  "sbom_comparison": {
+    "raw_exact_match": false,
+    "raw_sha256": {
+      "left": "ab19fe464bb92c75e74f8704d9c234fff4af57c7c8fd83da03f52972359bcb5a",
+      "right": "40b0f9e0e6be6598135a6995ed29484717b918a426ae757ee0b19371a072747f"
+    },
+    "normalized_exact_match": true,
+    "normalized_sha256": "9811609dba45f03eef83586aaaf7b3d3bd6eea31d6f96e25057501c5ca0eeab1",
+    "artifact_bindings_match": true,
+    "deterministic_namespace_match": true
+  },
+  "source_comparison": {
+    "inventory_exact_match": true,
+    "source_inventory_sha256": "c21c46a48673709bc2e205cc9f2d55b2f2bf0bcd202aca7971bcdabf977a8724",
+    "trusted_source_inventory_exact_match": true,
+    "trusted_source_inventory_sha256": "03779c7950dff2dc43060c0304f4b719328eef404d3d4875878ee4c605423856",
+    "host_comparison_attested": true,
+    "independent_source_reacquisition": false
+  },
+  "trace_comparison": {
+    "raw_exact_match": false,
+    "summary_exact_match": true,
+    "raw_file_count": 14,
+    "parsed_line_count": 36170,
+    "syscall_line_count": 36157,
+    "signal_line_count": 13,
+    "exit_line_count": 0,
+    "unparsed_line_count": 0,
+    "normalized_behavior_match": true,
+    "normalized_behavior_sha256": "8fc6b744e2e074cc7d7ac959182f39e7b0e33d04c1d48e04e26e9cb8e7fc370b",
+    "normalized_behavior_report_sha256": "519fe4af4e0117f1b43334ddf8f7aac01df16bf4786a479a078ff631e79d70dc",
+    "normalized_summary": {
+      "files": 1395,
+      "network": 0,
+      "processes": 4,
+      "signals": 1,
+      "syscalls": 62
+    },
+    "full_build_invocation_derived_from_trace": false,
+    "lifecycle_complete": false
+  },
+  "durable_agent_run": {
+    "run_id": "repro-v3-bandit-case-001-final",
+    "workflow": "retained-build-reproducibility-v3",
+    "status": "succeeded",
+    "agents": [
+      "repro-v3",
+      "governor-v3"
+    ],
+    "events": [
+      "RebuildComparisonV3Requested",
+      "RebuildV3Compared",
+      "ReproducibilityV3CandidateReady"
+    ],
+    "processed_work_count": 2,
+    "pending_work_count": 0,
+    "verified_artifact_count": 8,
+    "comparison_sha256": "923b28faa23b33805200517b8d2adb4fece10b124d3883580be8eca1fd29daf6",
+    "gate_sha256": "12b5a1c616c8d267667191cf95cc1995af3c9fece495ca8f4ada23d9fec3294b"
+  },
+  "gate": {
+    "name": "v3-reproducibility-candidate",
+    "passed": true,
+    "artifact_reproducibility_candidate": true,
+    "behavior_reproducibility_candidate": true,
+    "provider_independent": false,
+    "promotion_authorized": false,
+    "authority": "durable-v3-reproducibility-candidate-gate",
+    "check_count": 10
+  },
+  "validation_feedback": {
+    "initial_failed_runs": [
+      29248802873,
+      29249881191
+    ],
+    "failure": "source inventory ordering differential between pathlib component order and plain string order",
+    "resolution_commit": "469ad1ca91f803e05616ec4f289add51a3ad0fa6",
+    "control_weakened": false,
+    "hardened_review": {
+      "profile": "assured-downstream-luna",
+      "review_rounds": 3,
+      "actionable_findings_seen": 5,
+      "final_actionable_findings": 0,
+      "all_addressed": true,
+      "replay_run_id": "repro-v3-bandit-case-001-final",
+      "added_controls": [
+        "exact-core-check-schema",
+        "current-run-causation-and-input-binding",
+        "independent-code-trust-root",
+        "exact-full-byte-portable-verifier-source-anchors",
+        "single-gzip-member-exact-EOF",
+        "candidate-flag-and-blocker-coherence"
+      ],
+      "residual_trust_assumption": "The installed control-plane trust-root code, Python interpreter and import environment, and runtime filesystem are trusted and uncompromised."
+    }
+  },
+  "independently_verified": {
+    "sigstore_bundles": true,
+    "artifact_subjects": true,
+    "normalized_spdx_artifact_binding": true,
+    "canonical_archive_semantics": true,
+    "artifact_reproducibility": true,
+    "normalized_behavior_reproducibility_candidate": true,
+    "retained_trace_parser_pass": true,
+    "run_invocation_certificate_binding": true,
+    "source_snapshot_comparison": false,
+    "ownership_boundary_observation": false,
+    "build_invocation_from_trace": false,
+    "provider_independence": false,
+    "upstream_lineage": false,
+    "builder_isolation": false,
+    "collector_tamper_resistance": false,
+    "workflow_implementation": false,
+    "semantic_safety": false
+  },
+  "attested_controls": {
+    "host_source_snapshot_comparison": true,
+    "root_ownership_boundary_observed": true,
+    "fixed_build_argv": true
+  },
+  "claim_limit": "This case establishes one same-provider Bandit artifact and normalized-behavior reproducibility candidate from two distinct, freshly Sigstore-verified workflow runs sharing exact caller, called-workflow, handoff, builder, source, and policy anchors. It does not establish provider independence, independent source reacquisition, full invocation or lifecycle proof from trace, upstream ancestry, builder or collector tamper resistance, workflow implementation verification, release promotion, or semantic safety."
+}

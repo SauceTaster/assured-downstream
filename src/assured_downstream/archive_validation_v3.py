@@ -13,6 +13,7 @@ import stat
 import tarfile
 import unicodedata
 import zipfile
+import zlib
 from contextlib import contextmanager
 from email import policy as email_policy
 from email.parser import BytesParser
@@ -57,6 +58,36 @@ class BoundedReader:
         if self.total > self.limit:
             raise ArchiveValidationError("archive exceeds its expanded size limit")
         return payload
+
+
+def validate_single_gzip_member(handle: BinaryIO) -> None:
+    decompressor = zlib.decompressobj(16 + zlib.MAX_WBITS)
+    expanded = 0
+    try:
+        while chunk := handle.read(COPY_CHUNK_SIZE):
+            if decompressor.eof:
+                raise ArchiveValidationError("sdist gzip has trailing data")
+            pending = chunk
+            while pending:
+                before = pending
+                output = decompressor.decompress(
+                    pending,
+                    MAX_TAR_STREAM_BYTES - expanded + 1,
+                )
+                expanded += len(output)
+                if expanded > MAX_TAR_STREAM_BYTES:
+                    raise ArchiveValidationError(
+                        "archive exceeds its expanded size limit"
+                    )
+                if decompressor.unused_data:
+                    raise ArchiveValidationError("sdist gzip has trailing data")
+                pending = decompressor.unconsumed_tail
+                if pending == before and not output:
+                    raise ArchiveValidationError("sdist gzip stream is malformed")
+    except zlib.error as exc:
+        raise ArchiveValidationError("sdist gzip stream is malformed") from exc
+    if not decompressor.eof:
+        raise ArchiveValidationError("sdist gzip stream is incomplete")
 
 
 def validate_artifact_transforms(
@@ -110,7 +141,7 @@ def validate_artifact_transforms(
                     "sdist root directory does not match its filename"
                 )
         elif name.endswith(".whl"):
-            validate_wheel(final_path)
+            validate_wheel(final_path, logical_filename=name)
         else:
             raise ArchiveValidationError("unsupported Python release artifact")
 
@@ -142,6 +173,8 @@ def inspect_sdist(
             max_bytes=MAX_ARTIFACT_BYTES,
         ) as raw_handle:
             gzip_header = read_gzip_header(raw_handle)
+            raw_handle.seek(0)
+            validate_single_gzip_member(raw_handle)
             raw_handle.seek(0)
             with gzip.GzipFile(fileobj=raw_handle, mode="rb") as gzip_handle:
                 stream = BoundedReader(gzip_handle, limit=MAX_TAR_STREAM_BYTES)
@@ -302,8 +335,8 @@ def inspect_sdist(
     }
 
 
-def validate_wheel(path: Path) -> None:
-    filename_match = WHEEL_FILENAME_PATTERN.fullmatch(path.name)
+def validate_wheel(path: Path, *, logical_filename: str | None = None) -> None:
+    filename_match = WHEEL_FILENAME_PATTERN.fullmatch(logical_filename or path.name)
     if filename_match is None:
         raise ArchiveValidationError("wheel filename identity is unsupported")
     filename_identity = filename_match.groupdict()

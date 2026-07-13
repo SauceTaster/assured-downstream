@@ -1,12 +1,12 @@
 # Case Study 001: Pilot Cohort
 
-Status: five pilot forks created, lineage-verified, locally reconciled, and
-analyzed through durable agents. The exact upstream Bandit source now has a
-verified v2 build-evidence canary, and the replacement Python builder has a
-retained hostile-source isolation canary. Two distinct v2 executions have now
-been compared by the Repro and Governor agents; an sdist/SPDX mismatch correctly
-blocked reproducibility promotion. The separate additive `secure/main` patch
-remains local and unpublished.
+Status: five pilot forks are created, lineage-verified, locally reconciled, and
+analyzed through durable agents. The v2 Bandit comparison correctly blocked on
+archive and SPDX drift. The repaired v3 lane then produced byte-identical wheel,
+canonical sdist, normalized SPDX, and normalized behavior evidence across two
+freshly verified GitHub-hosted runs. That result is a same-provider development
+candidate, not a production release or independence claim. The additive
+`secure/main` patch remains local and unpublished.
 
 ## Objective
 
@@ -128,6 +128,27 @@ fork-of-a-fork lineage, and copyleft obligation handling.
 - extracted that prerelease into a separate directory, reverified both signed
   evidence sets, and reproduced the two-agent `needs_human_review` outcome with
   all stored artifact integrity checks green
+- activated `python-wheel-v3` only for the exact Bandit development request,
+  with a pinned image, separate handoff, deterministic SPDX normalizer,
+  `/build/v2` predicate, and bounded verifier policy
+- completed GitHub-hosted runs `29261239215` and `29261279150` from the same
+  pinned caller, called workflow, source, builder, handoff, and policy anchors
+- freshly verified all six v3 Sigstore bundles, exact in-toto subject paths,
+  signed run bindings, canonical archives, normalized SPDX, and all retained
+  trace records through the portable v3 verifier
+- confirmed exact wheel, canonical sdist, and normalized SPDX bytes; the raw
+  sdist payloads were semantically identical before canonicalization
+- compared both runs through the durable Repro and Governor v3 agents; exact
+  artifacts and normalized behavior passed as same-provider candidates while
+  `provider_independent` and `promotion_authorized` remained false
+- moved the v3 policy, verifier, archive-validator, and module pins into a
+  separate code trust root; the verifier now hashes full source bytes without a
+  reciprocal or zeroed policy field
+- reran three Luna review rounds to closure; the final focused review reported
+  no actionable findings, and the hardened real replay passed all ten Governor
+  checks while retaining the installed-control-plane trust assumption
+- recorded the parser limit explicitly: the retained trace does not independently
+  prove the complete build invocation, process lifecycle, or collector resistance
 
 The machine-readable patch evidence is in [`patch-canary.json`](./patch-canary.json).
 It deliberately makes no build, runtime, attestation, or hardened-release claim.
@@ -137,6 +158,8 @@ The replacement v2 build result is in
 [`bandit-build-canary-v2.json`](./bandit-build-canary-v2.json).
 The two-run mismatch and durable Governor decision are in
 [`bandit-reproducibility-v2.json`](./bandit-reproducibility-v2.json).
+The corrected two-run development candidate is in
+[`bandit-reproducibility-v3.json`](./bandit-reproducibility-v3.json).
 The portable evidence is retained in the
 [`case-study-001-bandit-reproducibility-v2`](https://github.com/SauceTaster/assured-downstream/releases/tag/case-study-001-bandit-reproducibility-v2)
 development prerelease.
@@ -162,14 +185,14 @@ as a separate governed migration.
 
 ## Next Run
 
-1. Create a new immutable Python builder profile that normalizes sdist gzip/tar
-   mtimes and deterministic SPDX metadata, then repeat two executions from one
-   exact caller commit.
-2. Bind GitHub run id and run attempt into the signed build predicate before
-   using execution identity for a stronger independence claim.
+1. Retain and replay the complete v3 case package outside GitHub Actions artifact
+   expiry.
+2. Repeat the request on a genuinely independent executor with independent
+   source acquisition before making any host-independence claim.
 3. Verify exact Git ancestry and signer workflow content through separate code
    before allowing production `Attested` to pass.
-4. Review the five unapproved Bandit changes separately; no workflow surgery or
+4. Build real Java and .NET evidence profiles from the bounded v3 contract.
+5. Review the five unapproved Bandit changes separately; no workflow surgery or
    release logic should inherit the additive policy approval.
-5. Redesign publication authorization inside the single-account boundary before
+6. Redesign publication authorization inside the single-account boundary before
    any public `secure/main` mutation.

@@ -17,6 +17,12 @@ from assured_downstream.build_verification_agents import (
     build_verification_routes,
     run_build_verification_agent_system,
 )
+from assured_downstream.build_verification_agents_v3 import (
+    BUILD_VERIFICATION_V3_WORKFLOW,
+    build_verification_v3_handlers,
+    build_verification_v3_routes,
+    run_build_verification_v3_agent_system,
+)
 from assured_downstream.catalog import load_catalog, save_catalog, upsert_findings
 from assured_downstream.checkout_pipeline import run_checkout_analysis
 from assured_downstream.custody import create_custodian_review
@@ -80,6 +86,12 @@ from assured_downstream.reproducibility_agents import (
     reproducibility_handlers,
     reproducibility_routes,
     run_reproducibility_agent_system,
+)
+from assured_downstream.reproducibility_agents_v3 import (
+    REPRODUCIBILITY_V3_WORKFLOW,
+    reproducibility_v3_handlers,
+    reproducibility_v3_routes,
+    run_reproducibility_v3_agent_system,
 )
 from assured_downstream.scoring import score_catalog
 from assured_downstream.seed import parse_seed_source
@@ -411,6 +423,28 @@ def build_parser() -> argparse.ArgumentParser:
     build_verification_run.add_argument("--enqueue-only", action="store_true")
     build_verification_run.set_defaults(func=command_build_verification_run)
 
+    build_verification_v3_run = subparsers.add_parser(
+        "build-verification-v3-run",
+        help=(
+            "Snapshot and verify sealed v3 build evidence through a durable agent."
+        ),
+    )
+    build_verification_v3_run.add_argument("--evidence", required=True, type=Path)
+    build_verification_v3_run.add_argument("--policy", required=True, type=Path)
+    build_verification_v3_run.add_argument(
+        "--trust-policy",
+        required=True,
+        type=Path,
+    )
+    build_verification_v3_run.add_argument("--run-dir", required=True, type=Path)
+    build_verification_v3_run.add_argument("--database", type=Path)
+    build_verification_v3_run.add_argument("--run-id")
+    build_verification_v3_run.add_argument("--max-items", type=int, default=20)
+    build_verification_v3_run.add_argument("--enqueue-only", action="store_true")
+    build_verification_v3_run.set_defaults(
+        func=command_build_verification_v3_run
+    )
+
     reproducibility_run = subparsers.add_parser(
         "reproducibility-run",
         help=(
@@ -437,6 +471,37 @@ def build_parser() -> argparse.ArgumentParser:
     reproducibility_run.add_argument("--enqueue-only", action="store_true")
     reproducibility_run.set_defaults(func=command_reproducibility_run)
 
+    reproducibility_v3_run = subparsers.add_parser(
+        "reproducibility-v3-run",
+        help=(
+            "Reverify and compare two sealed v3 builds through Repro and Governor."
+        ),
+    )
+    reproducibility_v3_run.add_argument(
+        "--left-evidence",
+        required=True,
+        type=Path,
+    )
+    reproducibility_v3_run.add_argument(
+        "--right-evidence",
+        required=True,
+        type=Path,
+    )
+    reproducibility_v3_run.add_argument("--left-execution-id", required=True)
+    reproducibility_v3_run.add_argument("--right-execution-id", required=True)
+    reproducibility_v3_run.add_argument("--policy", required=True, type=Path)
+    reproducibility_v3_run.add_argument(
+        "--trust-policy",
+        required=True,
+        type=Path,
+    )
+    reproducibility_v3_run.add_argument("--run-dir", required=True, type=Path)
+    reproducibility_v3_run.add_argument("--database", type=Path)
+    reproducibility_v3_run.add_argument("--run-id")
+    reproducibility_v3_run.add_argument("--max-items", type=int, default=20)
+    reproducibility_v3_run.add_argument("--enqueue-only", action="store_true")
+    reproducibility_v3_run.set_defaults(func=command_reproducibility_v3_run)
+
     agent_worker = subparsers.add_parser(
         "agent-worker",
         help="Drain leased work for one durable agent run.",
@@ -457,7 +522,9 @@ def build_parser() -> argparse.ArgumentParser:
                     *authorized_publication_handlers(),
                     *release_evidence_handlers(),
                     *build_verification_handlers(),
+                    *build_verification_v3_handlers(),
                     *reproducibility_handlers(),
+                    *reproducibility_v3_handlers(),
                 ]
             }
         ),
@@ -1109,6 +1176,26 @@ def command_build_verification_run(args: argparse.Namespace) -> int:
     return 0 if result["status"] in {"running", "succeeded"} else 2
 
 
+def command_build_verification_v3_run(args: argparse.Namespace) -> int:
+    result = run_build_verification_v3_agent_system(
+        evidence_path=args.evidence,
+        policy_path=args.policy,
+        trust_policy_path=args.trust_policy,
+        run_dir=args.run_dir,
+        database_path=args.database,
+        run_id=args.run_id,
+        max_items=args.max_items,
+        enqueue_only=args.enqueue_only,
+    )
+    print(f"build verification v3 run: {result['run_id']}")
+    print(f"status: {result['status']}")
+    print(f"processed work attempts: {result['processed_count']}")
+    print(f"pending work: {result['pending_count']}")
+    print(f"database: {result['database_path']}")
+    print(f"summary: {result['summary_path']}")
+    return 0 if result["status"] in {"running", "succeeded"} else 2
+
+
 def command_reproducibility_run(args: argparse.Namespace) -> int:
     result = run_reproducibility_agent_system(
         left_evidence_path=args.left_evidence,
@@ -1124,6 +1211,29 @@ def command_reproducibility_run(args: argparse.Namespace) -> int:
         enqueue_only=args.enqueue_only,
     )
     print(f"reproducibility run: {result['run_id']}")
+    print(f"status: {result['status']}")
+    print(f"processed work attempts: {result['processed_count']}")
+    print(f"pending work: {result['pending_count']}")
+    print(f"database: {result['database_path']}")
+    print(f"summary: {result['summary_path']}")
+    return 0 if result["status"] in {"running", "succeeded"} else 2
+
+
+def command_reproducibility_v3_run(args: argparse.Namespace) -> int:
+    result = run_reproducibility_v3_agent_system(
+        left_evidence_path=args.left_evidence,
+        right_evidence_path=args.right_evidence,
+        left_execution_id=args.left_execution_id,
+        right_execution_id=args.right_execution_id,
+        policy_path=args.policy,
+        trust_policy_path=args.trust_policy,
+        run_dir=args.run_dir,
+        database_path=args.database,
+        run_id=args.run_id,
+        max_items=args.max_items,
+        enqueue_only=args.enqueue_only,
+    )
+    print(f"reproducibility v3 run: {result['run_id']}")
     print(f"status: {result['status']}")
     print(f"processed work attempts: {result['processed_count']}")
     print(f"pending work: {result['pending_count']}")
@@ -1151,9 +1261,15 @@ def command_agent_worker(args: argparse.Namespace) -> int:
     elif workflow == BUILD_VERIFICATION_WORKFLOW:
         available_handlers = build_verification_handlers()
         routes = build_verification_routes()
+    elif workflow == BUILD_VERIFICATION_V3_WORKFLOW:
+        available_handlers = build_verification_v3_handlers()
+        routes = build_verification_v3_routes()
     elif workflow == REPRODUCIBILITY_WORKFLOW:
         available_handlers = reproducibility_handlers()
         routes = reproducibility_routes()
+    elif workflow == REPRODUCIBILITY_V3_WORKFLOW:
+        available_handlers = reproducibility_v3_handlers()
+        routes = reproducibility_v3_routes()
     elif workflow == "discovery-to-fork-plan":
         available_handlers = first_lane_handlers()
     else:

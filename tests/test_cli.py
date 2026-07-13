@@ -133,6 +133,53 @@ class CliTests(unittest.TestCase):
         self.assertEqual(args.right_execution_id, "github-actions:2")
         self.assertEqual(args.run_dir, Path("runs/repro-001"))
 
+    def test_build_verification_v3_run_has_separate_policy_lane(self) -> None:
+        args = build_parser().parse_args(
+            [
+                "build-verification-v3-run",
+                "--evidence",
+                "evidence-v3.json",
+                "--policy",
+                "policies/build-verification-v3.json",
+                "--trust-policy",
+                "policies/release-verification.json",
+                "--run-dir",
+                "runs/build-verify-v3",
+            ]
+        )
+
+        self.assertEqual(args.evidence, Path("evidence-v3.json"))
+        self.assertEqual(
+            args.policy,
+            Path("policies/build-verification-v3.json"),
+        )
+        self.assertEqual(args.run_dir, Path("runs/build-verify-v3"))
+
+    def test_reproducibility_v3_run_has_separate_agent_lane(self) -> None:
+        args = build_parser().parse_args(
+            [
+                "reproducibility-v3-run",
+                "--left-evidence",
+                "left/evidence.json",
+                "--right-evidence",
+                "right/evidence.json",
+                "--left-execution-id",
+                "github-actions:1001",
+                "--right-execution-id",
+                "github-actions:1002",
+                "--policy",
+                "policies/build-verification-v3.json",
+                "--trust-policy",
+                "policies/release-verification.json",
+                "--run-dir",
+                "runs/repro-v3",
+            ]
+        )
+
+        self.assertEqual(args.left_execution_id, "github-actions:1001")
+        self.assertEqual(args.right_execution_id, "github-actions:1002")
+        self.assertEqual(args.run_dir, Path("runs/repro-v3"))
+
     def test_checkout_run_parser_keeps_sync_execution_explicit(self) -> None:
         args = build_parser().parse_args(
             [

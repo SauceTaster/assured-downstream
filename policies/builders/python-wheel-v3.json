@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "status": "active-dev-case-study-only",
+  "profile_id": "python-wheel-v3",
+  "platform": "linux/amd64",
+  "bootstrap_policy": "policies/builders/python-wheel-v3-bootstrap.json",
+  "image": "ghcr.io/saucetaster/assured-downstream-python-builder",
+  "image_digest": "sha256:5f52c4bfe05c4947877d6d80f2124062b79a46764cc2161dc4caaa631d65833a",
+  "base_image_index_digest": "sha256:519591d6871b7bc437060736b9f7456b8731f1499a57e22e6c285135ae657bf7",
+  "handoff": {
+    "commit": "469ad1ca91f803e05616ec4f289add51a3ad0fa6",
+    "module": "src/assured_downstream/builder_handoff_v3.py",
+    "sha256": "fa6beace9189e145bcf9e0a743537e200438234653d5d34b1a2868646c6716b1",
+    "archive_validator": "src/assured_downstream/archive_validation_v3.py",
+    "archive_validator_sha256": "8e739a88191e01268455f524c6c455036090d3306e2e6ae19415e74d779a14b4"
+  },
+  "workflow": {
+    "called_path": ".github/workflows/reusable-python-build-v3.yml",
+    "called_commit": "a82cb381d8d9a5fae10d1a989e58b03a174590fc",
+    "caller_path": ".github/workflows/case-study-bandit-build-v3.yml",
+    "caller_commit": "8d193e44f863006bbe16f9b7148337bcc0079b34",
+    "event": "workflow_dispatch",
+    "actor": "SauceTaster",
+    "triggering_actor": "SauceTaster",
+    "run_attempt": "1",
+    "runner_environment": "github-hosted"
+  },
+  "attestations": {
+    "statement_type": "https://in-toto.io/Statement/v1",
+    "provenance_predicate": "https://slsa.dev/provenance/v1",
+    "sbom_predicate": "https://spdx.dev/Document/v2.3",
+    "build_predicate": "https://assured-downstream.dev/attestation/build/v2",
+    "keyless_sigstore": true,
+    "transparency_timestamp_required": true,
+    "exact_dist_path_subjects": true
+  },
+  "verification": {
+    "policy": "policies/build-verification-v3.json",
+    "policy_sha256": "482715bca2901d3d62dc86d86e5346c7653f720180cec79783da5f05c4f71c76",
+    "trust_policy": "policies/release-verification.json",
+    "trust_policy_sha256": "abca9090eebb736a72ce30102f812a5ed6f4ffb46dc3e9f3f041fad2d1fac344",
+    "code_trust_root": "src/assured_downstream/build_verification_trust_v3.py",
+    "code_trust_root_sha256": "7258358e7a24ce020575ff51641f73bacc4ae1e09fb2d08eba7585dffc9a1e92",
+    "portable_verifier": "src/assured_downstream/build_verification_v3.py",
+    "portable_verifier_sha256": "790785a2b5675cfbd59e4498354d96dd2c5616b9f15a3aef307e538b1a7378db",
+    "portable_archive_validator_sha256": "bf86ea2b8cd595cec6260da1276afb21ccb91ad6defd65552cf4ed61e92bb4a0",
+    "agent": "builder-verifier-v3",
+    "repro_agent": "repro-v3",
+    "governor": "governor-v3"
+  },
+  "authorized_request": {
+    "case_id": "case-001-bandit-source-canary-v3",
+    "source_repository": "PyCQA/bandit",
+    "source_commit": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+    "source_tree": "5313408ad294e5a95f214620ec3064f8e40bc608",
+    "source_date_epoch": "1783382521",
+    "target_repository": "SauceTaster/assured-bandit",
+    "project_version": "1.9.4",
+    "release_tag": "case-001-bandit-source-canary-v3"
+  },
+  "validated_case": {
+    "record": "case-studies/001-pilot-cohort/bandit-reproducibility-v3.json",
+    "workflow_runs": [
+      29261239215,
+      29261279150
+    ],
+    "artifact_sha256": {
+      "dist/bandit-1.9.4-py3-none-any.whl": "39e66c66ae9e67708ee2df1fbc8d862c88223856cd5ddef7dfdc3c7dbb157b5f",
+      "dist/bandit-1.9.4.tar.gz": "b70b7bf3e18f0a2a76000b8f099c3f9eb0f732288e0d70f14d6fcaebe86b8595"
+    },
+    "normalized_spdx_sha256": "9811609dba45f03eef83586aaaf7b3d3bd6eea31d6f96e25057501c5ca0eeab1",
+    "normalized_behavior_sha256": "8fc6b744e2e074cc7d7ac959182f39e7b0e33d04c1d48e04e26e9cb8e7fc370b",
+    "artifact_reproducibility_candidate": true,
+    "behavior_reproducibility_candidate": true,
+    "provider_independent": false,
+    "promotion_authorized": false
+  },
+  "controls": {
+    "network": "none",
+    "read_only_builder_root": true,
+    "unprivileged_build_uid": 65532,
+    "root_collector": true,
+    "root_owned_evidence_boundary": true,
+    "host_source_snapshot_seal": true,
+    "raw_trace_retention": true,
+    "raw_artifact_retention": true,
+    "canonical_sdist": "python-sdist-pax-v1",
+    "normalized_spdx": "spdx-2.3-syft-canonical-v1",
+    "independent_archive_replay": true,
+    "independent_trace_replay": true
+  },
+  "independently_verified": {
+    "sigstore_bundles": true,
+    "artifact_subjects": true,
+    "canonical_archive_semantics": true,
+    "normalized_spdx_binding": true,
+    "retained_trace_parser_pass": true,
+    "run_invocation_certificate_binding": true,
+    "artifact_reproducibility": true,
+    "normalized_behavior_reproducibility_candidate": true,
+    "source_snapshot_comparison": false,
+    "ownership_boundary_observation": false,
+    "build_invocation_from_trace": false,
+    "provider_independence": false,
+    "upstream_lineage": false,
+    "builder_isolation": false,
+    "collector_tamper_resistance": false,
+    "workflow_implementation": false,
+    "semantic_safety": false
+  },
+  "claim_limit": "This policy activates python-wheel-v3 only for the exact Bandit development case. It records one same-provider artifact and normalized-behavior reproducibility candidate, but grants no general Python-project authorization, provider-independent claim, release promotion, independent source or ownership verification, full trace-derived invocation proof, upstream ancestry, containment, or semantic-safety claim."
+}

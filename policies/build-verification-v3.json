@@ -1,0 +1,77 @@
+{
+  "schema_version": 4,
+  "status": "active-dev-case-study",
+  "control_repository": "SauceTaster/assured-downstream",
+  "signer": {
+    "workflow_path": ".github/workflows/reusable-python-build-v3.yml",
+    "workflow_digest": "a82cb381d8d9a5fae10d1a989e58b03a174590fc",
+    "certificate_identity": "https://github.com/SauceTaster/assured-downstream/.github/workflows/reusable-python-build-v3.yml@a82cb381d8d9a5fae10d1a989e58b03a174590fc",
+    "caller_workflow_path": ".github/workflows/case-study-bandit-build-v3.yml",
+    "caller_digests": [
+      "8d193e44f863006bbe16f9b7148337bcc0079b34"
+    ],
+    "source_ref": "refs/heads/main",
+    "trigger": "workflow_dispatch",
+    "oidc_issuer": "https://token.actions.githubusercontent.com",
+    "deny_self_hosted_runners": true,
+    "workflow_name": "Case Study 001 Bandit Build Canary v3",
+    "actor": "SauceTaster",
+    "triggering_actor": "SauceTaster",
+    "run_attempt": "1"
+  },
+  "approved_request": {
+    "case_id": "case-001-bandit-source-canary-v3",
+    "source_repository": "PyCQA/bandit",
+    "source_commit": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+    "source_tree": "5313408ad294e5a95f214620ec3064f8e40bc608",
+    "source_date_epoch": "1783382521",
+    "upstream_repository": "PyCQA/bandit",
+    "upstream_commit": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+    "target_repository": "SauceTaster/assured-bandit",
+    "project_version": "1.9.4",
+    "release_tag": "case-001-bandit-source-canary-v3"
+  },
+  "builder": {
+    "profile": "python-wheel-v3",
+    "image": "ghcr.io/saucetaster/assured-downstream-python-builder",
+    "image_digest": "sha256:5f52c4bfe05c4947877d6d80f2124062b79a46764cc2161dc4caaa631d65833a",
+    "handoff_verifier_commit": "469ad1ca91f803e05616ec4f289add51a3ad0fa6",
+    "handoff_verifier_sha256": "fa6beace9189e145bcf9e0a743537e200438234653d5d34b1a2868646c6716b1",
+    "canonicalization_policy": "python-sdist-pax-v1",
+    "base_image_index_digest": "sha256:519591d6871b7bc437060736b9f7456b8731f1499a57e22e6c285135ae657bf7",
+    "source_digests": {
+      "builders/python-v3/Dockerfile": "def67c917675090d4b147f1b89b6ce5bedeb803591fae8322adb70dac3db88a6",
+      "builders/python-v3/entrypoint.py": "9601c51e015dd7b45cb4e78f62f4de6af98fdeff048f0c23af467ae5c27d6884",
+      "builders/python-v3/requirements.lock": "6a060a27d9e1d93a78a969d67b7d5e7f9508b73b99c0332315f8646ae80fd2a6"
+    }
+  },
+  "spdx": {
+    "normalization_policy": "spdx-2.3-syft-canonical-v1",
+    "syft_version": "1.42.3",
+    "creators": [
+      "Organization: Anchore, Inc",
+      "Tool: syft-1.42.3"
+    ],
+    "license_list_version": "3.28"
+  },
+  "actions": {
+    "actions/attest": "a1948c3f048ba23858d222213b7c278aabede763",
+    "actions/checkout": "34e114876b0b11c390a56381ad16ebd13914f8d5",
+    "actions/download-artifact": "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+    "actions/upload-artifact": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+    "anchore/sbom-action": "e22c389904149dbc22b58101806040fa8d37a610"
+  },
+  "predicates": {
+    "provenance": "https://slsa.dev/provenance/v1",
+    "sbom": "https://spdx.dev/Document/v2.3",
+    "build": "https://assured-downstream.dev/attestation/build/v2"
+  },
+  "verifier": {
+    "module": "src/assured_downstream/build_verification_v3.py",
+    "source_sha256": "790785a2b5675cfbd59e4498354d96dd2c5616b9f15a3aef307e538b1a7378db",
+    "archive_validator_module": "src/assured_downstream/archive_validation_v3.py",
+    "archive_validator_sha256": "bf86ea2b8cd595cec6260da1276afb21ccb91ad6defd65552cf4ed61e92bb4a0"
+  },
+  "trust_policy_sha256": "abca9090eebb736a72ce30102f812a5ed6f4ffb46dc3e9f3f041fad2d1fac344",
+  "claim_limit": "This policy verifies one bounded Bandit v3 evidence candidate. It does not establish upstream ancestry, provider-independent rebuilds, builder or collector tamper resistance, or semantic safety."
+}

@@ -177,13 +177,13 @@ a portable evidence bundle.
 
 ### 3.4 Evidence And Verification
 
-Status: portable manifest verification and a five-agent evidence lane are built.
-The non-authoritative evidence candidate requires local consistency, represented
-Sigstore subject coverage, approved-tooling digests, and workflow-risk claim
-shape. Retained Sigstore bundles are now verified by pinned code. Production
-Attested remains blocked until code also verifies upstream ancestry, builder
-identity, tooling, and workflow implementation; a real isolated builder and
-GitHub attestation ingestion remain.
+Status: portable manifest verification and durable evidence agents are built.
+The bounded Python v3 lane independently reverifies retained keyless Sigstore
+bundles, exact in-toto subjects, normalized SPDX, archive transforms, signed run
+binding, raw trace parseability, and full-byte verifier sources against a
+separate code trust root. Production `Attested` remains blocked until
+separate code also verifies upstream ancestry, workflow content, tooling, source
+reacquisition, and builder or collector isolation.
 
 - 3.4.1 Create evidence manifests
 - 3.4.2 Verify local evidence manifests
@@ -197,9 +197,13 @@ GitHub attestation ingestion remain.
 
 ### 4.1 Artifact Reproducibility
 
-Status: durable Repro/Governor comparison is implemented and exercised over two
-real retained Bandit evidence sets. The first case blocked on sdist and SPDX byte
-drift. Deterministic builder repair and provider-independent runners remain.
+Status: durable Repro/Governor comparison is implemented. The v2 Bandit case
+correctly blocked on sdist and SPDX drift; the repaired v3 lane then produced
+byte-identical wheel, canonical sdist, and normalized SPDX subjects across two
+freshly reverified GitHub-hosted runs. This is a same-provider reproducibility
+candidate with no promotion authority. Provider-independent runners remain.
+The hardened comparison and Governor bindings passed a final focused Luna
+review with no actionable findings.
 
 - 4.1.1 Compare evidence manifests
 - 4.1.2 Compare artifact hashes across hosts
@@ -210,10 +214,11 @@ drift. Deterministic builder repair and provider-independent runners remain.
 
 ### 4.2 Behavior Reproducibility
 
-Status: trace normal form v2 and the first Linux strace collector are built. Two
-Bandit observations match diagnostically after enumerated temp-path
-normalization; behavior gating, tamper-resistant collection proof, and
-independent-host comparison remain pending.
+Status: Linux strace collection, raw-record replay, and trace normal form v2 are
+built. Two Bandit observations each retained 36,170 parseable records and match
+after enumerated volatile-path normalization. This is diagnostic behavior
+evidence only: the retained trace does not yet prove the complete invocation or
+lifecycle, collector tamper resistance, or independent-host execution.
 
 - 4.2.1 Normalize JSON trace events
 - 4.2.2 Compare behavior digests

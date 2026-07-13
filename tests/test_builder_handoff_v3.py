@@ -48,6 +48,20 @@ SOURCE_DATE_EPOCH = "1783382521"
 
 
 class BuilderHandoffV3Tests(unittest.TestCase):
+    def test_content_addressed_wheel_keeps_logical_filename_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            logical_name = "bandit-1.9.4-py3-none-any.whl"
+            wheel = root / f"{'a' * 64}-00001-{logical_name}"
+            write_test_wheel(wheel)
+
+            with self.assertRaisesRegex(
+                ArchiveValidationError,
+                "wheel filename identity",
+            ):
+                validate_wheel(wheel)
+            validate_wheel(wheel, logical_filename=logical_name)
+
     def test_full_handoff_is_path_bound_and_run_bound(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -314,6 +328,16 @@ class BuilderHandoffV3Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             sdist = root / "bandit-1.9.4.tar.gz"
+            write_test_sdist(sdist, canonical=True)
+            with sdist.open("ab") as raw:
+                raw.write(b"\x00" * 16)
+            with self.assertRaisesRegex(ArchiveValidationError, "trailing data"):
+                inspect_sdist(
+                    sdist,
+                    source_date_epoch=int(SOURCE_DATE_EPOCH),
+                    require_canonical=True,
+                )
+
             write_test_sdist(sdist, canonical=True)
             expanded = (
                 gzip.decompress(sdist.read_bytes()) + b"\x00" * tarfile.RECORDSIZE
