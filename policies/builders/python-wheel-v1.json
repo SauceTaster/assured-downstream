@@ -49,6 +49,7 @@
   },
   "reusable_workflow": {
     "path": ".github/workflows/reusable-python-build.yml",
+    "signer_commit": "b1bc1b4b2a0460e2796de461dd07c06a17ecc66b",
     "handoff_verifier_commit": "6db8f2b834f0318e615bfd849e17e9839aaad078",
     "actions": {
       "actions/attest": "a1948c3f048ba23858d222213b7c278aabede763",

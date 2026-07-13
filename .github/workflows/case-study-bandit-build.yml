@@ -1,0 +1,26 @@
+name: Case Study 001 Bandit Build Canary
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build exact Bandit source through the assured builder
+    permissions:
+      attestations: write # Store attestations for this controlled caller.
+      contents: read
+      id-token: write # Request keyless certificates only in the called attest job.
+    uses: SauceTaster/assured-downstream/.github/workflows/reusable-python-build.yml@b1bc1b4b2a0460e2796de461dd07c06a17ecc66b
+    with:
+      source_repository: PyCQA/bandit
+      source_commit: c45446eaa30c4f28289c3b8ba9a955e1d78ba715
+      source_tree: 5313408ad294e5a95f214620ec3064f8e40bc608
+      upstream_repository: PyCQA/bandit
+      upstream_commit: c45446eaa30c4f28289c3b8ba9a955e1d78ba715
+      target_repository: SauceTaster/assured-bandit
+      project_version: 1.9.4
+      release_tag: case-001-bandit-source-canary
+      case_id: case-001-bandit-source-canary

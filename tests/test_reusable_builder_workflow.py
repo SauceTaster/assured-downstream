@@ -12,6 +12,7 @@ from assured_downstream.workflow_yaml import parse_workflow_yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "reusable-python-build.yml"
+CASE_WORKFLOW = ROOT / ".github" / "workflows" / "case-study-bandit-build.yml"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
 
 
@@ -99,6 +100,40 @@ class ReusableBuilderWorkflowTests(unittest.TestCase):
         )
         self.assertIn('test "$CALLER_REF_PROTECTED" = "true"', text)
         self.assertIn("get-regexp '^http\\..*\\.extraheader$' >/dev/null 2>&1", text)
+
+    def test_bandit_caller_pins_the_reusable_signer_and_request(self) -> None:
+        policy = json.loads(
+            (ROOT / "policies" / "builders" / "python-wheel-v1.json").read_text()
+        )
+        workflow = parse_workflow_yaml(CASE_WORKFLOW.read_text(encoding="utf-8"))
+        build = workflow["jobs"]["build"]
+        inputs = build["with"]
+        signer_commit = policy["reusable_workflow"]["signer_commit"]
+
+        self.assertEqual(
+            build["uses"],
+            (
+                "SauceTaster/assured-downstream/.github/workflows/"
+                f"reusable-python-build.yml@{signer_commit}"
+            ),
+        )
+        self.assertTrue(FULL_SHA.fullmatch(signer_commit))
+        request = policy["reusable_workflow"]["approved_request"]
+        for name in (
+            "source_repository",
+            "source_commit",
+            "source_tree",
+            "upstream_repository",
+            "upstream_commit",
+            "target_repository",
+            "project_version",
+            "release_tag",
+            "case_id",
+        ):
+            self.assertEqual(inputs[name], request[name])
+        self.assertEqual(inputs["source_commit"], inputs["upstream_commit"])
+        self.assertIn("source-canary", inputs["release_tag"])
+        self.assertNotIn("secure", inputs["release_tag"])
 
 if __name__ == "__main__":
     unittest.main()
