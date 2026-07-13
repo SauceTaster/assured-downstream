@@ -34,6 +34,12 @@ def build_sdist(sdist_directory, config_settings=None) -> str:
     filename = f"{NAME}-{VERSION}.tar.gz"
     root = f"{NAME}-{VERSION}"
     with tarfile.open(output / filename, "w:gz") as archive:
+        metadata = package_metadata().encode()
+        metadata_info = tarfile.TarInfo(f"{root}/PKG-INFO")
+        metadata_info.mode = 0o644
+        metadata_info.size = len(metadata)
+        metadata_info.mtime = int(os.environ.get("SOURCE_DATE_EPOCH", "0"))
+        archive.addfile(metadata_info, io.BytesIO(metadata))
         for source in (
             Path("pyproject.toml"),
             Path("hostile_backend.py"),
@@ -51,12 +57,7 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None) 
     dist_info = f"{NORMALIZED_NAME}-{VERSION}.dist-info"
     members = {
         "hostile_fixture/__init__.py": '__version__ = "0.0.1"\n',
-        f"{dist_info}/METADATA": (
-            "Metadata-Version: 2.1\n"
-            f"Name: {NAME}\n"
-            f"Version: {VERSION}\n"
-            "Summary: Assured Downstream adversarial build fixture\n"
-        ),
+        f"{dist_info}/METADATA": package_metadata(),
         f"{dist_info}/WHEEL": (
             "Wheel-Version: 1.0\n"
             "Generator: assured-hostile-fixture\n"
@@ -81,6 +82,15 @@ def build_wheel(wheel_directory, config_settings=None, metadata_directory=None) 
         csv.writer(record_buffer, lineterminator="\n").writerows(record_rows)
         wheel.writestr(record_path, record_buffer.getvalue().encode())
     return filename
+
+
+def package_metadata() -> str:
+    return (
+        "Metadata-Version: 2.1\n"
+        f"Name: {NAME}\n"
+        f"Version: {VERSION}\n"
+        "Summary: Assured Downstream adversarial build fixture\n"
+    )
 
 
 def write_probe(output: Path) -> None:
@@ -139,7 +149,11 @@ def attempt(action: Callable[[], object]) -> dict[str, object]:
 
 def process_status(path: Path = Path("/proc/self/status")) -> dict[str, str]:
     values = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
+    try:
+        status = path.read_text(encoding="utf-8")
+    except OSError:
+        return values
+    for line in status.splitlines():
         key, separator, value = line.partition(":")
         if separator:
             values[key] = value.strip()

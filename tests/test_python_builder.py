@@ -3,7 +3,9 @@ from __future__ import annotations
 import importlib.util
 import json
 import tempfile
+import tarfile
 import unittest
+from contextlib import chdir
 from pathlib import Path
 
 from assured_downstream.workflow_yaml import parse_workflow_yaml
@@ -11,12 +13,23 @@ from assured_downstream.workflow_yaml import parse_workflow_yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "builders" / "python" / "entrypoint.py"
+HOSTILE_FIXTURE = ROOT / "tests" / "fixtures" / "hostile-python-package"
 
 
 def load_entrypoint():
     spec = importlib.util.spec_from_file_location("assured_python_builder", ENTRYPOINT)
     if spec is None or spec.loader is None:
         raise RuntimeError("could not load Python builder entrypoint")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_hostile_backend():
+    path = HOSTILE_FIXTURE / "hostile_backend.py"
+    spec = importlib.util.spec_from_file_location("assured_hostile_backend", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("could not load hostile fixture backend")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -108,6 +121,19 @@ class PythonBuilderTests(unittest.TestCase):
             self.assertIn(f'"{attack}"', workflow_text)
         self.assertIn('Path("/out/tamper-marker")', backend)
         self.assertIn("os.kill(1, signal.SIGTERM)", backend)
+
+    def test_hostile_fixture_builds_a_valid_sdist(self) -> None:
+        backend = load_hostile_backend()
+        with tempfile.TemporaryDirectory() as tmp, chdir(HOSTILE_FIXTURE):
+            filename = backend.build_sdist(tmp)
+            with tarfile.open(Path(tmp) / filename, "r:gz") as archive:
+                members = set(archive.getnames())
+                metadata = archive.extractfile("assured-hostile-fixture-0.0.1/PKG-INFO")
+                self.assertIsNotNone(metadata)
+                metadata_bytes = metadata.read()
+
+        self.assertIn("assured-hostile-fixture-0.0.1/PKG-INFO", members)
+        self.assertIn(b"Name: assured-hostile-fixture", metadata_bytes)
 
     def test_lock_uses_exact_versions_and_hashes(self) -> None:
         lock = (ROOT / "builders" / "python" / "requirements.lock").read_text()
