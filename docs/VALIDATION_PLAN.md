@@ -215,6 +215,10 @@ Pass condition:
 The canonical Bandit replay passed on 2026-07-13 with 298 exact entries, zero
 findings, two verified registered artifacts, and a zero-work idempotent resume.
 A two-round Luna review closed all five initial actionable findings.
+The 254-entry deterministic replay package contains 205 internal checksums. A
+fresh GitHub download matched SHA-256
+`99b6601b70d55584d5b6e18925292f4617600b5a8eee4d1a98576f34f620cd94`,
+and the extracted control plane reproduced the same 298-entry inventory digest.
 
 ### T2 - Sandbox Owner Attested Case Study
 

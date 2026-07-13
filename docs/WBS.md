@@ -187,6 +187,9 @@ toolchain, and builder or collector isolation. The new Source Reacquirer v3
 agent has independently fetched the exact Bandit branch from canonical GitHub,
 matched all 298 retained source entries, and retained a bounded source
 observation without claiming ancestry or provider independence.
+The complete Source Reacquirer case is retained as a deterministic development
+prerelease, downloaded back byte-for-byte, checksum-verified after extraction,
+and replayed successfully from the packaged control plane.
 The complete v3 case is retained as a checksummed development prerelease and
 was successfully replayed after fresh extraction.
 

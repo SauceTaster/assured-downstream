@@ -175,6 +175,12 @@ Its complete evidence, policies, verifier sources, ledger, checksums, and replay
 instructions are retained in the
 [`case-study-001-bandit-reproducibility-v3`](https://github.com/SauceTaster/assured-downstream/releases/tag/case-study-001-bandit-reproducibility-v3)
 development prerelease.
+The separately reacquired canonical source observation, accepted inventory,
+control-plane source, SQLite ledger, 205 internal checksums, and replay
+instructions are retained in the
+[`case-study-001-bandit-source-reacquisition-v3`](https://github.com/SauceTaster/assured-downstream/releases/tag/case-study-001-bandit-source-reacquisition-v3)
+development prerelease. Its 254-entry deterministic archive was downloaded back
+byte-for-byte and replayed successfully after fresh extraction.
 The portable evidence is retained in the
 [`case-study-001-bandit-reproducibility-v2`](https://github.com/SauceTaster/assured-downstream/releases/tag/case-study-001-bandit-reproducibility-v2)
 development prerelease.

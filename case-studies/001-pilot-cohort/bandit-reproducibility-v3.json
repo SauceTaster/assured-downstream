@@ -164,6 +164,33 @@
     "provider_independent": false,
     "upstream_lineage": false,
     "kernel_filesystem_quota": false,
+    "durable_release": {
+      "tag": "case-study-001-bandit-source-reacquisition-v3",
+      "url": "https://github.com/SauceTaster/assured-downstream/releases/tag/case-study-001-bandit-source-reacquisition-v3",
+      "github_release_id": 353324077,
+      "target_commit": "22d69144bec11ddcbc885d3b6709378bc06fa042",
+      "published_at": "2026-07-13T17:41:28Z",
+      "prerelease": true,
+      "asset": {
+        "github_asset_id": 475731825,
+        "name": "case-study-001-bandit-source-reacquisition-v3.tar.gz",
+        "size_bytes": 539877,
+        "sha256": "99b6601b70d55584d5b6e18925292f4617600b5a8eee4d1a98576f34f620cd94"
+      },
+      "internal_checksum_count": 205,
+      "archive_entry_count": 254,
+      "deterministic_archive_generation": true,
+      "downloaded_asset_exact_match": true,
+      "extracted_replay": {
+        "run_id": "source-reacquisition-v3-bandit-package-replay",
+        "status": "succeeded",
+        "event": "SourceReacquiredV3Compared",
+        "entry_count": 298,
+        "finding_count": 0,
+        "acquired_inventory_sha256": "c21c46a48673709bc2e205cc9f2d55b2f2bf0bcd202aca7971bcdabf977a8724",
+        "provider_independent": false
+      }
+    },
     "claim_limit": "This is a time-bounded canonical GitHub source observation and exact retained-inventory comparison. It does not establish authorship, persistent branch identity, upstream ownership or lineage, host or provider independence, semantic safety, or independently verified operating-system tooling."
   },
   "trace_comparison": {
