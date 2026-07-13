@@ -283,8 +283,8 @@ def prepare_directories() -> None:
     ):
         path.chmod(0o700)
     for path in (BUILD_OUTPUT_ROOT, BUILD_DIST_ROOT, Path("/tmp/home")):
+        path.chmod(0o750)
         os.chown(path, BUILD_UID, 0)
-        path.chmod(0o2750)
 
 
 def copy_source() -> None:
@@ -299,8 +299,8 @@ def copy_source() -> None:
 def grant_build_ownership(root: Path) -> None:
     for path in [root, *sorted(root.rglob("*"))]:
         metadata = path.lstat()
-        os.lchown(path, BUILD_UID, 0)
         if stat.S_ISLNK(metadata.st_mode):
+            os.lchown(path, BUILD_UID, 0)
             continue
         mode = stat.S_IMODE(metadata.st_mode)
         if stat.S_ISDIR(metadata.st_mode):
@@ -311,7 +311,6 @@ def grant_build_ownership(root: Path) -> None:
                 | stat.S_IXUSR
                 | stat.S_IRGRP
                 | stat.S_IXGRP
-                | stat.S_ISGID
             )
         elif stat.S_ISREG(metadata.st_mode):
             group_mode = stat.S_IRGRP
@@ -320,6 +319,7 @@ def grant_build_ownership(root: Path) -> None:
             path.chmod(mode | stat.S_IRUSR | stat.S_IWUSR | group_mode)
         else:
             raise BuilderError(f"source contains unsupported file type: {path}")
+        os.lchown(path, BUILD_UID, 0)
 
 
 def build_environment(metadata: dict[str, str]) -> dict[str, str]:
@@ -392,7 +392,7 @@ def verify_identity_boundary(
         or build_output_root.is_symlink()
         or build_metadata.st_uid != BUILD_UID
         or build_metadata.st_gid != 0
-        or stat.S_IMODE(build_metadata.st_mode) != 0o2750
+        or stat.S_IMODE(build_metadata.st_mode) != 0o750
     ):
         raise BuilderError("build output root lost its unprivileged ownership")
 
