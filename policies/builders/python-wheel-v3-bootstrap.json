@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "status": "bootstrap-review-ready-not-published",
+  "profile_id": "python-wheel-v3",
+  "platform": "linux/amd64",
+  "image": "ghcr.io/saucetaster/assured-downstream-python-builder",
+  "source": {
+    "dockerfile": "builders/python-v3/Dockerfile",
+    "entrypoint": "builders/python-v3/entrypoint.py",
+    "python_lock": "builders/python-v3/requirements.lock",
+    "publication_workflow": ".github/workflows/publish-python-builder-v3.yml"
+  },
+  "historical_v2_boundary": {
+    "status": "unchanged",
+    "entrypoint_sha256": "ccfb8bfac1a89b1085a8a76c3cca895ce36ea163608d7c42141ce84003f8120d",
+    "dockerfile_sha256": "bd09a87eba036785dd7a7b579ec415bf508d0492ae40e44e495ed8a6a312c4c0",
+    "python_lock_sha256": "6a060a27d9e1d93a78a969d67b7d5e7f9508b73b99c0332315f8646ae80fd2a6",
+    "publication_workflow_sha256": "aee01db6ca859553402b1b04c66ef21289a05ef4dd04391ba3f88e2f7d7e965c"
+  },
+  "base_image": {
+    "name": "python:3.12.11-slim-bookworm",
+    "index_digest": "sha256:519591d6871b7bc437060736b9f7456b8731f1499a57e22e6c285135ae657bf7"
+  },
+  "system_packages": [
+    {
+      "name": "libunwind8",
+      "version": "1.6.2-3",
+      "architecture": "amd64",
+      "url": "https://deb.debian.org/debian/pool/main/libu/libunwind/libunwind8_1.6.2-3_amd64.deb",
+      "sha256": "7b297868682836e4c87be349f17e4a56bc287586e3576503e84a5cb5485ce925"
+    },
+    {
+      "name": "strace",
+      "version": "6.1-0.1",
+      "architecture": "amd64",
+      "url": "https://deb.debian.org/debian/pool/main/s/strace/strace_6.1-0.1_amd64.deb",
+      "sha256": "1942d086a6244a1a9643489d3b0aa604ac44b88991d6c69217a63a193671bd4f"
+    }
+  ],
+  "runtime": {
+    "entrypoint": [
+      "python",
+      "-I",
+      "/opt/assured-downstream/entrypoint.py"
+    ],
+    "supervisor_uid": 0,
+    "supervisor_gid": 0,
+    "build_uid": 65532,
+    "build_gid": 65532,
+    "network": "none",
+    "read_only_root": true,
+    "capabilities": [
+      "CHOWN",
+      "KILL",
+      "SETGID",
+      "SETUID",
+      "SYS_PTRACE"
+    ],
+    "no_new_privileges": true,
+    "private_pid_namespace": true,
+    "source_mount": "/input:ro",
+    "workspace": "/workspace:tmpfs",
+    "raw_artifacts": "/out/raw-artifacts:root-owned",
+    "canonical_artifacts": "/out/dist:root-owned",
+    "artifact_namespace": "flat-casefold-unique",
+    "collector_output": "/out:root-owned-mode-0700",
+    "command_arguments_allowed": false
+  },
+  "canonicalization": {
+    "policy_id": "python-sdist-pax-v1",
+    "phase": "trusted-post-build-after-process-quiescence",
+    "input_format": "python-sdist-tar-gzip",
+    "output_format": "posix-pax-tar-gzip",
+    "member_order": "utf8-byte-order",
+    "tar_padding": "zero-filled-members-and-two-block-end-marker",
+    "accepted_layouts": [
+      "modern-pyproject",
+      "legacy-setup-py"
+    ],
+    "metadata": {
+      "source": "SOURCE_DATE_EPOCH",
+      "uid": 0,
+      "gid": 0,
+      "uname": "",
+      "gname": "",
+      "file_modes": [
+        "0644",
+        "0755"
+      ],
+      "directory_mode": "0755"
+    },
+    "gzip": {
+      "compression_level": 9,
+      "filename": "",
+      "flags": 0,
+      "xfl": 2,
+      "os": 255
+    },
+    "rejects": [
+      "absolute-or-traversing-path",
+      "noncanonical-or-non-NFC-path",
+      "duplicate-or-casefold-aliased-path",
+      "file-directory-prefix-collision",
+      "link-or-special-member",
+      "sparse-member",
+      "special-mode-bits",
+      "global-or-unsupported-PAX-header",
+      "oversized-chained-or-GNU-extension-header-before-body-read",
+      "nested-or-casefold-aliased-release-artifact",
+      "nonzero-member-padding-or-trailing-data",
+      "missing-two-block-tar-end-marker",
+      "malformed-gzip-or-tar",
+      "compressed-uncompressed-member-path-PAX-or-payload-limit"
+    ],
+    "limits": {
+      "source_date_epoch_min": 1,
+      "source_date_epoch_max": 4294967295,
+      "compressed_bytes_per_artifact": 536870912,
+      "total_raw_or_canonical_artifact_bytes": 1073741824,
+      "uncompressed_archive_stream_bytes": 1140850688,
+      "pax_record_bytes_per_member_before_parse": 65536
+    },
+    "raw_input_retained": true,
+    "self_verifies_canonical_output": true
+  },
+  "bootstrap_canaries": {
+    "local_archive_adversarial_suite": "passed-before-commit",
+    "python_3_12_11_archive_suite": "local-pass-before-publication",
+    "dispatch_actor_and_triggering_actor": "SauceTaster-only",
+    "hostile_identity_boundary": "required-before-push",
+    "same-image_two-build_exact_artifacts": "required-before-push",
+    "registry_pull_matches_tested_image_id": "required-before-attestation"
+  },
+  "bootstrap_actions": {
+    "actions/attest": "a1948c3f048ba23858d222213b7c278aabede763",
+    "actions/checkout": "34e114876b0b11c390a56381ad16ebd13914f8d5",
+    "actions/upload-artifact": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+    "docker/build-push-action": "263435318d21b8e681c14492fe198d362a7d2c83",
+    "docker/login-action": "5e57cd118135c172c3672efd75eb46360885c0ef",
+    "docker/setup-buildx-action": "8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"
+  },
+  "published_image_digest": null,
+  "publication": {
+    "status": "not-run",
+    "workflow_run_id": null,
+    "verified": false
+  },
+  "activation": {
+    "reusable_workflow": null,
+    "handoff_verifier": null,
+    "build_predicate_type": null,
+    "build_verification_policy": null,
+    "status": "disabled-until-published-digest-is-verified"
+  },
+  "claim_limit": "This bootstrap policy defines source and pre-publication canaries only. It does not identify a published image, authorize the reusable build path, establish a v3 attestation predicate, or make a reproducibility, provider-independence, lineage, containment, or semantic-safety claim."
+}

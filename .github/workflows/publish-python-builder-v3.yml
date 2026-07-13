@@ -1,0 +1,259 @@
+name: Publish Assured Python Builder v3
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-python-wheel-v3
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build, publish, and attest python-wheel-v3
+    if: >-
+      github.repository == 'SauceTaster/assured-downstream' &&
+      github.actor == 'SauceTaster' &&
+      github.triggering_actor == 'SauceTaster' &&
+      github.ref == 'refs/heads/main' &&
+      github.ref_protected
+    runs-on: ubuntu-24.04
+    permissions:
+      artifact-metadata: write # Create the OCI attestation storage record.
+      attestations: write # Store the GitHub artifact attestation.
+      contents: read
+      id-token: write # Request the keyless Sigstore certificate.
+      packages: write # Push only this repository's reviewed builder image.
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+
+      - name: Build quarantined builder locally
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
+        with:
+          context: .
+          file: builders/python-v3/Dockerfile
+          platforms: linux/amd64
+          load: true
+          pull: true
+          push: false
+          tags: ghcr.io/saucetaster/assured-downstream-python-builder:bootstrap-v3-${{ github.sha }}
+          build-args: |
+            VCS_REF=${{ github.sha }}
+
+      - name: Run hostile package as the unprivileged tracee
+        env:
+          IMAGE_TAG: ghcr.io/saucetaster/assured-downstream-python-builder:bootstrap-v3-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/hostile-builder-output-one"
+          local_image_id="$(docker image inspect --format '{{.Id}}' "$IMAGE_TAG")"
+          [[ "$local_image_id" =~ ^sha256:[0-9a-f]{64}$ ]]
+          sudo install -d -o 0 -g 0 -m 0700 "$output"
+          timeout --signal=KILL 10m docker run --rm \
+            --network none \
+            --read-only \
+            --cap-drop ALL \
+            --cap-add CHOWN \
+            --cap-add KILL \
+            --cap-add SETGID \
+            --cap-add SETUID \
+            --cap-add SYS_PTRACE \
+            --security-opt no-new-privileges:true \
+            --pids-limit 128 \
+            --memory 1g \
+            --memory-swap 1g \
+            --cpus 1 \
+            --user 0:0 \
+            --ulimit core=0 \
+            --ulimit nofile=512:512 \
+            --ipc none \
+            --mount "type=bind,src=$GITHUB_WORKSPACE/tests/fixtures/hostile-python-package,dst=/input,readonly" \
+            --mount "type=bind,src=$output,dst=/out" \
+            --tmpfs /workspace:rw,noexec,nosuid,nodev,size=536870912,uid=0,gid=0,mode=0755 \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=268435456,uid=0,gid=0,mode=1777 \
+            --env ASSURED_SOURCE_REPOSITORY=SauceTaster/assured-hostile-fixture \
+            --env ASSURED_SOURCE_COMMIT=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+            --env ASSURED_SOURCE_TREE=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+            --env ASSURED_PROJECT_VERSION=0.0.1 \
+            --env SOURCE_DATE_EPOCH=1783382521 \
+            --env ASSURED_BUILDER_IMAGE=ghcr.io/saucetaster/assured-downstream-python-builder \
+            --env "ASSURED_BUILDER_IMAGE_DIGEST=$local_image_id" \
+            "$IMAGE_TAG"
+
+      - name: Repeat hostile package for byte determinism
+        env:
+          IMAGE_TAG: ghcr.io/saucetaster/assured-downstream-python-builder:bootstrap-v3-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/hostile-builder-output-two"
+          local_image_id="$(docker image inspect --format '{{.Id}}' "$IMAGE_TAG")"
+          [[ "$local_image_id" =~ ^sha256:[0-9a-f]{64}$ ]]
+          sudo install -d -o 0 -g 0 -m 0700 "$output"
+          timeout --signal=KILL 10m docker run --rm \
+            --network none \
+            --read-only \
+            --cap-drop ALL \
+            --cap-add CHOWN \
+            --cap-add KILL \
+            --cap-add SETGID \
+            --cap-add SETUID \
+            --cap-add SYS_PTRACE \
+            --security-opt no-new-privileges:true \
+            --pids-limit 128 \
+            --memory 1g \
+            --memory-swap 1g \
+            --cpus 1 \
+            --user 0:0 \
+            --ulimit core=0 \
+            --ulimit nofile=512:512 \
+            --ipc none \
+            --mount "type=bind,src=$GITHUB_WORKSPACE/tests/fixtures/hostile-python-package,dst=/input,readonly" \
+            --mount "type=bind,src=$output,dst=/out" \
+            --tmpfs /workspace:rw,noexec,nosuid,nodev,size=536870912,uid=0,gid=0,mode=0755 \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=268435456,uid=0,gid=0,mode=1777 \
+            --env ASSURED_SOURCE_REPOSITORY=SauceTaster/assured-hostile-fixture \
+            --env ASSURED_SOURCE_COMMIT=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+            --env ASSURED_SOURCE_TREE=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+            --env ASSURED_PROJECT_VERSION=0.0.1 \
+            --env SOURCE_DATE_EPOCH=1783382521 \
+            --env ASSURED_BUILDER_IMAGE=ghcr.io/saucetaster/assured-downstream-python-builder \
+            --env "ASSURED_BUILDER_IMAGE_DIGEST=$local_image_id" \
+            "$IMAGE_TAG"
+
+      - name: Verify hostile operations were contained
+        run: |
+          set -euo pipefail
+          first="$RUNNER_TEMP/hostile-builder-output-one"
+          second="$RUNNER_TEMP/hostile-builder-output-two"
+          for output in "$first" "$second"; do
+            test -z "$(sudo find "$output" -xdev ! -user root -print -quit)"
+            sudo test ! -e "$output/tamper-marker"
+            sudo chmod -R a=rX "$output"
+            jq -e '
+              .status == "succeeded" and
+              .profile == "python-wheel-v3" and
+              .execution.identity_boundary.collector_uid == 0 and
+              .execution.identity_boundary.build_uid == 65532 and
+              .execution.identity_boundary.remaining_process_count == 0 and
+              .execution.identity_boundary.separate_collector_identity == true and
+              .execution.identity_boundary.collector_output_writable_by_build == false and
+              .artifact_transforms.policy_id == "python-sdist-pax-v1"
+            ' "$output/reports/builder.json"
+            jq -e '
+              .status == "succeeded" and
+              .policy.id == "python-sdist-pax-v1" and
+              .policy.gzip == {
+                compression_level: 9,
+                filename: "",
+                flags: 0,
+                mtime: "1783382521",
+                os: 255,
+                xfl: 2
+              } and
+              any(.artifacts[];
+                .format == "python-sdist-tar-gzip" and
+                .changed == true and
+                .sdist_layout == "modern-pyproject")
+            ' "$output/reports/artifact-transforms.json"
+          done
+          probe="$(find "$first/dist" -name hostile-probe.json -type f -print -quit)"
+          test -n "$probe"
+          jq -e '
+            .uid == 65532 and .euid == 65532 and
+            .gid == 65532 and .egid == 65532 and
+            .cap_eff == "0000000000000000" and
+            .no_new_privileges == 1 and .seccomp == 2 and
+            (.attempts | keys | sort) == [
+              "collector-signal",
+              "entrypoint-write",
+              "evidence-list",
+              "evidence-write",
+              "root-memory-read"
+            ] and
+            all(.attempts[]; .outcome == "denied")
+          ' "$probe"
+          grep -RE '"/out/tamper-marker".* = -1 (EACCES|EPERM|EROFS)' "$first/traces/raw"
+          grep -RE 'kill\(1, SIGTERM\).* = -1 EPERM' "$first/traces/raw"
+          (
+            cd "$first/dist"
+            find . -type f -print0 | sort -z | xargs -0 sha256sum
+          ) > "$RUNNER_TEMP/hostile-artifacts-one.sha256"
+          (
+            cd "$second/dist"
+            find . -type f -print0 | sort -z | xargs -0 sha256sum
+          ) > "$RUNNER_TEMP/hostile-artifacts-two.sha256"
+          cmp "$RUNNER_TEMP/hostile-artifacts-one.sha256" "$RUNNER_TEMP/hostile-artifacts-two.sha256"
+          manifest_sha256="$(sha256sum "$RUNNER_TEMP/hostile-artifacts-one.sha256" | cut -d' ' -f1)"
+          jq -n \
+            --arg profile python-wheel-v3 \
+            --arg manifest_sha256 "$manifest_sha256" \
+            '{
+              schema_version: 1,
+              status: "exact-artifact-match",
+              profile: $profile,
+              executions: 2,
+              final_artifact_manifest_sha256: $manifest_sha256,
+              provider_independent: false
+            }' > "$RUNNER_TEMP/python-wheel-v3-determinism.json"
+
+      - uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Publish the canary-tested image
+        id: publish-image
+        env:
+          IMAGE_TAG: ghcr.io/saucetaster/assured-downstream-python-builder:bootstrap-v3-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          push_output="$(docker push "$IMAGE_TAG")"
+          printf '%s\n' "$push_output"
+          image_digest="$(printf '%s\n' "$push_output" | sed -nE 's/.*digest: (sha256:[0-9a-f]{64}).*/\1/p' | tail -1)"
+          [[ "$image_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          tested_image_id="$(docker image inspect --format '{{.Id}}' "$IMAGE_TAG")"
+          docker pull "ghcr.io/saucetaster/assured-downstream-python-builder@$image_digest"
+          published_image_id="$(docker image inspect --format '{{.Id}}' "ghcr.io/saucetaster/assured-downstream-python-builder@$image_digest")"
+          test "$published_image_id" = "$tested_image_id"
+          printf 'digest=%s\n' "$image_digest" >> "$GITHUB_OUTPUT"
+
+      - name: Attest published builder image
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763
+        with:
+          subject-name: ghcr.io/saucetaster/assured-downstream-python-builder
+          subject-digest: ${{ steps.publish-image.outputs.digest }}
+          push-to-registry: true
+
+      - name: Record immutable image identity
+        env:
+          IMAGE_DIGEST: ${{ steps.publish-image.outputs.digest }}
+        run: |
+          test -n "$IMAGE_DIGEST"
+          printf '%s\n' "$IMAGE_DIGEST" | tee builder-image-digest.txt
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: python-wheel-v3-image-identity
+          path: builder-image-digest.txt
+          if-no-files-found: error
+          retention-days: 7
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: python-wheel-v3-hostile-determinism-canary
+          path: |
+            ${{ runner.temp }}/hostile-builder-output-one/
+            ${{ runner.temp }}/hostile-builder-output-two/
+            ${{ runner.temp }}/hostile-artifacts-one.sha256
+            ${{ runner.temp }}/hostile-artifacts-two.sha256
+            ${{ runner.temp }}/python-wheel-v3-determinism.json
+          if-no-files-found: error
+          retention-days: 7

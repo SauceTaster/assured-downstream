@@ -73,6 +73,28 @@ reaps every remaining process in the private namespace before reading the
 build-owned artifact tree. Each artifact then requires two identical content
 passes plus stable inode, size, mtime, ctime, and link-count metadata.
 
+`python-wheel-v3` is a separate, inactive bootstrap path. It does not modify or
+replace the v2 sources. After the same quiescence barrier, it snapshots raw
+build output into root-owned `raw-artifacts` and applies the versioned
+`python-sdist-pax-v1` transform into root-owned `dist`. Source distributions
+are parsed without path extraction. PAX, GNU, sparse, and global extension
+headers are rejected or bounded before their bodies are read; gzip/tar/path,
+member, payload, and output totals are independently bounded. Release artifacts
+must occupy a flat, case-fold-unique namespace. Regular-member and extension
+padding must be zero, two tar end-marker blocks are required, and trailing bytes
+are drained through the tar stream wrapper so its read-ahead buffer is checked.
+The builder retains per-artifact input/output identities and reparses the
+canonical output before success. Its publication workflow is restricted to
+SauceTaster as both actor and triggering actor and must compare final artifacts
+from two complete hostile-fixture executions before registry authentication and
+push.
+
+The v3 bootstrap policy intentionally contains no image digest, reusable
+workflow, handoff verifier, custom predicate, or build-verification policy.
+Those controls remain disabled until the canary-tested registry digest is
+published and independently verified. Deterministic SPDX and signed workflow
+run claims belong to that second activation phase, not to the bootstrap image.
+
 ## Build Result
 
 ```json

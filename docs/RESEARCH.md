@@ -302,3 +302,93 @@ Sources:
   https://docs.kernel.org/admin-guide/LSM/Yama.html
 - strace `-u` tracee identity option:
   https://man7.org/linux/man-pages/man1/strace.1.html
+
+## 2026-07-13: Deterministic Python Artifact Bootstrap
+
+Question: how should the next Python profile remove the real Bandit sdist and
+SPDX drift without rewriting the published v2 evidence or inventing a v3 image
+identity before that image exists?
+
+Decision: preserve every v2 source, workflow, and policy pin and build v3 in
+parallel. `python-wheel-v3` retains the v2 tracee/collector boundary, snapshots
+the build-owned output into root-only `raw-artifacts`, and only after process
+quiescence parses and rewrites source distributions into root-owned `dist`.
+The parser never extracts archive paths. It spools regular-file payloads under
+numeric root-only names, bounds compressed bytes, uncompressed stream bytes,
+members, payload, paths, output totals, and PAX metadata, and rejects traversal,
+path aliases, case-fold collisions, file/directory prefix collisions, sparse
+members, links, special files, special mode bits, global PAX headers, and
+malformed gzip/tar. Release output is flat and case-fold unique.
+
+An independent phase-one review found that a post-parse PAX limit was too late:
+Python's streaming tar reader could consume the declared extension body first.
+The reviewed parser now intercepts PAX, GNU long-name/link, sparse, global, and
+Solaris extension types before standard-library body processing. PAX bodies are
+limited to 64 KiB, framed and decoded by the strict parser, restricted to one
+unchained `path`/`mtime` header set, and only then applied to the following
+member. The same review found the publication job lacked the repository's exact
+account boundary; both the dispatch actor and rerun triggering actor are now
+required to be `SauceTaster` before write permissions can be used.
+
+A follow-up review reported no blocker, high, or medium findings and requested a
+complete static extension/rerun test matrix. That matrix now covers GNU
+long-name, GNU long-link, old GNU sparse, global PAX, Solaris PAX, chained PAX,
+malformed PAX framing/padding, stream and payload limits, and pre-open/mid-copy
+artifact mutation. The workflow gate is evaluated for all four combinations of
+trusted/untrusted initial and rerun actors without crossing GitHub accounts.
+
+Running that suite under the image's exact CPython 3.12.11 exposed a real
+compatibility error: `_fromtarfile` exists in newer `tarfile` implementations
+but not 3.12. The parser now reads exactly one 512-byte following header, uses
+the public `TarInfo.frombuf` on 3.12, uses the newer dircheck-aware parser when
+available, sets the stream offset, and redispatches through
+`StrictTarInfo._proc_member`. It also validates regular-member padding, requires
+two zero tar end blocks, and drains trailing bytes through `tarfile`'s stream
+wrapper so buffered read-ahead cannot hide data. The 16-test/27-subtest v3 suite
+passes on CPython 3.12.11 and 3.14.6. The real PyPI Bandit 1.9.4 sdist
+canonicalizes on both to 340 members, 5,104,389 payload bytes, and canonical
+archive SHA-256
+`0ee347951edcca56803fb97271394a14647be70fd1ed9501c735ed8a15dc18f8`.
+
+The canonical output is sorted by UTF-8 path bytes and written as POSIX pax
+with fixed `SOURCE_DATE_EPOCH`, root metadata, `0644`/`0755` modes, gzip level
+9, no filename field, flags 0, XFL 2, and OS 255. The builder reparses its own
+output and requires identical payload semantics plus exact canonical metadata
+before exposing it. Original/final digest, size, layout, member count, payload
+size, payload digest, and transformation policy are retained per artifact.
+
+The current Bandit sdist is a legacy `setup.py` layout without
+`pyproject.toml`, despite carrying Metadata-Version 2.4. The canonicalizer
+preserves and labels that legacy layout rather than adding synthetic source
+content. Modern sdists must contain `pyproject.toml`; both layouts require one
+top-level directory and `PKG-INFO`.
+
+Syft 1.42.3 itself uses the wall clock for `creationInfo.created` and a random
+UUID for `documentNamespace`. Phase two will therefore normalize SPDX in a
+separate v3 handoff, derive the namespace from canonical semantic document
+content, require ISO-8601 UTC creation time derived from `SOURCE_DATE_EPOCH`,
+and bind exact artifact paths rather than basenames. The same phase will add a
+custom `/build/v2` predicate and label GitHub run, attempt, caller workflow,
+and called workflow fields as signed workflow claims until a separate verifier
+cross-checks them.
+
+The bootstrap remains non-circular. Its policy contains no published digest and
+activation is disabled. The publication workflow must pass the exact-account
+gate, hostile identity canary, two same-image exact-artifact executions,
+registry pull/image-ID check, and Sigstore attestation. Only a later commit may
+pin that observed digest into the v3 handoff and reusable workflow.
+
+Sources:
+
+- Python source distribution format and POSIX pax requirement:
+  https://packaging.python.org/en/latest/specifications/source-distribution-format/
+- Python gzip deterministic `mtime` control:
+  https://docs.python.org/3/library/gzip.html
+- Syft 1.42.3 SPDX creation timestamp implementation:
+  https://github.com/anchore/syft/blob/v1.42.3/syft/format/common/spdxhelpers/to_format_model.go
+- Syft 1.42.3 random SPDX namespace implementation:
+  https://github.com/anchore/syft/blob/v1.42.3/syft/format/internal/spdxutil/helpers/document_namespace.go
+- SPDX document namespace and creation-time requirements:
+  https://spdx.github.io/spdx-spec/v2.3/document-creation-information/
+- GitHub caller, run, attempt, and called-workflow contexts:
+  https://docs.github.com/en/actions/reference/workflows-and-actions/contexts

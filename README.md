@@ -9,6 +9,13 @@ ingestion work. Remote publication authorization is intentionally disabled
 while its account-isolated trust boundary is redesigned. This is not
 production-ready.
 
+The parallel `python-wheel-v3` bootstrap now canonicalizes and self-verifies
+Python source distributions after traced-process quiescence and gates image
+publication on a SauceTaster-only dispatch, hostile isolation, and two-build
+artifact equality. It is not a live builder yet: no v3 image digest, SPDX
+normalizer, predicate, verifier, or reusable workflow is activated until the
+bootstrap run is retained and checked.
+
 The goal is to maintain an organization of hardened forks that continuously
 track upstream projects, rebuild and release them under stronger security
 controls, and publish verifiable evidence for every meaningful claim.

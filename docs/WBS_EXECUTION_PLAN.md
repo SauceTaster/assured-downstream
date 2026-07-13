@@ -53,6 +53,15 @@ As of the 2026-07-13 prototype pass:
 - WP12 diagnostics have advanced without becoming a gate: trace normal form v2
   preserves counts, outcomes, and signals while normalizing enumerated Python
   temp paths. Both Bandit observations produced the same normalized digest.
+- Python v3 bootstrap phase 1 is implemented in parallel with v2: strict sdist
+  canonicalization, raw input retention, adversarial archive tests, and a
+  SauceTaster-bound two-execution hostile/determinism publication gate exist.
+  Pre-publication review moved extension-size checks ahead of tar body reads and
+  tightened epoch, output namespace, and final-size bounds. An exact CPython
+  3.12.11 pass caught and fixed a newer-stdlib private-method dependency; the
+  adversarial matrix and real Bandit sdist now pass on the pinned runtime. The
+  image is not published or active, and SPDX/predicate/verifier activation
+  remains phase 2.
 - WP8/WP9 are implemented locally: passive fork publication packets, optional
   fetch instructions, and custodian governance fields exist.
 - A local `self-test` command now exercises first-lane fixtures, Attested
@@ -61,9 +70,9 @@ As of the 2026-07-13 prototype pass:
 
 Current critical path:
 
-1. Version the Python builder so sdist gzip/tar mtimes and SPDX creation metadata
-   are deterministic; run the same exact caller twice and require a green
-   Governor reproducibility candidate.
+1. Publish and independently verify the canary-tested Python v3 image, then pin
+   its real digest into a separate v3 handoff, deterministic SPDX normalizer,
+   `/build/v2` predicate, verifier policy, and reusable workflow.
 2. Bind workflow run id and attempt into the signed build predicate, while
    keeping provider-independent rebuilds a separate future proof requirement.
 3. WP7: implement code-anchored lineage, builder, tooling, and workflow-content
@@ -772,19 +781,21 @@ retain these ownership boundaries.
 
 ## Next Implementation Tasks
 
-1. Add deterministic sdist and SPDX handling in a new immutable Python builder
-   profile; retain the v2 mismatch as evidence instead of rewriting it.
-2. Repeat two Bandit executions from one exact caller commit and require exact
+1. Run and retain the v3 bootstrap publication canaries; do not activate a
+   reusable builder until the observed image digest is independently verified.
+2. Add the v3 handoff, deterministic SPDX, signed workflow claims, predicate,
+   verifier, and policy around that exact digest.
+3. Repeat two Bandit executions from one exact caller commit and require exact
    artifacts, exact SPDX bytes, and a passed durable Governor candidate gate.
-3. Add signed workflow run identity fields, then schedule a genuinely
+4. Schedule a genuinely
    provider-independent rebuild as a stronger follow-up.
-4. Implement code-anchored lineage, builder, tooling-lock, and workflow-content
+5. Implement code-anchored lineage, builder, tooling-lock, and workflow-content
    verification before enabling production `Attested`.
-5. Build Java and .NET evidence profiles and run real cohort cases.
-6. Redesign publication approval inside the GitHub account boundary.
-7. Replay WP1 against the eventual organization and add downstream branch
+6. Build Java and .NET evidence profiles and run real cohort cases.
+7. Redesign publication approval inside the GitHub account boundary.
+8. Replay WP1 against the eventual organization and add downstream branch
    protection plus scheduled upstream-change ingestion.
-8. Run WP10: full sandbox MVP over one first-lane seed and fixture-like real
+9. Run WP10: full sandbox MVP over one first-lane seed and fixture-like real
    candidates across the supported language set.
 
 WP12 should still wait until artifact reproducibility is stable.
