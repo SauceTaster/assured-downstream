@@ -98,7 +98,17 @@
   "retention": {
     "github_actions_artifact": "assured-python-retained-evidence",
     "retention_days": 30,
-    "durable_release_asset": null
+    "durable_release_asset": {
+      "release_url": "https://github.com/SauceTaster/assured-downstream/releases/tag/case-study-001-bandit-source-canary",
+      "tag": "case-study-001-bandit-source-canary",
+      "target_commit": "d43b4780b4d3e2e7412688785281bb326d31abfb",
+      "prerelease": true,
+      "asset_name": "assured-downstream-bandit-source-canary-29217387785.tar.gz",
+      "asset_url": "https://github.com/SauceTaster/assured-downstream/releases/download/case-study-001-bandit-source-canary/assured-downstream-bandit-source-canary-29217387785.tar.gz",
+      "sha256": "b66d6c9712bf7e6d0e9adbf030e60a6b2d3bfc4f1288089a9bc9a517050a7524",
+      "size_bytes": 6681592,
+      "published_at": "2026-07-13T02:09:51Z"
+    }
   },
   "claim_limit": "This verifies retained signatures, identities, subjects, SPDX binding, and trace parser completeness. It does not promote Bandit to Attested or prove hostile-build containment, source ancestry, reproducibility, or semantic safety."
 }

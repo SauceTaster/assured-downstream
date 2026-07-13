@@ -83,6 +83,9 @@ fork-of-a-fork lineage, and copyleft obligation handling.
   artifact subjects, SPDX binding, and pinned Sigstore trust root
 - retained the case as `verified-evidence-candidate`; no hardened-release or
   production `Attested` claim was made
+- published the original evidence and durable verifier ledger as a development
+  prerelease asset with SHA-256
+  `b66d6c9712bf7e6d0e9adbf030e60a6b2d3bfc4f1288089a9bc9a517050a7524`
 
 The machine-readable patch evidence is in [`patch-canary.json`](./patch-canary.json).
 It deliberately makes no build, runtime, attestation, or hardened-release claim.
@@ -108,17 +111,13 @@ as a separate governed migration.
 
 ## Next Run
 
-1. Publish the retained development evidence as a durable prerelease asset
-   rather than relying on the 30-day Actions artifact.
-2. Separate collector-owned evidence from the hostile build UID and add a
+1. Separate collector-owned evidence from the hostile build UID and add a
    source fixture that actively attempts trace tampering.
-3. Verify exact Git ancestry and signer workflow content through independent
+2. Verify exact Git ancestry and signer workflow content through independent
    code before allowing production `Attested` to pass.
-4. Rebuild the same source on a second independent host and compare artifact
+3. Rebuild the same source on a second independent host and compare artifact
    hashes, SBOMs, and normalized behavior.
-5. Review the five unapproved Bandit changes separately; no workflow surgery or
+4. Review the five unapproved Bandit changes separately; no workflow surgery or
    release logic should inherit the additive policy approval.
-6. Redesign publication authorization inside the single-account boundary before
+5. Redesign publication authorization inside the single-account boundary before
    any public `secure/main` mutation.
-7. Compare reproducibility and normalized behavior across two independent
-   builders before promoting any hardened release.
