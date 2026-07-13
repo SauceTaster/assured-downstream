@@ -86,7 +86,9 @@ gate, governed public-ref mutation, and scheduling remain.
 ### 2.1 Recon
 
 Status: structural first pass built with fixtures and exact-SHA detached
-analysis worktrees in the durable managed-checkout lane.
+analysis worktrees in the durable managed-checkout lane. A following Ecosystem
+Profiler Agent now emits fail-closed Java Maven and .NET build decisions without
+executing source.
 
 - 2.1.1 Detect languages and package managers
 - 2.1.2 Detect CI workflows and release signals
@@ -95,6 +97,8 @@ analysis worktrees in the durable managed-checkout lane.
 - 2.1.5 Parse workflow YAML structurally instead of regex-only
 - 2.1.6 Detect artifact outputs more accurately
 - 2.1.7 Add Go/Rust/Python/Java/.NET repo fixtures from real projects
+- 2.1.8 Bind exact source to ecosystem target, toolchain, material, canary, and
+  artifact-manifest requirements (Java Maven and .NET structural profiles built)
 
 ### 2.2 Overlay Planning
 
@@ -150,8 +154,10 @@ tooling-policy digests; binary verification and mirroring remain.
 
 ### 3.2 Release Profile
 
-Status: draft planner built with human confirmation gates and artifact candidate
-review.
+Status: generic draft planner built with human confirmation gates and artifact
+candidate review. A separate fail-closed Java Maven/.NET profiler now owns the
+pre-execution target and material decision; both policies remain
+development-only and deny execution.
 
 - 3.2.1 Generate release profiles from recon
 - 3.2.2 Support first-lane Go builds
@@ -160,6 +166,9 @@ review.
 - 3.2.5 Require human review before enabling release workflows
 - 3.2.6 Add artifact path confirmation
 - 3.2.7 Add project-specific build matrix support
+- 3.2.8 Implement quarantined dependency material resolution and source-bound
+  offline locks for Java Maven and .NET
+- 3.2.9 Publish and hostile-test digest-pinned Java Maven and .NET builders
 
 ### 3.3 Release Workflow Rendering
 
@@ -297,6 +306,8 @@ The MVP is done when Assured Downstream can, against a sandbox GitHub org:
 - fork or detect forks idempotently
 - sync upstream without clobbering secure branches
 - analyze one Go, one Rust, one Python, one Java, and one .NET checkout
+- emit an agent-owned build-profile decision that cannot authorize execution
+  while blockers remain
 - render pinned hardened CI and draft attested-release workflows
 - run at least one attested release workflow successfully
 - collect evidence manifests and verification guides

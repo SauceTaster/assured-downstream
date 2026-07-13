@@ -292,7 +292,7 @@ Current local CLI tools are early adapters:
 - `ingest`, `enrich`, `score`, `pilot`
 - `plan-forks`, `apply-fork-plan`
 - `plan-sync`, `apply-sync-plan`
-- `recon`, `analyze-checkout`
+- `recon`, `analyze-checkout`, `plan-build-profile`
 - `plan-overlay`, `render-overlay`
 - `prepare-patch-approval`
 - `dispatch-publication-authorization`, `verify-publication-authorization`
@@ -348,7 +348,9 @@ The current `self-test` covers the first three, replays the durable intake lane,
 and drains synthetic build-result evidence through Build, Trace, Attestation,
 and Governor agents without executing upstream code. Case Study 001 separately
 proves repeat-safe live fork detection plus the
-durable Fork And Sync -> Recon -> Overlay Planner lane over five repositories.
+durable Fork And Sync -> Recon -> Ecosystem Profiler -> Overlay Planner lane
+over five repositories. Java and .NET fixture profiles are required to remain
+no-network, argv-only, and execution-denied under development policy.
 It also proves Patch -> Publication Request and Publication Authorization ->
 Secure Branch Publisher locally on Bandit, including policy scope,
 deterministic commit creation, CAS, artifact verification, invalid-attestation
@@ -371,15 +373,18 @@ Minimum case-study path:
 4. Governor Agent approves onboarding to a sandbox org.
 5. Fork And Sync Agent creates or detects the fork and syncs upstream.
 6. Recon Agent analyzes the checkout.
-7. Overlay Planner and Patch Agent produce the hardening delta.
-8. Tooling Curator Agent resolves and validates pins.
-9. Human review confirms release workflow and artifact paths.
-10. Build, Trace, and Attestation Agents produce evidence.
-11. Governor Agent evaluates `Attested`.
-12. Release Agent publishes only if the gate passes.
-13. Fork Publication Agent writes lineage, overlay, evidence, and optional fetch
+7. Ecosystem Profiler chooses or blocks the exact build target and assigns each
+   missing closure to an agent.
+8. Overlay Planner and Patch Agent produce the hardening delta.
+9. Tooling Curator and Material Resolver produce the pinned builder and sealed
+   offline dependency bundle.
+10. Human review confirms release workflow and artifact paths.
+11. Build, Trace, and Attestation Agents produce evidence.
+12. Governor Agent evaluates `Attested`.
+13. Release Agent publishes only if the gate passes.
+14. Fork Publication Agent writes lineage, overlay, evidence, and optional fetch
     metadata into the downstream fork without outbound contact.
-14. Watch Agent detects a simulated or real upstream update and requeues the
+15. Watch Agent detects a simulated or real upstream update and requeues the
     project.
 
 The case study succeeds only if an outside reviewer can follow the artifacts

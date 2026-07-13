@@ -23,12 +23,14 @@
     "governor",
     "fork-sync",
     "recon",
+    "ecosystem-profiler",
     "overlay-planner",
     "patch",
     "publication-requestor",
     "publication-authorizer",
     "secure-branch-publisher",
     "tooling-curator",
+    "material-resolver",
     "build",
     "trace",
     "attestation",
@@ -102,11 +104,22 @@
       "human_gates": ["unparseable release workflow", "ambiguous artifact path"]
     },
     {
+      "id": "ecosystem-profiler",
+      "name": "Ecosystem Profiler Agent",
+      "implementation_status": "implemented-structural-only",
+      "purpose": "Convert structural repository signals into a fail-closed build profile, explicit material and toolchain blockers, and agent-owned closure handoffs without executing source.",
+      "owns": ["ecosystem-build-profile.json", "build target selection", "execution blocker ownership"],
+      "input_events": ["CheckoutAnalyzed"],
+      "output_events": ["BuildProfilesPlanned"],
+      "tools": ["plan-build-profile", "bounded XML and JSON readers", "ecosystem policy packs"],
+      "human_gates": ["ambiguous build target", "target framework or runtime selection", "non-public dependency feed", "execution policy promotion"]
+    },
+    {
       "id": "overlay-planner",
       "name": "Overlay Planner Agent",
       "purpose": "Choose the smallest safe hardening overlay for a repository based on recon and target assurance level.",
       "owns": ["overlay-plan.json", "proposal scope", "skipped change reasons"],
-      "input_events": ["CheckoutAnalyzed"],
+      "input_events": ["BuildProfilesPlanned"],
       "output_events": ["OverlayProposed", "OverlayBlocked", "AnalysisBundleReady"],
       "tools": ["plan-overlay", "policy catalog", "approved workflow templates"],
       "human_gates": ["repository-specific workflow surgery", "pull_request_target changes"]
@@ -160,6 +173,17 @@
       "output_events": ["ToolPinsReady", "ToolBlocked", "ToolNeedsReview"],
       "tools": ["resolve-pins", "GitHub commit resolver", "signature verification tools"],
       "human_gates": ["new tool approval", "stale or compromised tool exception"]
+    },
+    {
+      "id": "material-resolver",
+      "name": "Dependency Material Resolver Agent",
+      "implementation_status": "planned-not-routable",
+      "purpose": "Resolve ecosystem dependency, plugin, analyzer, SDK-pack, and build-task closures in a quarantined networked phase, then emit a source-bound digest lock and immutable offline material bundle.",
+      "owns": ["dependency material locks", "offline package bundles", "repository and feed provenance"],
+      "input_events": ["MaterialResolutionRequested"],
+      "output_events": ["DependencyMaterialsLocked", "MaterialResolutionBlocked"],
+      "tools": ["quarantined Maven resolver", "quarantined NuGet resolver", "package signature and digest verifier"],
+      "human_gates": ["authenticated or non-public feed", "untrusted repository override", "package signature exception"]
     },
     {
       "id": "build",
@@ -266,6 +290,7 @@
     "Every output event must reference a run id and source repository when applicable.",
     "Every agent must write machine-readable artifacts before human-readable summaries.",
     "Every mutation-capable agent must support dry-run planning.",
+    "A drafted build command never authorizes execution; every ecosystem profile blocker and builder-policy gate must close first.",
     "Every release claim must be backed by evidence and a Governor Agent decision.",
     "Fork publication must never create pull requests, issues, comments, email, or other outbound maintainer contact.",
     "GitHub mutations must verify the configured actor immediately before execution and must fail closed instead of switching authentication or delegating approval to another user account."

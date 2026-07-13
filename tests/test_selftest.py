@@ -40,6 +40,16 @@ class SelfTestTests(unittest.TestCase):
             ecosystems = {entry["ecosystem"]: entry for entry in result["ecosystems"]}
             self.assertEqual(ecosystems["java"]["language_family"], "java")
             self.assertEqual(ecosystems["dotnet"]["language_family"], "dotnet")
+            self.assertTrue(
+                Path(
+                    ecosystems["java"]["artifacts"]["ecosystem_build_profile"]
+                ).is_file()
+            )
+            self.assertTrue(
+                Path(
+                    ecosystems["dotnet"]["artifacts"]["ecosystem_build_profile"]
+                ).is_file()
+            )
 
     def test_self_test_cli_writes_result_bundle(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -63,7 +73,7 @@ class SelfTestTests(unittest.TestCase):
                 (output_dir / "self-test-result.json").read_text(encoding="utf-8")
             )
             self.assertTrue(result["ok"])
-            self.assertEqual(result["agent_system"]["summary"]["agent_count"], 22)
+            self.assertEqual(result["agent_system"]["summary"]["agent_count"], 24)
             self.assertEqual(result["ecosystems"][0]["ecosystem"], "java")
 
 

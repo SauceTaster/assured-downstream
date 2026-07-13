@@ -122,6 +122,7 @@ Seeded
   -> Forked
   -> Mirrored
   -> Reconned
+  -> BuildProfiled
   -> OverlayPlanned
   -> Patched
   -> Built
@@ -176,6 +177,12 @@ Detects language, package managers, CI workflows, release workflows, build
 commands, test commands, artifact paths, container builds, and existing security
 controls.
 
+### Ecosystem Profiler Agent
+
+Converts exact-source structural signals into a non-executing build profile,
+explicit target/toolchain/material blockers, canary requirements, and
+agent-owned closure handoffs. A proposed command never authorizes execution.
+
 ### Overlay Planner
 
 Chooses the smallest viable hardening overlay for the repository. It should
@@ -211,6 +218,13 @@ remote commit lease.
 Maintains the approved tooling catalog. It pins versions, verifies upstream
 tooling, rebuilds mirrored tools when practical, signs approved artifacts, and
 rotates tools through policy review.
+
+### Dependency Material Resolver Agent
+
+Resolves dependency, plugin, analyzer, build-task, SDK-pack, and runtime-pack
+closures in a quarantined networked phase. It emits source-bound digest locks
+and immutable offline bundles; it never grants build or release authority.
+This role is specified but not yet routable in the development control plane.
 
 ### Build Agent
 

@@ -8,6 +8,16 @@ freshly verified GitHub-hosted runs. That result is a same-provider development
 candidate, not a production release or independence claim. The additive
 `secure/main` patch remains local and unpublished.
 
+Java and .NET now have durable structural profile records. JSON Sanitizer,
+DevSkim, and the existing Tsunami stress case all blocked before execution with
+agent-owned reasons. No Java, Gradle, or .NET source was executed.
+The retained profiles bind the observed commit, Git tree, complete filesystem
+inventory, profiler source, policy, and a fixed replay timestamp. Reproduction
+still requires canonical network reacquisition; source bytes are not vendored in
+this repository. The profiler has deterministic unit coverage, but this case
+study does not retain an independently reacquired second run and makes no
+byte-identical real-case replay claim.
+
 ## Objective
 
 Validate Assured Downstream against real security projects across Go, Rust,
@@ -42,6 +52,15 @@ fork-of-a-fork lineage, and copyleft obligation handling.
 - performed non-executing structural recon and Attested release planning
 - parsed 19 of 19 cohort GitHub Actions workflows successfully
 - identified release profiles for Go, Rust, Python, Java, and .NET
+- profiled exact clean local checkouts for JSON Sanitizer, DevSkim, and Tsunami;
+  each complete filesystem inventory was digest-bound and each policy denied
+  execution
+- selected JSON Sanitizer's exact snapshot JAR proposal and DevSkim's explicit
+  CLI `publish` / `net10.0` / `linux-x64` / self-contained shape without invoking
+  Maven, Gradle, `dotnet`, MSBuild, wrappers, or project scripts
+- routed missing builders to Tooling Curator, dependency/feed closure to the
+  planned Material Resolver, unverified source authority to Source Reacquirer,
+  and policy admission to Governor
 - found 11 upstream artifact candidates across the cohort
 - created five prefixed public forks under the authenticated `SauceTaster`
   account and verified each direct upstream parent and initial fork commit
@@ -186,6 +205,13 @@ The portable evidence is retained in the
 development prerelease.
 The builder containment result is in
 [`python-builder-v2-canary.json`](./python-builder-v2-canary.json).
+The Java/.NET structural result is in
+[`ecosystem-profile-validation.json`](./ecosystem-profile-validation.json), with
+the complete generated
+[`JSON Sanitizer`](./java-json-sanitizer-build-profile.json),
+[`DevSkim`](./dotnet-devskim-build-profile.json), and
+[`Tsunami`](./java-tsunami-build-profile.json) profiles. Those files are blocked
+planning evidence, not build or validation evidence.
 
 The real checkouts exposed and drove fixes for GitHub Actions YAML parsing, Go
 semantic import version names, mixed-language release-profile priority, and
@@ -210,7 +236,9 @@ as a separate governed migration.
    source acquisition before making any host-independence claim.
 2. Verify exact Git ancestry and signer workflow content through separate code
    before allowing production `Attested` to pass.
-3. Build real Java and .NET evidence profiles from the bounded v3 contract.
+3. Implement the quarantined Material Resolver and digest-pinned Java/.NET
+   builders, then request separate Governor admission for JSON Sanitizer and
+   DevSkim canaries under the bounded v3 contract.
 4. Review the five unapproved Bandit changes separately; no workflow surgery or
    release logic should inherit the additive policy approval.
 5. Redesign publication authorization inside the single-account boundary before

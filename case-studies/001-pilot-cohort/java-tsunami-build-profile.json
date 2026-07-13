@@ -1,0 +1,143 @@
+{
+  "build_plan": {
+    "artifact_selection": {
+      "exclude": [],
+      "follow_symlinks": false,
+      "include": []
+    },
+    "network": "none",
+    "shell": false,
+    "steps": []
+  },
+  "build_system": "gradle",
+  "canary_admission_candidate": false,
+  "claim_limit": "This is a non-executing structural profile decision. It does not prove dependency closure, build isolation, artifact correctness, reproducibility, or source safety. Execution remains forbidden until every blocker is closed and a separate Governor admission authorizes one exact canary request.",
+  "decision": {
+    "blockers": [
+      "JAVA_GRADLE_PROFILE_NOT_IMPLEMENTED",
+      "SOURCE_IDENTITY_HANDOFF_UNVERIFIED"
+    ],
+    "canary_admission_candidate": false,
+    "canary_handoffs": [],
+    "canary_requirements": [],
+    "execution_permitted": false,
+    "execution_scope": "none",
+    "next_handoffs": [
+      {
+        "agent_id": "ecosystem-profiler",
+        "required_closures": [
+          "JAVA_GRADLE_PROFILE_NOT_IMPLEMENTED"
+        ]
+      },
+      {
+        "agent_id": "source-reacquirer-v3",
+        "required_closures": [
+          "SOURCE_IDENTITY_HANDOFF_UNVERIFIED"
+        ]
+      }
+    ],
+    "release_eligible": false,
+    "required_authority": "separate-governor-canary-admission",
+    "review_items": [],
+    "status": "blocked"
+  },
+  "detected_profile_candidates": [
+    "java-gradle"
+  ],
+  "ecosystem": "java",
+  "execution_permitted": false,
+  "findings": [
+    {
+      "code": "SOURCE_IDENTITY_HANDOFF_UNVERIFIED",
+      "evidence": [],
+      "owner": "source-reacquirer-v3",
+      "severity": "blocker",
+      "summary": "The repository and commit are caller declarations, not a verified source handoff."
+    },
+    {
+      "code": "JAVA_GRADLE_PROFILE_NOT_IMPLEMENTED",
+      "evidence": [
+        "Gradle dependency locks absent",
+        "Gradle wrapper absent",
+        "source-control dependency declaration"
+      ],
+      "owner": "ecosystem-profiler",
+      "severity": "blocker",
+      "summary": "The MVP Java execution profile supports Maven only."
+    }
+  ],
+  "generated_at": "2026-07-13T18:52:36Z",
+  "policy": {
+    "canary_profile_approved": false,
+    "policy_id": "java-gradle-v1-planned",
+    "status": "not-implemented"
+  },
+  "profile_id": "java-gradle-v1-planned",
+  "profiler": {
+    "implementation_sha256": "76ce1124b1785cda200ed702c6fee4669c45afa3032f9e3d9effbd80f31583d5"
+  },
+  "schema_version": 1,
+  "signals": {
+    "manifests": [
+      "build.gradle",
+      "settings.gradle",
+      "common/build.gradle",
+      "main/build.gradle",
+      "plugin/build.gradle",
+      "proto/build.gradle",
+      "workflow/build.gradle"
+    ]
+  },
+  "source": {
+    "analysis_path": null,
+    "commit": "363ba87b3543f8ae8e4304d3416818f03da7f262",
+    "git_tree": "4a2eaa8bcf18ada812316e48f278c7c149593645",
+    "identity_binding": "caller-declared-unverified",
+    "inventory": {
+      "entry_count": 348,
+      "schema_version": 1,
+      "symlink_count": 0,
+      "total_file_bytes": 1903598,
+      "tree_sha256": "732ce3cd0025dcdd25b80196ce793fc763c3db7aea959ae31ba5f56c2346e874"
+    },
+    "repository": "google/tsunami-security-scanner"
+  },
+  "source_inputs": [
+    {
+      "path": "build.gradle",
+      "sha256": "349b577b673fb58c83d8c4f40d2c458b16f66b0db86f4d964ef150175e05bf4f",
+      "size": 2441
+    },
+    {
+      "path": "settings.gradle",
+      "sha256": "cdf391e95bf77196338da9a656e2952f7c11ee179678e386d359096cc308bbce",
+      "size": 1053
+    },
+    {
+      "path": "common/build.gradle",
+      "sha256": "5a279ce629234ea0f5cab66545dae1aa2094b8e3aded79919b9606d0f2628f76",
+      "size": 1656
+    },
+    {
+      "path": "main/build.gradle",
+      "sha256": "9d784985763e8ac8bfb98d04fb18926f9c18da9f674d5584f9fa7660b70baab7",
+      "size": 1925
+    },
+    {
+      "path": "plugin/build.gradle",
+      "sha256": "757950b6c96b7ce93450e8a3f252650c67cc7974dd0f9af3336586c5b4b02e4f",
+      "size": 2018
+    },
+    {
+      "path": "proto/build.gradle",
+      "sha256": "b7632cf20fbc61138eb4a1332376ea11f381d6391487c531d6e6359e70c911e7",
+      "size": 1255
+    },
+    {
+      "path": "workflow/build.gradle",
+      "sha256": "2b39db03bedd54e257a34714a6a6d891a1221382e09098c3ee228c7f23e61db9",
+      "size": 1364
+    }
+  ],
+  "status": "blocked"
+}

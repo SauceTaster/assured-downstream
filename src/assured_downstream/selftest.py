@@ -11,6 +11,7 @@ from assured_downstream.agent_registry import (
     summarize_agent_registry,
 )
 from assured_downstream.catalog import utc_now
+from assured_downstream.ecosystem_profile import plan_ecosystem_build_profile
 from assured_downstream.evidence import (
     create_evidence_manifest,
     verify_evidence_manifest,
@@ -204,6 +205,13 @@ def run_ecosystem_self_test(
 
     recon = inspect_repository(fixture)
     profile = plan_release_profile(recon)
+    ecosystem_profile = None
+    if ecosystem in {"java", "dotnet"}:
+        ecosystem_profile = plan_ecosystem_build_profile(
+            root=fixture,
+            source_repository=f"assured-self-test/{ecosystem}",
+            source_commit=FULL_SHA,
+        )
     render_result = render_release_workflow(
         profile,
         root=fixture,
@@ -219,6 +227,11 @@ def run_ecosystem_self_test(
     }
     write_json(ecosystem_dir / "recon.json", recon)
     write_json(ecosystem_dir / "release-profile.json", profile)
+    if ecosystem_profile is not None:
+        write_json(
+            ecosystem_dir / "ecosystem-build-profile.json",
+            ecosystem_profile,
+        )
     write_json(ecosystem_dir / "release-render-result.json", render_payload)
 
     workflows = recon.get("ci", {}).get("workflows", [])
@@ -238,6 +251,25 @@ def run_ecosystem_self_test(
             bool(render_result.written) and not render_result.skipped,
         ),
     ]
+    if ecosystem_profile is not None:
+        checks.extend(
+            [
+                check(
+                    "ecosystem build profile is recognized",
+                    ecosystem_profile["profile_id"] is not None,
+                ),
+                check(
+                    "development build profile fails closed",
+                    ecosystem_profile["status"] == "blocked"
+                    and not ecosystem_profile["execution_permitted"],
+                ),
+                check(
+                    "isolated build plan requires no network and no shell",
+                    ecosystem_profile["build_plan"]["network"] == "none"
+                    and not ecosystem_profile["build_plan"]["shell"],
+                ),
+            ]
+        )
 
     return {
         "ecosystem": ecosystem,
@@ -249,6 +281,11 @@ def run_ecosystem_self_test(
             "recon": str(ecosystem_dir / "recon.json"),
             "release_profile": str(ecosystem_dir / "release-profile.json"),
             "release_render_result": str(ecosystem_dir / "release-render-result.json"),
+            "ecosystem_build_profile": (
+                str(ecosystem_dir / "ecosystem-build-profile.json")
+                if ecosystem_profile is not None
+                else None
+            ),
         },
     }
 

@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "policy_id": "java-maven-v1",
+  "status": "development-profile-only",
+  "ecosystem": "java",
+  "build_system": "maven",
+  "canary_profile_approved": false,
+  "builder": {
+    "image": null,
+    "image_digest": null,
+    "maven_executable": "/opt/maven/bin/mvn",
+    "java_home": "/opt/java",
+    "network": "none",
+    "read_only_root": true,
+    "source_read_only": true,
+    "materials_read_only": true,
+    "workspace": "tmpfs",
+    "capabilities": [],
+    "no_new_privileges": true
+  },
+  "material_lock_path": ".assured-downstream/materials/java-maven-v1.json",
+  "environment_allowlist": [
+    "HOME=/nonexistent",
+    "JAVA_HOME=/opt/java",
+    "LANG=C.UTF-8",
+    "LC_ALL=C.UTF-8",
+    "PATH=/opt/maven/bin:/opt/java/bin:/usr/bin:/bin",
+    "TZ=UTC"
+  ],
+  "forbidden_goals": [
+    "deploy",
+    "release:perform",
+    "release:prepare",
+    "sign",
+    "site-deploy"
+  ],
+  "evidence_required": [
+    "exact source inventory",
+    "builder image identity",
+    "JDK and Maven identity",
+    "dependency and plugin material inventory",
+    "raw and parsed syscall trace",
+    "network-denial evidence",
+    "artifact inventory",
+    "SPDX SBOM",
+    "in-toto/SLSA provenance",
+    "Sigstore bundles"
+  ],
+  "claim_limit": "Development-only structural policy. It does not authorize Maven execution."
+}

@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-13T18:52:36Z",
+  "status": "structural-profiles-blocked-as-designed",
+  "execution_permitted": false,
+  "release_eligible": false,
+  "profiler": {
+    "implementation_sha256": "76ce1124b1785cda200ed702c6fee4669c45afa3032f9e3d9effbd80f31583d5"
+  },
+  "replay": {
+    "profile_generated_at": "2026-07-13T18:52:36Z",
+    "canonical_network_reacquisition_required": true,
+    "source_bytes_retained": false,
+    "byte_identical_real_case_replay_evidence": "not-retained-no-claim",
+    "checkout_requirements": [
+      "HEAD commit equals source_commit",
+      "HEAD^{tree} equals source_git_tree",
+      "git status is clean",
+      "generated filesystem inventory equals source_inventory_sha256"
+    ]
+  },
+  "policies": [
+    {
+      "policy_id": "dotnet-v1",
+      "path": "policies/ecosystems/dotnet-v1.json",
+      "sha256": "49e458ad67aac7f2c5b814430305ff9d11e93a221b2f62d5ac16d3c5e63e982c",
+      "canary_profile_approved": false
+    },
+    {
+      "policy_id": "java-maven-v1",
+      "path": "policies/ecosystems/java-maven-v1.json",
+      "sha256": "74f4638eeee8d8771a3554069606e3e2fda8cf0a8a51259f961f1fb3b1fedc76",
+      "canary_profile_approved": false
+    }
+  ],
+  "cases": [
+    {
+      "source_repository": "OWASP/json-sanitizer",
+      "canonical_git_url": "https://github.com/OWASP/json-sanitizer.git",
+      "source_commit": "fc612ab374de73d03864d56fb87b6a103b234489",
+      "source_git_tree": "f20af64ed07fdc39c77e0596150251adc1c088fe",
+      "checkout_observation": "clean-local-git-checkout",
+      "profile_id": "java-maven-v1",
+      "profile_path": "case-studies/001-pilot-cohort/java-json-sanitizer-build-profile.json",
+      "profile_sha256": "d2f90c2cdfdf5af76a3c7186cf0d8118d503ae90f30ee0d07c9d160b48480d79",
+      "source_inventory_sha256": "270da0fbdeea076f5456bdede7375fed0f39fed5f805df95f063c53ee1ef1f24",
+      "source_inventory_entries": 19,
+      "selection": {
+        "ecosystem": "java-maven",
+        "artifact": "json-sanitizer-1.2.4-SNAPSHOT.jar"
+      },
+      "blockers": [
+        "BUILDER_IMAGE_NOT_DIGEST_PINNED",
+        "DEPENDENCY_MATERIAL_LOCK_MISSING",
+        "ECOSYSTEM_POLICY_NOT_CANARY_APPROVED",
+        "SOURCE_IDENTITY_HANDOFF_UNVERIFIED"
+      ],
+      "canary_requirements": [
+        "LEGACY_JAVA_TARGET_REQUIRES_CANARY",
+        "MAVEN_BUILD_EXTENSION_REQUIRES_CANARY"
+      ]
+    },
+    {
+      "source_repository": "microsoft/DevSkim",
+      "canonical_git_url": "https://github.com/microsoft/DevSkim.git",
+      "source_commit": "17706a84717a082984090f34621834e6aeff2925",
+      "source_git_tree": "391bd61fe6c81c3b1c8a4bd4566b1e65ded1e6b8",
+      "checkout_observation": "clean-local-git-checkout",
+      "profile_id": "dotnet-v1",
+      "profile_path": "case-studies/001-pilot-cohort/dotnet-devskim-build-profile.json",
+      "profile_sha256": "94129b995c9463e0a3476cc46df72c723b44dfb1fd26628ea0bd94e24b18052c",
+      "source_inventory_sha256": "327ca8d550a0266bada11564df222fc1789cb7a54f97aeb115d7b20986762b8b",
+      "source_inventory_entries": 267,
+      "selection": {
+        "ecosystem": "dotnet",
+        "target": "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj",
+        "operation": "publish",
+        "target_framework": "net10.0",
+        "runtime_identifier": "linux-x64",
+        "self_contained": true
+      },
+      "blockers": [
+        "BUILDER_IMAGE_NOT_DIGEST_PINNED",
+        "DEPENDENCY_MATERIAL_LOCK_MISSING",
+        "DOTNET_CONDITIONAL_TARGET_MODEL_UNRESOLVED",
+        "DOTNET_NON_PUBLIC_FEED_REQUIRES_CLOSURE",
+        "DOTNET_PACKAGES_LOCK_MISSING",
+        "ECOSYSTEM_POLICY_NOT_CANARY_APPROVED",
+        "SOURCE_IDENTITY_HANDOFF_UNVERIFIED"
+      ],
+      "canary_requirements": [
+        "DOTNET_ARTIFACT_MANIFEST_REQUIRES_CANARY",
+        "DOTNET_CONDITIONAL_MODEL_REQUIRES_CANARY"
+      ]
+    },
+    {
+      "source_repository": "google/tsunami-security-scanner",
+      "canonical_git_url": "https://github.com/google/tsunami-security-scanner.git",
+      "source_commit": "363ba87b3543f8ae8e4304d3416818f03da7f262",
+      "source_git_tree": "4a2eaa8bcf18ada812316e48f278c7c149593645",
+      "checkout_observation": "clean-local-git-checkout",
+      "profile_id": "java-gradle-v1-planned",
+      "profile_path": "case-studies/001-pilot-cohort/java-tsunami-build-profile.json",
+      "profile_sha256": "8e6dd02d3aeff77785e57b1728d3bb5e0ba39911fe36b03c9709f369d6677e9d",
+      "source_inventory_sha256": "732ce3cd0025dcdd25b80196ce793fc763c3db7aea959ae31ba5f56c2346e874",
+      "source_inventory_entries": 348,
+      "selection": {
+        "ecosystem": "java-gradle"
+      },
+      "blockers": [
+        "JAVA_GRADLE_PROFILE_NOT_IMPLEMENTED",
+        "SOURCE_IDENTITY_HANDOFF_UNVERIFIED"
+      ],
+      "canary_requirements": []
+    }
+  ],
+  "validation": {
+    "source_executed": false,
+    "build_attempted": false,
+    "network_used_by_profiler": false,
+    "profile_can_authorize_execution": false,
+    "required_next_authority": "separate digest-bound Governor canary admission"
+  },
+  "claim_limit": "The Git HEAD, tree, and cleanliness values are local checkout observations, not Source Reacquirer v3 or provider-independent proof. The profiles are structural blocked decisions. No Java or .NET build, containment, artifact, SBOM, attestation, reproducibility, or security claim was established."
+}

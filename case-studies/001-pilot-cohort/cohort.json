@@ -99,7 +99,9 @@
     "local_git_reconciliation_executed": true,
     "remote_branch_mutations_executed": false,
     "local_secure_patch_executed": true,
-    "local_secure_patch_repository_count": 1
+    "local_secure_patch_repository_count": 1,
+    "ecosystem_profiles_generated": 3,
+    "ecosystem_profile_execution_permitted": 0
   },
   "repositories": [
     {
@@ -193,9 +195,16 @@
       "latest_release": "v0.2.0",
       "pushed_at": "2026-06-23T16:05:00Z",
       "role": "java-mixed-repository-canary",
+      "build_profile": {
+        "profile_id": "java-gradle-v1-planned",
+        "status": "blocked",
+        "execution_permitted": false,
+        "path": "java-tsunami-build-profile.json",
+        "sha256": "8e6dd02d3aeff77785e57b1728d3bb5e0ba39911fe36b03c9709f369d6677e9d"
+      },
       "recon": {
         "project_name": "tsunami-security-scanner",
-        "selected_build": "gradle --no-daemon build",
+        "draft_build_signal": "gradle --no-daemon build",
         "workflow_count": 4,
         "workflow_parse_errors": 0,
         "artifact_candidates": 0,
@@ -219,6 +228,13 @@
       "latest_release": "v1.0.70",
       "pushed_at": "2026-07-08T19:08:05Z",
       "role": "dotnet-release-canary",
+      "build_profile": {
+        "profile_id": "dotnet-v1",
+        "status": "blocked",
+        "execution_permitted": false,
+        "path": "dotnet-devskim-build-profile.json",
+        "sha256": "94129b995c9463e0a3476cc46df72c723b44dfb1fd26628ea0bd94e24b18052c"
+      },
       "recon": {
         "project_name": "Microsoft.CST.DevSkim.CLI",
         "selected_project": "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj",

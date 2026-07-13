@@ -1,0 +1,841 @@
+{
+  "build_plan": {
+    "artifact_selection": {
+      "exclude": [],
+      "expected_count": 0,
+      "follow_symlinks": false,
+      "include": [],
+      "reject_unlisted": true,
+      "root": "/out"
+    },
+    "cwd": "/workspace/src",
+    "environment_allowlist": [
+      "DOTNET_CLI_HOME=/workspace/dotnet-home",
+      "DOTNET_NOLOGO=1",
+      "DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1",
+      "HOME=/nonexistent",
+      "LANG=C.UTF-8",
+      "LC_ALL=C.UTF-8",
+      "NUGET_PACKAGES=/workspace/.nuget/packages",
+      "PATH=/opt/dotnet:/usr/bin:/bin",
+      "TZ=UTC"
+    ],
+    "evidence_required": [
+      "exact source inventory",
+      "builder image identity",
+      ".NET SDK and MSBuild identity",
+      "NuGet package and build-task material inventory",
+      "raw and parsed syscall trace",
+      "network-denial evidence",
+      "artifact inventory",
+      "SPDX SBOM",
+      "in-toto/SLSA provenance",
+      "Sigstore bundles"
+    ],
+    "forbidden_commands": [
+      "dotnet nuget push",
+      "dotnet tool install",
+      "nuget push",
+      "sign",
+      "workload install"
+    ],
+    "material_mount": "/materials:ro",
+    "network": "none",
+    "output": "/out:collector-only",
+    "shell": false,
+    "source_mount": "/src:ro",
+    "steps": [
+      {
+        "argv": [
+          "/opt/dotnet/dotnet",
+          "restore",
+          "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj",
+          "--locked-mode",
+          "--configfile",
+          "/policy/offline.NuGet.Config",
+          "--packages",
+          "/workspace/.nuget/packages",
+          "--disable-parallel",
+          "/p:RestoreIgnoreFailedSources=false"
+        ],
+        "name": "restore"
+      },
+      {
+        "argv": [
+          "/opt/dotnet/dotnet",
+          "restore",
+          "DevSkim-DotNet/Microsoft.DevSkim.Tests/Microsoft.DevSkim.Tests.csproj",
+          "--locked-mode",
+          "--configfile",
+          "/policy/offline.NuGet.Config",
+          "--packages",
+          "/workspace/.nuget/packages",
+          "--disable-parallel",
+          "/p:RestoreIgnoreFailedSources=false"
+        ],
+        "name": "restore-test:DevSkim-DotNet/Microsoft.DevSkim.Tests/Microsoft.DevSkim.Tests.csproj"
+      },
+      {
+        "argv": [
+          "/opt/dotnet/dotnet",
+          "test",
+          "DevSkim-DotNet/Microsoft.DevSkim.Tests/Microsoft.DevSkim.Tests.csproj",
+          "--no-restore",
+          "--configuration",
+          "Release",
+          "--framework",
+          "net10.0",
+          "--property:ContinuousIntegrationBuild=true",
+          "--property:Deterministic=true",
+          "--results-directory",
+          "/out/test-results"
+        ],
+        "name": "test:DevSkim-DotNet/Microsoft.DevSkim.Tests/Microsoft.DevSkim.Tests.csproj"
+      },
+      {
+        "argv": [
+          "/opt/dotnet/dotnet",
+          "publish",
+          "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj",
+          "--no-restore",
+          "--configuration",
+          "Release",
+          "--framework",
+          "net10.0",
+          "--output",
+          "/out",
+          "--property:ContinuousIntegrationBuild=true",
+          "--property:Deterministic=true",
+          "--property:PathMap=/workspace/src=/_/src",
+          "--runtime",
+          "linux-x64",
+          "--self-contained",
+          "true"
+        ],
+        "name": "publish"
+      }
+    ],
+    "trusted_preparation": {
+      "collector_output_not_writable_by_build": true,
+      "materials": {
+        "from": "/materials/nuget-packages",
+        "mode": "digest-verified-copy",
+        "to": "/workspace/.nuget/packages",
+        "verify_before_and_after": true
+      },
+      "performed_by": "trusted-builder-supervisor",
+      "source": {
+        "from": "/src",
+        "mode": "inventory-verified-copy",
+        "symlink_policy": "root-confined-relative-only",
+        "to": "/workspace/src",
+        "verify_before_and_after": true
+      },
+      "workspace_owner": "unprivileged-build-uid"
+    },
+    "workspace": "/workspace:tmpfs"
+  },
+  "build_system": "dotnet-cli",
+  "canary_admission_candidate": false,
+  "claim_limit": "This is a non-executing structural profile decision. It does not prove dependency closure, build isolation, artifact correctness, reproducibility, or source safety. Execution remains forbidden until every blocker is closed and a separate Governor admission authorizes one exact canary request.",
+  "decision": {
+    "blockers": [
+      "BUILDER_IMAGE_NOT_DIGEST_PINNED",
+      "DEPENDENCY_MATERIAL_LOCK_MISSING",
+      "DOTNET_CONDITIONAL_TARGET_MODEL_UNRESOLVED",
+      "DOTNET_NON_PUBLIC_FEED_REQUIRES_CLOSURE",
+      "DOTNET_PACKAGES_LOCK_MISSING",
+      "ECOSYSTEM_POLICY_NOT_CANARY_APPROVED",
+      "SOURCE_IDENTITY_HANDOFF_UNVERIFIED"
+    ],
+    "canary_admission_candidate": false,
+    "canary_handoffs": [
+      {
+        "agent_id": "build",
+        "required_closures": [
+          "DOTNET_ARTIFACT_MANIFEST_REQUIRES_CANARY",
+          "DOTNET_CONDITIONAL_MODEL_REQUIRES_CANARY"
+        ]
+      }
+    ],
+    "canary_requirements": [
+      "DOTNET_ARTIFACT_MANIFEST_REQUIRES_CANARY",
+      "DOTNET_CONDITIONAL_MODEL_REQUIRES_CANARY"
+    ],
+    "execution_permitted": false,
+    "execution_scope": "none",
+    "next_handoffs": [
+      {
+        "agent_id": "governor",
+        "required_closures": [
+          "ECOSYSTEM_POLICY_NOT_CANARY_APPROVED"
+        ]
+      },
+      {
+        "agent_id": "material-resolver",
+        "required_closures": [
+          "DEPENDENCY_MATERIAL_LOCK_MISSING",
+          "DOTNET_CONDITIONAL_TARGET_MODEL_UNRESOLVED",
+          "DOTNET_NON_PUBLIC_FEED_REQUIRES_CLOSURE",
+          "DOTNET_PACKAGES_LOCK_MISSING"
+        ]
+      },
+      {
+        "agent_id": "source-reacquirer-v3",
+        "required_closures": [
+          "SOURCE_IDENTITY_HANDOFF_UNVERIFIED"
+        ]
+      },
+      {
+        "agent_id": "tooling-curator",
+        "required_closures": [
+          "BUILDER_IMAGE_NOT_DIGEST_PINNED"
+        ]
+      }
+    ],
+    "release_eligible": false,
+    "required_authority": "separate-governor-canary-admission",
+    "review_items": [
+      "DOTNET_EXTERNAL_PIPELINE_LOGIC_PRESENT",
+      "DOTNET_GLOBAL_JSON_ABSENT"
+    ],
+    "status": "blocked"
+  },
+  "detected_profile_candidates": [
+    "dotnet"
+  ],
+  "ecosystem": "dotnet",
+  "execution_permitted": false,
+  "findings": [
+    {
+      "code": "SOURCE_IDENTITY_HANDOFF_UNVERIFIED",
+      "evidence": [],
+      "owner": "source-reacquirer-v3",
+      "severity": "blocker",
+      "summary": "The repository and commit are caller declarations, not a verified source handoff."
+    },
+    {
+      "code": "ECOSYSTEM_POLICY_NOT_CANARY_APPROVED",
+      "evidence": [
+        "development-profile-only"
+      ],
+      "owner": "governor",
+      "severity": "blocker",
+      "summary": "The ecosystem policy is development-stage and cannot request admission."
+    },
+    {
+      "code": "BUILDER_IMAGE_NOT_DIGEST_PINNED",
+      "evidence": [],
+      "owner": "tooling-curator",
+      "severity": "blocker",
+      "summary": "No independently approved builder image digest is configured."
+    },
+    {
+      "code": "DOTNET_EXTERNAL_PIPELINE_LOGIC_PRESENT",
+      "evidence": [
+        "Pipelines/cli/devskim-cli-pr.yml:dotnet-publish-linux-mac-job.yml@templates",
+        "Pipelines/cli/devskim-cli-pr.yml:dotnet-publish-win-netcore-job.yml@templates",
+        "Pipelines/cli/devskim-cli-pr.yml:dotnet-test-job.yml@templates",
+        "Pipelines/cli/devskim-cli-pr.yml:nbgv-set-version-steps.yml@templates",
+        "Pipelines/cli/devskim-cli-pr.yml:nuget-build-job.yml@templates",
+        "Pipelines/cli/devskim-cli-pr.yml:v1/1ES.Official.PipelineTemplate.yml@1esPipelines",
+        "Pipelines/cli/devskim-cli-release.yml:dotnet-publish-linux-mac-job.yml@templates",
+        "Pipelines/cli/devskim-cli-release.yml:dotnet-publish-win-netcore-job.yml@templates",
+        "Pipelines/cli/devskim-cli-release.yml:dotnet-test-job.yml@templates",
+        "Pipelines/cli/devskim-cli-release.yml:nbgv-set-version-steps.yml@templates",
+        "Pipelines/cli/devskim-cli-release.yml:nuget-build-job.yml@templates",
+        "Pipelines/cli/devskim-cli-release.yml:v1/1ES.Official.PipelineTemplate.yml@1esPipelines",
+        "Pipelines/vs/devskim-visualstudio-pr.yml:dotnet-test-job.yml@templates",
+        "Pipelines/vs/devskim-visualstudio-pr.yml:nbgv-set-version-steps.yml@templates",
+        "Pipelines/vs/devskim-visualstudio-pr.yml:v1/1ES.Official.PipelineTemplate.yml@1esPipelines",
+        "Pipelines/vs/devskim-visualstudio-release.yml:dotnet-test-job.yml@templates",
+        "Pipelines/vs/devskim-visualstudio-release.yml:nbgv-set-version-steps.yml@templates",
+        "Pipelines/vs/devskim-visualstudio-release.yml:v1/1ES.Official.PipelineTemplate.yml@1esPipelines",
+        "Pipelines/vscode/devskim-vscode-pr.yml:nbgv-set-version-steps.yml@templates",
+        "Pipelines/vscode/devskim-vscode-pr.yml:v1/1ES.Official.PipelineTemplate.yml@1esPipelines",
+        "Pipelines/vscode/devskim-vscode-release.yml:nbgv-set-version-steps.yml@templates",
+        "Pipelines/vscode/devskim-vscode-release.yml:v1/1ES.Official.PipelineTemplate.yml@1esPipelines"
+      ],
+      "owner": "recon",
+      "severity": "review",
+      "summary": "Upstream release behavior depends on external pipeline templates."
+    },
+    {
+      "code": "DOTNET_GLOBAL_JSON_ABSENT",
+      "evidence": [],
+      "owner": "tooling-curator",
+      "severity": "review",
+      "summary": "The source tree does not pin an exact .NET SDK; the builder policy must."
+    },
+    {
+      "code": "DOTNET_NON_PUBLIC_FEED_REQUIRES_CLOSURE",
+      "evidence": [
+        "https://pkgs.dev.azure.com/microsoft-sdl/General/_packaging/PublicRegistriesFeed/nuget/v3/index.json"
+      ],
+      "owner": "material-resolver",
+      "severity": "blocker",
+      "summary": "A non-nuget.org feed cannot be used by the isolated build."
+    },
+    {
+      "code": "DOTNET_CONDITIONAL_TARGET_MODEL_UNRESOLVED",
+      "evidence": [
+        "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj:RuntimeIdentifiers"
+      ],
+      "owner": "material-resolver",
+      "severity": "blocker",
+      "summary": "Conditional target, framework, runtime, or package properties cannot authorize a fixed build plan."
+    },
+    {
+      "code": "DOTNET_CONDITIONAL_MODEL_REQUIRES_CANARY",
+      "evidence": [
+        "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj"
+      ],
+      "owner": "build",
+      "severity": "canary",
+      "summary": "Conditional MSBuild elements require exact-SDK evaluation evidence."
+    },
+    {
+      "code": "DOTNET_PACKAGES_LOCK_MISSING",
+      "evidence": [
+        "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj",
+        "DevSkim-DotNet/Microsoft.DevSkim.Tests/Microsoft.DevSkim.Tests.csproj",
+        "DevSkim-DotNet/Microsoft.DevSkim/Microsoft.DevSkim.csproj"
+      ],
+      "owner": "material-resolver",
+      "severity": "blocker",
+      "summary": "Every project in the selected closure needs a packages.lock.json."
+    },
+    {
+      "code": "DEPENDENCY_MATERIAL_LOCK_MISSING",
+      "evidence": [
+        ".assured-downstream/materials/dotnet-v1.json"
+      ],
+      "owner": "material-resolver",
+      "severity": "blocker",
+      "summary": "The source has no digest-bound dependency and build-plugin material lock."
+    },
+    {
+      "code": "DOTNET_ARTIFACT_MANIFEST_REQUIRES_CANARY",
+      "evidence": [],
+      "owner": "build",
+      "severity": "canary",
+      "summary": "A first isolated canary must produce the exact recursive artifact manifest."
+    }
+  ],
+  "generated_at": "2026-07-13T18:52:36Z",
+  "policy": {
+    "builder": {
+      "capabilities": [],
+      "dotnet_executable": "/opt/dotnet/dotnet",
+      "image": null,
+      "image_digest": null,
+      "materials_read_only": true,
+      "network": "none",
+      "no_new_privileges": true,
+      "read_only_root": true,
+      "source_read_only": true,
+      "workspace": "tmpfs"
+    },
+    "canary_profile_approved": false,
+    "material_lock": null,
+    "material_lock_path": ".assured-downstream/materials/dotnet-v1.json",
+    "policy_id": "dotnet-v1",
+    "policy_sha256": "49e458ad67aac7f2c5b814430305ff9d11e93a221b2f62d5ac16d3c5e63e982c",
+    "status": "development-profile-only"
+  },
+  "profile_id": "dotnet-v1",
+  "profiler": {
+    "implementation_sha256": "76ce1124b1785cda200ed702c6fee4669c45afa3032f9e3d9effbd80f31583d5"
+  },
+  "schema_version": 1,
+  "signals": {
+    "external_pipeline_templates": [
+      "Pipelines/cli/devskim-cli-pr.yml:dotnet-publish-linux-mac-job.yml@templates",
+      "Pipelines/cli/devskim-cli-pr.yml:dotnet-publish-win-netcore-job.yml@templates",
+      "Pipelines/cli/devskim-cli-pr.yml:dotnet-test-job.yml@templates",
+      "Pipelines/cli/devskim-cli-pr.yml:nbgv-set-version-steps.yml@templates",
+      "Pipelines/cli/devskim-cli-pr.yml:nuget-build-job.yml@templates",
+      "Pipelines/cli/devskim-cli-pr.yml:v1/1ES.Official.PipelineTemplate.yml@1esPipelines",
+      "Pipelines/cli/devskim-cli-release.yml:dotnet-publish-linux-mac-job.yml@templates",
+      "Pipelines/cli/devskim-cli-release.yml:dotnet-publish-win-netcore-job.yml@templates",
+      "Pipelines/cli/devskim-cli-release.yml:dotnet-test-job.yml@templates",
+      "Pipelines/cli/devskim-cli-release.yml:nbgv-set-version-steps.yml@templates",
+      "Pipelines/cli/devskim-cli-release.yml:nuget-build-job.yml@templates",
+      "Pipelines/cli/devskim-cli-release.yml:v1/1ES.Official.PipelineTemplate.yml@1esPipelines",
+      "Pipelines/vs/devskim-visualstudio-pr.yml:dotnet-test-job.yml@templates",
+      "Pipelines/vs/devskim-visualstudio-pr.yml:nbgv-set-version-steps.yml@templates",
+      "Pipelines/vs/devskim-visualstudio-pr.yml:v1/1ES.Official.PipelineTemplate.yml@1esPipelines",
+      "Pipelines/vs/devskim-visualstudio-release.yml:dotnet-test-job.yml@templates",
+      "Pipelines/vs/devskim-visualstudio-release.yml:nbgv-set-version-steps.yml@templates",
+      "Pipelines/vs/devskim-visualstudio-release.yml:v1/1ES.Official.PipelineTemplate.yml@1esPipelines",
+      "Pipelines/vscode/devskim-vscode-pr.yml:nbgv-set-version-steps.yml@templates",
+      "Pipelines/vscode/devskim-vscode-pr.yml:v1/1ES.Official.PipelineTemplate.yml@1esPipelines",
+      "Pipelines/vscode/devskim-vscode-release.yml:nbgv-set-version-steps.yml@templates",
+      "Pipelines/vscode/devskim-vscode-release.yml:v1/1ES.Official.PipelineTemplate.yml@1esPipelines"
+    ],
+    "operation": "publish",
+    "package_sources": [
+      {
+        "key": "PublicRegistriesFeed",
+        "path": "nuget.config",
+        "value": "https://pkgs.dev.azure.com/microsoft-sdl/General/_packaging/PublicRegistriesFeed/nuget/v3/index.json"
+      }
+    ],
+    "project_candidates": [
+      {
+        "assembly_name": null,
+        "conditional_critical_properties": [],
+        "conditional_element_sources": [],
+        "exec_task_sources": [],
+        "imports": [],
+        "output_type": "Library",
+        "pack_as_tool": false,
+        "package_id": "Microsoft.CST.DevSkim",
+        "package_references": [
+          {
+            "name": "Microsoft.CST.ApplicationInspector.RulesEngine",
+            "version": "1.9.50"
+          },
+          {
+            "name": "Nerdbank.GitVersioning",
+            "version": "3.7.115"
+          },
+          {
+            "name": "Nerdbank.GitVersioning",
+            "version": "3.7.115"
+          },
+          {
+            "name": "Newtonsoft.Json",
+            "version": "13.0.3"
+          }
+        ],
+        "path": "DevSkim-DotNet/Microsoft.DevSkim/Microsoft.DevSkim.csproj",
+        "project_references": [],
+        "release_pipeline_references": 2,
+        "runtime_identifiers": [],
+        "sdk_references": [
+          "Microsoft.NET.Sdk"
+        ],
+        "sha256": "f2f557bfba82cb4dc605915136fb717d891d0ae4ecbb9d0a87740dbc4b55ad99",
+        "size": 10264,
+        "target_frameworks": [
+          "netstandard2.1",
+          "net8.0",
+          "net9.0",
+          "net10.0"
+        ],
+        "using_task_sources": []
+      },
+      {
+        "assembly_name": "devskim",
+        "conditional_critical_properties": [
+          "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj:RuntimeIdentifiers"
+        ],
+        "conditional_element_sources": [
+          "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj"
+        ],
+        "exec_task_sources": [],
+        "imports": [],
+        "output_type": "Exe",
+        "pack_as_tool": true,
+        "package_id": "Microsoft.CST.DevSkim.CLI",
+        "package_references": [
+          {
+            "name": "CommandLineParser",
+            "version": "2.9.1"
+          },
+          {
+            "name": "LibGit2Sharp",
+            "version": "0.31.0"
+          },
+          {
+            "name": "Microsoft.CST.ApplicationInspector.Logging",
+            "version": "1.9.50"
+          },
+          {
+            "name": "Microsoft.Extensions.CommandLineUtils",
+            "version": "1.1.1"
+          },
+          {
+            "name": "Nerdbank.GitVersioning",
+            "version": "3.7.115"
+          },
+          {
+            "name": "Nerdbank.GitVersioning",
+            "version": "3.7.115"
+          },
+          {
+            "name": "Sarif.Sdk",
+            "version": "4.5.4"
+          }
+        ],
+        "path": "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj",
+        "project_references": [
+          "..\\Microsoft.DevSkim\\Microsoft.DevSkim.csproj"
+        ],
+        "release_pipeline_references": 6,
+        "runtime_identifiers": [
+          "win-x64",
+          "linux-x64",
+          "osx-x64"
+        ],
+        "sdk_references": [
+          "Microsoft.NET.Sdk"
+        ],
+        "sha256": "7a44fb2969c7b42d0278f9cb33587e9401da889bb67c5288134b3477154c3a55",
+        "size": 3110,
+        "target_frameworks": [
+          "net8.0",
+          "net9.0",
+          "net10.0"
+        ],
+        "using_task_sources": []
+      },
+      {
+        "assembly_name": null,
+        "conditional_critical_properties": [],
+        "conditional_element_sources": [],
+        "exec_task_sources": [],
+        "imports": [],
+        "output_type": "Library",
+        "pack_as_tool": false,
+        "package_id": null,
+        "package_references": [
+          {
+            "name": "Nerdbank.GitVersioning",
+            "version": "3.7.115"
+          },
+          {
+            "name": "Nerdbank.GitVersioning",
+            "version": "3.7.115"
+          },
+          {
+            "name": "OmniSharp.Extensions.LanguageServer",
+            "version": "0.19.9"
+          }
+        ],
+        "path": "DevSkim-DotNet/Microsoft.DevSkim.LanguageProtoInterop/Microsoft.DevSkim.LanguageProtoInterop.csproj",
+        "project_references": [],
+        "release_pipeline_references": 0,
+        "runtime_identifiers": [],
+        "sdk_references": [
+          "Microsoft.NET.Sdk"
+        ],
+        "sha256": "8a35fdce252bd6f8f8c3e5d3dcd623b1dd597dfd7d457f6361676cfd570d6813",
+        "size": 446,
+        "target_frameworks": [
+          "netstandard2.0"
+        ],
+        "using_task_sources": []
+      },
+      {
+        "assembly_name": null,
+        "conditional_critical_properties": [],
+        "conditional_element_sources": [],
+        "exec_task_sources": [],
+        "imports": [],
+        "output_type": "Exe",
+        "pack_as_tool": false,
+        "package_id": null,
+        "package_references": [
+          {
+            "name": "Microsoft.Extensions.Logging",
+            "version": "9.0.9"
+          },
+          {
+            "name": "Nerdbank.GitVersioning",
+            "version": "3.7.115"
+          },
+          {
+            "name": "Nerdbank.GitVersioning",
+            "version": "3.7.115"
+          },
+          {
+            "name": "OmniSharp.Extensions.LanguageServer",
+            "version": "0.19.9"
+          },
+          {
+            "name": "Serilog.Extensions.Logging",
+            "version": "9.0.2"
+          },
+          {
+            "name": "Serilog.Sinks.Debug",
+            "version": "3.0.0"
+          },
+          {
+            "name": "Serilog.Sinks.File",
+            "version": "7.0.0"
+          }
+        ],
+        "path": "DevSkim-DotNet/Microsoft.DevSkim.LanguageServer/Microsoft.DevSkim.LanguageServer.csproj",
+        "project_references": [
+          "..\\Microsoft.DevSkim.LanguageProtoInterop\\Microsoft.DevSkim.LanguageProtoInterop.csproj",
+          "..\\Microsoft.DevSkim\\Microsoft.DevSkim.csproj"
+        ],
+        "release_pipeline_references": 0,
+        "runtime_identifiers": [],
+        "sdk_references": [
+          "Microsoft.NET.Sdk"
+        ],
+        "sha256": "48f2ce075b9b197a27754abc1aa71ef420066fc5296e9c42c559e2c947c6c13d",
+        "size": 1242,
+        "target_frameworks": [
+          "net8.0",
+          "net10.0"
+        ],
+        "using_task_sources": []
+      },
+      {
+        "assembly_name": null,
+        "conditional_critical_properties": [],
+        "conditional_element_sources": [],
+        "exec_task_sources": [],
+        "imports": [],
+        "output_type": "Exe",
+        "pack_as_tool": false,
+        "package_id": null,
+        "package_references": [
+          {
+            "name": "MSTest",
+            "version": "3.10.4"
+          },
+          {
+            "name": "Microsoft.Testing.Extensions.CodeCoverage",
+            "version": "17.14.2"
+          },
+          {
+            "name": "Microsoft.Testing.Extensions.TrxReport",
+            "version": "1.8.4"
+          },
+          {
+            "name": "Nerdbank.GitVersioning",
+            "version": "3.7.115"
+          }
+        ],
+        "path": "DevSkim-DotNet/Microsoft.DevSkim.Tests/Microsoft.DevSkim.Tests.csproj",
+        "project_references": [
+          "..\\Microsoft.DevSkim.CLI\\Microsoft.DevSkim.CLI.csproj",
+          "..\\Microsoft.DevSkim\\Microsoft.DevSkim.csproj"
+        ],
+        "release_pipeline_references": 7,
+        "runtime_identifiers": [],
+        "sdk_references": [
+          "Microsoft.NET.Sdk"
+        ],
+        "sha256": "3b9d204806abc1729a11b8654236a7d9e5ac9fd3abc16d53b98bf8a1696c10e0",
+        "size": 813,
+        "target_frameworks": [
+          "net8.0",
+          "net9.0",
+          "net10.0"
+        ],
+        "using_task_sources": []
+      },
+      {
+        "assembly_name": "Microsoft.DevSkim.VisualStudio",
+        "conditional_critical_properties": [],
+        "conditional_element_sources": [
+          "DevSkim-DotNet/Microsoft.DevSkim.VisualStudio/Microsoft.DevSkim.VisualStudio.csproj"
+        ],
+        "exec_task_sources": [
+          "DevSkim-DotNet/Microsoft.DevSkim.VisualStudio/Microsoft.DevSkim.VisualStudio.csproj"
+        ],
+        "imports": [],
+        "output_type": "Library",
+        "pack_as_tool": false,
+        "package_id": null,
+        "package_references": [
+          {
+            "name": "Microsoft.VisualStudio.Extensibility.Build",
+            "version": "17.14.40608"
+          },
+          {
+            "name": "Microsoft.VisualStudio.Extensibility.Sdk",
+            "version": "17.14.40608"
+          },
+          {
+            "name": "Nerdbank.GitVersioning",
+            "version": "3.7.115"
+          },
+          {
+            "name": "Newtonsoft.Json",
+            "version": "13.0.3"
+          },
+          {
+            "name": "Serilog",
+            "version": "4.2.0"
+          },
+          {
+            "name": "Serilog.Sinks.Debug",
+            "version": "3.0.0"
+          },
+          {
+            "name": "Serilog.Sinks.File",
+            "version": "7.0.0"
+          }
+        ],
+        "path": "DevSkim-DotNet/Microsoft.DevSkim.VisualStudio/Microsoft.DevSkim.VisualStudio.csproj",
+        "project_references": [
+          "..\\Microsoft.DevSkim.LanguageProtoInterop\\Microsoft.DevSkim.LanguageProtoInterop.csproj"
+        ],
+        "release_pipeline_references": 2,
+        "runtime_identifiers": [],
+        "sdk_references": [
+          "Microsoft.NET.Sdk"
+        ],
+        "sha256": "15fa6ac957ea2c52a28fdb702f7dfe3313b4c976c5e4d37a43829c6bbd0f6411",
+        "size": 2303,
+        "target_frameworks": [
+          "net8.0-windows8.0"
+        ],
+        "using_task_sources": []
+      }
+    ],
+    "project_closure": [
+      "DevSkim-DotNet/Microsoft.DevSkim/Microsoft.DevSkim.csproj",
+      "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj"
+    ],
+    "resolved_imports": [
+      "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj",
+      "DevSkim-DotNet/Microsoft.DevSkim.Tests/Microsoft.DevSkim.Tests.csproj",
+      "DevSkim-DotNet/Microsoft.DevSkim/Microsoft.DevSkim.csproj",
+      "Directory.Build.props"
+    ],
+    "response_files": [],
+    "sdk_version_from_source": null,
+    "selected_framework": "net10.0",
+    "selected_runtime_identifier": "linux-x64",
+    "selected_target": {
+      "assembly_name": "devskim",
+      "conditional_critical_properties": [
+        "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj:RuntimeIdentifiers"
+      ],
+      "conditional_element_sources": [
+        "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj"
+      ],
+      "exec_task_sources": [],
+      "imports": [],
+      "output_type": "Exe",
+      "pack_as_tool": true,
+      "package_id": "Microsoft.CST.DevSkim.CLI",
+      "package_references": [
+        {
+          "name": "CommandLineParser",
+          "version": "2.9.1"
+        },
+        {
+          "name": "LibGit2Sharp",
+          "version": "0.31.0"
+        },
+        {
+          "name": "Microsoft.CST.ApplicationInspector.Logging",
+          "version": "1.9.50"
+        },
+        {
+          "name": "Microsoft.Extensions.CommandLineUtils",
+          "version": "1.1.1"
+        },
+        {
+          "name": "Nerdbank.GitVersioning",
+          "version": "3.7.115"
+        },
+        {
+          "name": "Nerdbank.GitVersioning",
+          "version": "3.7.115"
+        },
+        {
+          "name": "Sarif.Sdk",
+          "version": "4.5.4"
+        }
+      ],
+      "path": "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj",
+      "project_references": [
+        "..\\Microsoft.DevSkim\\Microsoft.DevSkim.csproj"
+      ],
+      "release_pipeline_references": 6,
+      "runtime_identifiers": [
+        "win-x64",
+        "linux-x64",
+        "osx-x64"
+      ],
+      "sdk_references": [
+        "Microsoft.NET.Sdk"
+      ],
+      "sha256": "7a44fb2969c7b42d0278f9cb33587e9401da889bb67c5288134b3477154c3a55",
+      "size": 3110,
+      "target_frameworks": [
+        "net8.0",
+        "net9.0",
+        "net10.0"
+      ],
+      "using_task_sources": []
+    },
+    "self_contained": true,
+    "source_nuget_credential_configs": [],
+    "test_projects": [
+      "DevSkim-DotNet/Microsoft.DevSkim.Tests/Microsoft.DevSkim.Tests.csproj"
+    ]
+  },
+  "source": {
+    "analysis_path": null,
+    "commit": "17706a84717a082984090f34621834e6aeff2925",
+    "git_tree": "391bd61fe6c81c3b1c8a4bd4566b1e65ded1e6b8",
+    "identity_binding": "caller-declared-unverified",
+    "inventory": {
+      "entry_count": 267,
+      "schema_version": 1,
+      "symlink_count": 0,
+      "total_file_bytes": 2250483,
+      "tree_sha256": "327ca8d550a0266bada11564df222fc1789cb7a54f97aeb115d7b20986762b8b"
+    },
+    "repository": "microsoft/DevSkim"
+  },
+  "source_inputs": [
+    {
+      "path": "DevSkim-DotNet/Microsoft.DevSkim.CLI/Microsoft.DevSkim.CLI.csproj",
+      "sha256": "7a44fb2969c7b42d0278f9cb33587e9401da889bb67c5288134b3477154c3a55",
+      "size": 3110
+    },
+    {
+      "path": "DevSkim-DotNet/Microsoft.DevSkim.LanguageProtoInterop/Microsoft.DevSkim.LanguageProtoInterop.csproj",
+      "sha256": "8a35fdce252bd6f8f8c3e5d3dcd623b1dd597dfd7d457f6361676cfd570d6813",
+      "size": 446
+    },
+    {
+      "path": "DevSkim-DotNet/Microsoft.DevSkim.LanguageServer/Microsoft.DevSkim.LanguageServer.csproj",
+      "sha256": "48f2ce075b9b197a27754abc1aa71ef420066fc5296e9c42c559e2c947c6c13d",
+      "size": 1242
+    },
+    {
+      "path": "DevSkim-DotNet/Microsoft.DevSkim.Tests/Microsoft.DevSkim.Tests.csproj",
+      "sha256": "3b9d204806abc1729a11b8654236a7d9e5ac9fd3abc16d53b98bf8a1696c10e0",
+      "size": 813
+    },
+    {
+      "path": "DevSkim-DotNet/Microsoft.DevSkim.VisualStudio/Microsoft.DevSkim.VisualStudio.csproj",
+      "sha256": "15fa6ac957ea2c52a28fdb702f7dfe3313b4c976c5e4d37a43829c6bbd0f6411",
+      "size": 2303
+    },
+    {
+      "path": "DevSkim-DotNet/Microsoft.DevSkim/Microsoft.DevSkim.csproj",
+      "sha256": "f2f557bfba82cb4dc605915136fb717d891d0ae4ecbb9d0a87740dbc4b55ad99",
+      "size": 10264
+    },
+    {
+      "path": "Directory.Build.props",
+      "sha256": "6c1284b9abb389d3d3fabba9711bb76f56e5fdb6259f3ad0a70bb2d943729590",
+      "size": 914
+    },
+    {
+      "path": "nuget.config",
+      "sha256": "f4cc8b1afffa48ea53cddd15d40b2c68492fbec5477266ddddba7dd078593a35",
+      "size": 269
+    },
+    {
+      "path": "version.json",
+      "sha256": "ef8aee1959fa1df70217badffe308ab4317fe75f3bdd7519ff691d25c477ed27",
+      "size": 323
+    }
+  ],
+  "status": "blocked"
+}

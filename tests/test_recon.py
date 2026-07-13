@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +13,41 @@ FIXTURES = Path(__file__).parent / "fixtures" / "recon"
 
 
 class ReconTests(unittest.TestCase):
+    def test_descriptor_relative_recon_ignores_substituted_pathname(self) -> None:
+        if not hasattr(os, "fchdir") or not hasattr(os, "O_DIRECTORY"):
+            self.skipTest("descriptor-rooted recon is unavailable")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            analysis = root / "analysis"
+            analysis.mkdir()
+            (analysis / "trusted.go").write_text("package trusted\n", encoding="utf-8")
+            analysis_descriptor = os.open(
+                analysis,
+                os.O_RDONLY | os.O_DIRECTORY,
+            )
+            previous_directory = os.open(".", os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                os.fchdir(analysis_descriptor)
+                held = root / "held"
+                moved = root / "moved"
+                analysis.rename(held)
+                held.rename(moved)
+                held.mkdir()
+                (held / "substituted.py").write_text(
+                    "print('substituted')\n",
+                    encoding="utf-8",
+                )
+                report = inspect_repository(
+                    Path("."),
+                    descriptor_relative=True,
+                )
+            finally:
+                os.fchdir(previous_directory)
+                os.close(previous_directory)
+                os.close(analysis_descriptor)
+
+        self.assertEqual(report["languages"], {"Go": 1})
+
     def test_workflow_yaml_parser_handles_common_workflow_shapes(self) -> None:
         parsed = parse_workflow_yaml(
             """

@@ -21,8 +21,9 @@ DiscoveryRequested
 Each arrow is persisted in SQLite as an immutable event. Each agent invocation
 is a leased work item with an attempt record. Successful work atomically writes
 its output events, content-addressed artifact records, and a handoff containing
-input and output digests. Failed work is retried up to its declared attempt
-limit and then dead-lettered.
+input and output digests. Output events durably bind the producer agent and exact
+successful attempt. Failed work is retried up to its declared attempt limit and
+then dead-lettered.
 
 The intake lane produces dry-run fork and sync plans only. It cannot mutate
 GitHub.
@@ -33,6 +34,7 @@ The managed-checkout lane is:
 UpstreamChanged
   -> Fork And Sync Agent -> SyncReady
   -> Recon Agent -> CheckoutAnalyzed
+  -> Ecosystem Profiler Agent -> BuildProfilesPlanned
   -> Overlay Planner Agent -> AnalysisBundleReady
 ```
 
@@ -41,8 +43,14 @@ This lane consumes a digest-pinned fork plan and fork lifecycle state. Explicit
 pass. It preserves `secure/<default>`, mirrors the fetched upstream commit at
 `upstream/<default>`, records tag and divergence evidence, and performs no
 remote pushes. Recon inspects a detached analysis worktree pinned to the SHA in
-the sync handoff. Every downstream consumer verifies the producer artifact
-digest before reading it.
+the sync handoff. Managed artifacts live beneath an attempt-specific directory.
+Run creation records the run root's device/inode identity; persistence,
+verification, reads, and writes reopen each path component through no-following
+directory descriptors anchored to that identity. Recon and profiling hold a
+pinned analysis-directory descriptor and inspect source from that directory
+object. Every downstream consumer requires the artifact reference attempt to
+match the durable producing event, then verifies the artifact digest before
+reading it.
 
 Patch creation and remote publication are separate durable runs so a protected
 approval can arrive later without changing immutable run configuration:

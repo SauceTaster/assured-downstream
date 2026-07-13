@@ -28,6 +28,7 @@ from assured_downstream.checkout_pipeline import run_checkout_analysis
 from assured_downstream.custody import create_custodian_review
 from assured_downstream.codex_driver import DEFAULT_CODEX_PROFILE, CodexDriver
 from assured_downstream.enrichment import enrich_catalog
+from assured_downstream.ecosystem_profile import plan_ecosystem_build_profile
 from assured_downstream.evidence import (
     compare_evidence_manifests,
     create_evidence_manifest,
@@ -722,6 +723,52 @@ def build_parser() -> argparse.ArgumentParser:
     recon.add_argument("--path", required=True, type=Path)
     recon.add_argument("--output", type=Path)
     recon.set_defaults(func=command_recon)
+
+    build_profile = subparsers.add_parser(
+        "plan-build-profile",
+        help="Create a non-executing, fail-closed Java or .NET build profile.",
+    )
+    build_profile.add_argument("--path", required=True, type=Path)
+    build_profile.add_argument("--source-repository", required=True)
+    build_profile.add_argument("--source-commit", required=True)
+    build_profile.add_argument("--source-git-tree")
+    build_profile.add_argument(
+        "--generated-at",
+        help="Fixed RFC 3339 timestamp for deterministic retained-profile replay.",
+    )
+    build_profile.add_argument(
+        "--ecosystem",
+        choices=("java-maven", "java-gradle", "dotnet"),
+    )
+    build_profile.add_argument("--target")
+    build_profile.add_argument("--target-framework")
+    build_profile.add_argument("--runtime-identifier")
+    build_profile.add_argument("--operation", choices=("pack", "publish"))
+    build_profile.add_argument(
+        "--expected-artifact",
+        action="append",
+        default=[],
+        help="Exact path beneath /out expected from a .NET canary; may be repeated.",
+    )
+    deployment_mode = build_profile.add_mutually_exclusive_group()
+    deployment_mode.add_argument(
+        "--self-contained",
+        dest="self_contained",
+        action="store_true",
+        default=None,
+    )
+    deployment_mode.add_argument(
+        "--framework-dependent",
+        dest="self_contained",
+        action="store_false",
+    )
+    build_profile.add_argument(
+        "--portable",
+        action="store_true",
+        help="Omit the machine-local analysis path from the retained profile.",
+    )
+    build_profile.add_argument("--output", required=True, type=Path)
+    build_profile.set_defaults(func=command_plan_build_profile)
 
     overlay = subparsers.add_parser(
         "plan-overlay",
@@ -1537,6 +1584,30 @@ def command_recon(args: argparse.Namespace) -> int:
     else:
         print(json.dumps(report, indent=2, sort_keys=True))
     return 0
+
+
+def command_plan_build_profile(args: argparse.Namespace) -> int:
+    profile = plan_ecosystem_build_profile(
+        root=args.path,
+        source_repository=args.source_repository,
+        source_commit=args.source_commit,
+        source_git_tree=args.source_git_tree,
+        ecosystem=args.ecosystem,
+        target=args.target,
+        target_framework=args.target_framework,
+        runtime_identifier=args.runtime_identifier,
+        self_contained=args.self_contained,
+        operation=args.operation,
+        expected_artifacts=args.expected_artifact,
+        include_analysis_path=not args.portable,
+        generated_at=args.generated_at,
+    )
+    write_json_file(args.output, profile)
+    print(f"wrote ecosystem build profile: {args.output}")
+    print(f"status: {profile['status']}")
+    print(f"canary admission candidate: {profile['canary_admission_candidate']}")
+    print(f"execution permitted: {profile['execution_permitted']}")
+    return 0 if profile["execution_permitted"] else 2
 
 
 def command_plan_overlay(args: argparse.Namespace) -> int:

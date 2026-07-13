@@ -113,8 +113,17 @@ RELEASE_UPLOAD_ACTIONS = {
 }
 
 
-def inspect_repository(path: Path) -> dict[str, Any]:
-    root = path.resolve()
+def inspect_repository(
+    path: Path,
+    *,
+    descriptor_relative: bool = False,
+) -> dict[str, Any]:
+    if descriptor_relative:
+        if path != Path("."):
+            raise ValueError("Descriptor-relative recon requires root '.'")
+        root = Path(".")
+    else:
+        root = path.resolve()
     if not root.exists():
         raise FileNotFoundError(root)
     if not root.is_dir():

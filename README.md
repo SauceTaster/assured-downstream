@@ -9,6 +9,12 @@ ingestion work. Remote publication authorization is intentionally disabled
 while its account-isolated trust boundary is redesigned. This is not
 production-ready.
 
+The managed-checkout lane now includes a non-executing Ecosystem Profiler Agent.
+Development Java Maven and .NET policy packs produce exact blocker ownership,
+argv-only offline canary proposals, and trusted workspace-preparation contracts.
+Both policies intentionally deny execution until their builders and dependency
+materials are independently closed.
+
 The parallel `python-wheel-v3` bootstrap now canonicalizes and self-verifies
 Python source distributions after traced-process quiescence and gates image
 publication on a SauceTaster-only dispatch, hostile isolation, and two-build
@@ -53,6 +59,9 @@ packages, and applications, the org provides a trusted downstream lane:
   builder trust boundary, evidence inputs, durable agent flow, and non-claims.
 - [docs/BUILD_VERIFICATION_CONTRACT.md](./docs/BUILD_VERIFICATION_CONTRACT.md):
   reusable-workflow signer/caller verification and promotion boundaries.
+- [docs/ECOSYSTEM_BUILD_PROFILES.md](./docs/ECOSYSTEM_BUILD_PROFILES.md):
+  fail-closed Java/.NET profiling, material-resolution handoffs, and live
+  candidate decisions.
 - [ROADMAP.md](./ROADMAP.md): staged implementation plan from catalog and fork
   sync to behavior-reproducible releases.
 - [docs/WBS.md](./docs/WBS.md): work breakdown for what remains before and
@@ -142,6 +151,10 @@ assured-downstream enrich --catalog catalog.json
 assured-downstream score --catalog catalog.json
 assured-downstream custodian-review --catalog catalog.json --output custody-review.json
 assured-downstream recon --path /path/to/checkout --output recon.json
+assured-downstream plan-build-profile --path /path/to/checkout \
+  --source-repository owner/repo --source-commit <full-sha> \
+  --source-git-tree <full-tree-sha> \
+  --output ecosystem-build-profile.json
 assured-downstream plan-overlay --recon recon.json --target Attested --output overlay-plan.json
 assured-downstream resolve-pins --tooling policies/approved-tooling.json --output pins.json
 assured-downstream render-overlay --plan overlay-plan.json --path /path/to/checkout --pins pins.json
@@ -195,7 +208,8 @@ passed, and generated workflows require full commit SHA pins supplied through
 `--pins`.
 
 `checkout-run` is the second durable agent lane: Fork And Sync -> Recon ->
-Overlay Planner. It digest-binds its fork plan, lifecycle state, and every
+Ecosystem Profiler -> Overlay Planner. It digest-binds its fork plan, lifecycle
+state, and every
 handoff artifact in SQLite. With `--execute-sync`, it validates remote identity,
 preserves each validated SSH/HTTPS transport, fetches with explicit refspecs,
 updates only `upstream/<default>`, creates `secure/<default>` once, and never
@@ -236,7 +250,8 @@ directory with `catalog.json`, `fork-plan.json`,
 and appends to a machine-readable run index.
 
 `self-test` runs local no-network validation against first-lane Go, Rust,
-Python, Java, and .NET fixtures, replays the five-agent intake lane, verifies an
+Python, Java, and .NET fixtures, verifies Java/.NET profiles fail closed under
+development policy, replays the five-agent intake lane, verifies an
 Attested evidence smoke test, and drains the five-agent build-result, trace,
 attestation, release-verifier, and Governor lane with synthetic evidence. It
 executes no upstream build code.

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import os
+import re
 import sqlite3
+import stat
 import uuid
 from contextlib import closing, contextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Iterator
@@ -17,10 +22,22 @@ from assured_downstream.agent_contracts import (
     canonical_json,
     content_digest,
 )
-from assured_downstream.evidence import sha256_file
+from assured_downstream.secure_path import (
+    open_absolute_directory_without_symlinks,
+    open_directory_beneath,
+    require_directory_identity,
+)
+
+SCHEMA_VERSION = 2
+ATTEMPT_ID = re.compile(r"[0-9a-f]{32}\Z")
+AGENT_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 
 
-SCHEMA_VERSION = 1
+@dataclass(frozen=True)
+class ArtifactScope:
+    run_root: Path
+    run_root_identity: tuple[int, int]
+    artifact_root: Path
 
 
 def utc_now() -> str:
@@ -30,6 +47,34 @@ def utc_now() -> str:
 def utc_after(seconds: int | float) -> str:
     return (datetime.now(UTC) + timedelta(seconds=seconds)).isoformat(
         timespec="microseconds"
+    )
+
+
+def migrate_agent_schema_v1_to_v2(connection: sqlite3.Connection) -> None:
+    columns = {
+        str(row["name"])
+        for row in connection.execute("PRAGMA table_info(events)").fetchall()
+    }
+    if "producer_attempt_id" not in columns:
+        connection.execute(
+            "ALTER TABLE events ADD COLUMN producer_attempt_id TEXT"
+        )
+    connection.execute(
+        """
+        UPDATE events
+        SET producer_attempt_id = (
+            SELECT attempts.attempt_id
+            FROM work_items
+            JOIN attempts ON attempts.work_id = work_items.work_id
+            WHERE work_items.event_id = events.causation_id
+                AND work_items.agent_id = events.producer_agent_id
+                AND attempts.status = 'succeeded'
+            ORDER BY attempts.attempt_number DESC
+            LIMIT 1
+        )
+        WHERE producer_agent_id IS NOT NULL
+            AND producer_attempt_id IS NULL
+        """
     )
 
 
@@ -86,6 +131,7 @@ class AgentStore:
                     event_type TEXT NOT NULL,
                     source_repository TEXT,
                     producer_agent_id TEXT,
+                    producer_attempt_id TEXT,
                     causation_id TEXT REFERENCES events(event_id),
                     correlation_id TEXT NOT NULL,
                     dedupe_key TEXT NOT NULL,
@@ -166,7 +212,15 @@ class AgentStore:
             version_row = connection.execute(
                 "SELECT value FROM schema_metadata WHERE key = 'schema_version'"
             ).fetchone()
-            if version_row is not None and version_row["value"] != str(SCHEMA_VERSION):
+            if version_row is not None and version_row["value"] == "1":
+                migrate_agent_schema_v1_to_v2(connection)
+                connection.execute(
+                    "UPDATE schema_metadata SET value = ? WHERE key = 'schema_version'",
+                    (str(SCHEMA_VERSION),),
+                )
+            elif version_row is not None and version_row["value"] != str(
+                SCHEMA_VERSION
+            ):
                 raise RuntimeError(
                     "Unsupported agent database schema version: "
                     f"{version_row['value']}"
@@ -235,6 +289,7 @@ class AgentStore:
                 agent_ids=agent_ids,
                 source_repository=source_repository,
                 producer_agent_id=producer_agent_id,
+                producer_attempt_id=None,
                 causation_id=causation_id,
                 correlation_id=correlation_id,
                 dedupe_key=dedupe_key,
@@ -251,6 +306,7 @@ class AgentStore:
         agent_ids: list[str],
         source_repository: str | None,
         producer_agent_id: str | None,
+        producer_attempt_id: str | None,
         causation_id: str | None,
         correlation_id: str | None,
         dedupe_key: str | None,
@@ -258,6 +314,10 @@ class AgentStore:
     ) -> EventRecord:
         if max_attempts < 1:
             raise ValueError("max_attempts must be at least 1")
+        if producer_attempt_id is not None and (
+            producer_agent_id is None or ATTEMPT_ID.fullmatch(producer_attempt_id) is None
+        ):
+            raise ValueError("Producer attempt identity is invalid")
         event_id = uuid.uuid4().hex
         effective_dedupe_key = dedupe_key or event_id
         payload_json = canonical_json(payload)
@@ -267,9 +327,9 @@ class AgentStore:
             """
             INSERT OR IGNORE INTO events(
                 event_id, run_id, event_type, source_repository,
-                producer_agent_id, causation_id, correlation_id, dedupe_key,
-                payload_json, payload_sha256, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                producer_agent_id, producer_attempt_id, causation_id,
+                correlation_id, dedupe_key, payload_json, payload_sha256, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 event_id,
@@ -277,6 +337,7 @@ class AgentStore:
                 event_type,
                 source_repository,
                 producer_agent_id,
+                producer_attempt_id,
                 causation_id,
                 correlation_id or run_id,
                 effective_dedupe_key,
@@ -298,6 +359,25 @@ class AgentStore:
         if event.payload_sha256 != payload_sha256:
             raise ValueError(
                 "Event idempotency collision for "
+                f"{run_id}/{event_type}/{effective_dedupe_key}"
+            )
+        expected_scope = (
+            source_repository,
+            producer_agent_id,
+            producer_attempt_id,
+            causation_id,
+            correlation_id or run_id,
+        )
+        actual_scope = (
+            event.source_repository,
+            event.producer_agent_id,
+            event.producer_attempt_id,
+            event.causation_id,
+            event.correlation_id,
+        )
+        if actual_scope != expected_scope:
+            raise ValueError(
+                "Event idempotency scope collision for "
                 f"{run_id}/{event_type}/{effective_dedupe_key}"
             )
 
@@ -463,7 +543,14 @@ class AgentStore:
         result: AgentResult,
         routed_events: list[tuple[EventOutput, list[str]]],
     ) -> dict[str, Any]:
-        artifact_records = [prepare_artifact(work, artifact) for artifact in result.artifacts]
+        artifact_scope = self._completion_artifact_scope(
+            work=work,
+            worker_id=worker_id,
+        )
+        artifact_records = [
+            prepare_artifact(work, artifact, expected_scope=artifact_scope)
+            for artifact in result.artifacts
+        ]
         now = utc_now()
         with self.transaction() as connection:
             current = self._require_active_lease(
@@ -480,6 +567,7 @@ class AgentStore:
             if input_event_row is None:
                 raise RuntimeError(f"Missing input event: {work.event_id}")
             input_event = event_from_row(input_event_row)
+            attempt_id = str(current["current_attempt_id"])
 
             output_events = []
             for output, agent_ids in routed_events:
@@ -492,6 +580,7 @@ class AgentStore:
                         agent_ids=agent_ids,
                         source_repository=output.source_repository,
                         producer_agent_id=work.agent_id,
+                        producer_attempt_id=attempt_id,
                         causation_id=work.event_id,
                         correlation_id=input_event.correlation_id or work.run_id,
                         dedupe_key=output.dedupe_key,
@@ -545,7 +634,6 @@ class AgentStore:
                 if result.model_execution is None
                 else canonical_json(result.model_execution.as_dict())
             )
-            attempt_id = current["current_attempt_id"]
             connection.execute(
                 """
                 INSERT INTO handoffs(
@@ -608,6 +696,40 @@ class AgentStore:
             "output_event_ids": output_event_ids,
             "artifact_ids": artifact_ids,
         }
+
+    def _completion_artifact_scope(
+        self,
+        *,
+        work: WorkItem,
+        worker_id: str,
+    ) -> ArtifactScope | None:
+        now = utc_now()
+        with closing(self.connect()) as connection:
+            current = self._require_active_lease(
+                connection,
+                work_id=work.work_id,
+                worker_id=worker_id,
+                attempt_id=work.current_attempt_id,
+                now=now,
+            )
+            run_row = connection.execute(
+                "SELECT metadata_json FROM runs WHERE run_id = ?",
+                (work.run_id,),
+            ).fetchone()
+        if run_row is None:
+            raise KeyError(f"Unknown agent run: {work.run_id}")
+        metadata = json.loads(run_row["metadata_json"])
+        artifact_scope = metadata.get("artifact_scope")
+        if artifact_scope is None:
+            return None
+        if artifact_scope != "attempt-scoped-v1":
+            raise ValueError(f"Unsupported agent artifact scope: {artifact_scope!r}")
+
+        return artifact_scope_for_run(
+            metadata=metadata,
+            attempt_id=current["current_attempt_id"],
+            agent_id=work.agent_id,
+        )
 
     def fail_work(
         self,
@@ -799,9 +921,22 @@ class AgentStore:
         with closing(self.connect()) as connection:
             rows = connection.execute(
                 """
-                SELECT artifact_id, role, path, sha256, size
-                FROM artifacts WHERE run_id = ?
-                ORDER BY created_at, artifact_id
+                SELECT artifacts.artifact_id, artifacts.role, artifacts.path,
+                    artifacts.sha256, artifacts.size, work_items.agent_id,
+                    runs.metadata_json,
+                    (
+                        SELECT attempts.attempt_id
+                        FROM attempts
+                        WHERE attempts.work_id = artifacts.work_id
+                            AND attempts.status = 'succeeded'
+                        ORDER BY attempts.attempt_number DESC
+                        LIMIT 1
+                    ) AS producer_attempt_id
+                FROM artifacts
+                JOIN work_items USING(work_id)
+                JOIN runs ON runs.run_id = artifacts.run_id
+                WHERE artifacts.run_id = ?
+                ORDER BY artifacts.created_at, artifacts.artifact_id
                 """,
                 (run_id,),
             ).fetchall()
@@ -809,7 +944,17 @@ class AgentStore:
         failures = []
         for row in rows:
             path = Path(str(row["path"]))
-            if not path.exists() or not path.is_file():
+            try:
+                expected_scope = artifact_scope_for_run(
+                    metadata=json.loads(row["metadata_json"]),
+                    attempt_id=row["producer_attempt_id"],
+                    agent_id=str(row["agent_id"]),
+                )
+                actual_sha256, actual_size = stable_artifact_identity(
+                    path,
+                    expected_scope=expected_scope,
+                )
+            except (OSError, ValueError):
                 failures.append(
                     {
                         "artifact_id": str(row["artifact_id"]),
@@ -819,8 +964,6 @@ class AgentStore:
                     }
                 )
                 continue
-            actual_size = path.stat().st_size
-            actual_sha256 = sha256_file(path)
             if actual_size != int(row["size"]) or actual_sha256 != row["sha256"]:
                 failures.append(
                     {
@@ -841,17 +984,58 @@ class AgentStore:
         }
 
 
-def prepare_artifact(work: WorkItem, artifact: ArtifactOutput) -> dict[str, Any]:
-    path = artifact.path.resolve()
-    if not path.exists() or not path.is_file():
-        raise FileNotFoundError(f"Agent artifact is not a file: {path}")
-    digest = sha256_file(path)
+def artifact_scope_for_run(
+    *,
+    metadata: dict[str, Any],
+    attempt_id: Any,
+    agent_id: str,
+) -> ArtifactScope | None:
+    artifact_scope = metadata.get("artifact_scope")
+    if artifact_scope is None:
+        return None
+    if artifact_scope != "attempt-scoped-v1":
+        raise ValueError(f"Unsupported agent artifact scope: {artifact_scope!r}")
+    if not isinstance(attempt_id, str) or ATTEMPT_ID.fullmatch(attempt_id) is None:
+        raise ValueError("Attempt-scoped work has an invalid attempt identity")
+    if AGENT_ID.fullmatch(agent_id) is None:
+        raise ValueError("Attempt-scoped work has an invalid agent identity")
+    run_dir_value = metadata.get("run_dir")
+    if not isinstance(run_dir_value, str):
+        raise ValueError("Attempt-scoped run has no absolute run directory")
+    run_root = Path(run_dir_value).expanduser()
+    if not run_root.is_absolute():
+        raise ValueError("Attempt-scoped run has no absolute run directory")
+    run_root = Path(os.path.abspath(run_root))
+    return ArtifactScope(
+        run_root=run_root,
+        run_root_identity=require_directory_identity(
+            metadata.get("run_root_identity")
+        ),
+        artifact_root=run_root / "attempts" / attempt_id / agent_id,
+    )
+
+
+def prepare_artifact(
+    work: WorkItem,
+    artifact: ArtifactOutput,
+    *,
+    expected_scope: ArtifactScope | None = None,
+) -> dict[str, Any]:
+    if expected_scope is not None and not artifact.path.is_absolute():
+        raise FileNotFoundError(
+            f"Attempt-scoped agent artifact path must be absolute: {artifact.path}"
+        )
+    path = Path(os.path.abspath(artifact.path.expanduser()))
+    try:
+        digest, size = stable_artifact_identity(path, expected_scope=expected_scope)
+    except (OSError, ValueError) as exc:
+        raise FileNotFoundError(f"Agent artifact is not a stable regular file: {path}") from exc
     record = {
         "role": artifact.role,
         "path": str(path),
         "media_type": artifact.media_type,
         "sha256": digest,
-        "size": path.stat().st_size,
+        "size": size,
     }
     record["artifact_id"] = content_digest(
         {
@@ -864,6 +1048,90 @@ def prepare_artifact(work: WorkItem, artifact: ArtifactOutput) -> dict[str, Any]
     return record
 
 
+def stable_artifact_identity(
+    path: Path,
+    *,
+    expected_scope: ArtifactScope | None = None,
+) -> tuple[str, int]:
+    descriptor = open_artifact_descriptor(path, expected_scope=expected_scope)
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+            raise ValueError("artifact is not a standalone regular file")
+        digest = hashlib.sha256()
+        size = 0
+        while chunk := os.read(descriptor, 1024 * 1024):
+            digest.update(chunk)
+            size += len(chunk)
+        after = os.fstat(descriptor)
+        if artifact_file_identity(before) != artifact_file_identity(after):
+            raise ValueError("artifact changed while it was hashed")
+        if size != before.st_size:
+            raise ValueError("artifact size changed while it was hashed")
+        return digest.hexdigest(), size
+    finally:
+        os.close(descriptor)
+
+
+def open_artifact_descriptor(
+    path: Path,
+    *,
+    expected_scope: ArtifactScope | None,
+) -> int:
+    lexical_path = Path(os.path.abspath(path.expanduser()))
+    if expected_scope is None:
+        trusted_root = lexical_path.parent.resolve(strict=True)
+        relative = Path(lexical_path.name)
+        root_descriptor = open_absolute_directory_without_symlinks(trusted_root)
+    else:
+        try:
+            lexical_path.relative_to(expected_scope.artifact_root)
+            relative = lexical_path.relative_to(expected_scope.run_root)
+        except ValueError as exc:
+            raise ValueError("artifact path is outside its trusted root") from exc
+        root_descriptor = open_absolute_directory_without_symlinks(
+            expected_scope.run_root,
+            expected_identity=expected_scope.run_root_identity,
+        )
+    if not relative.parts or any(part in {"", ".", ".."} for part in relative.parts):
+        os.close(root_descriptor)
+        raise ValueError("artifact path is invalid")
+
+    file_flags = (
+        os.O_RDONLY
+        | getattr(os, "O_CLOEXEC", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    parent_descriptor: int | None = None
+    try:
+        parent_descriptor = open_directory_beneath(
+            root_descriptor,
+            Path(*relative.parts[:-1]),
+        )
+        return os.open(
+            relative.parts[-1],
+            file_flags,
+            dir_fd=parent_descriptor,
+        )
+    finally:
+        if parent_descriptor is not None:
+            os.close(parent_descriptor)
+        os.close(root_descriptor)
+
+
+def artifact_file_identity(
+    metadata: os.stat_result,
+) -> tuple[int, int, int, int, int, int]:
+    return (
+        metadata.st_dev,
+        metadata.st_ino,
+        metadata.st_size,
+        metadata.st_mtime_ns,
+        metadata.st_ctime_ns,
+        metadata.st_nlink,
+    )
+
+
 def event_from_row(row: sqlite3.Row) -> EventRecord:
     return EventRecord(
         event_id=str(row["event_id"]),
@@ -874,6 +1142,7 @@ def event_from_row(row: sqlite3.Row) -> EventRecord:
         created_at=str(row["created_at"]),
         source_repository=row["source_repository"],
         producer_agent_id=row["producer_agent_id"],
+        producer_attempt_id=row["producer_attempt_id"],
         causation_id=row["causation_id"],
         correlation_id=row["correlation_id"],
         dedupe_key=row["dedupe_key"],
@@ -887,6 +1156,7 @@ def event_dict(event: EventRecord) -> dict[str, Any]:
         "event_type": event.event_type,
         "source_repository": event.source_repository,
         "producer_agent_id": event.producer_agent_id,
+        "producer_attempt_id": event.producer_attempt_id,
         "causation_id": event.causation_id,
         "correlation_id": event.correlation_id,
         "dedupe_key": event.dedupe_key,

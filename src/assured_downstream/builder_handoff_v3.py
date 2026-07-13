@@ -568,8 +568,19 @@ def seal_builder_output(
     return seal
 
 
-def inventory_trusted_source(source_root: Path) -> dict[str, Any]:
-    source_root = Path(os.path.abspath(source_root.expanduser()))
+def inventory_trusted_source(
+    source_root: Path,
+    *,
+    descriptor_relative: bool = False,
+) -> dict[str, Any]:
+    if descriptor_relative:
+        if source_root != Path("."):
+            raise BuilderHandoffError(
+                "descriptor-relative trusted source requires root '.'"
+            )
+        source_root = Path(".")
+    else:
+        source_root = Path(os.path.abspath(source_root.expanduser()))
     try:
         root_metadata = source_root.lstat()
     except OSError as exc:

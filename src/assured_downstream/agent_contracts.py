@@ -33,6 +33,7 @@ class EventRecord:
     created_at: str
     source_repository: str | None = None
     producer_agent_id: str | None = None
+    producer_attempt_id: str | None = None
     causation_id: str | None = None
     correlation_id: str | None = None
     dedupe_key: str | None = None
@@ -118,3 +119,4 @@ class AgentContext:
     worker_id: str
     work: WorkItem
     event: EventRecord
+    run_metadata: dict[str, Any] = field(default_factory=dict)

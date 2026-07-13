@@ -5,7 +5,7 @@ agent-sized work packages that can be built in parallel without widening the
 MVP beyond a working assured downstream lane.
 
 Synthesized from four read-only Codex worker reviews on 2026-07-09 and updated
-through the retained two-run Repro Agent review on 2026-07-13:
+through the Java/.NET ecosystem-profile threat reviews on 2026-07-13:
 
 - control plane and operations
 - recon, overlay, and release rendering
@@ -25,6 +25,11 @@ As of the 2026-07-13 prototype pass:
   exact-SHA recon and overlay planning.
 - WP3 is implemented: recon parses GitHub Actions workflows structurally without
   a runtime YAML dependency and has Go/Rust/Python/Java/.NET fixture coverage.
+- WP3B is implemented structurally: a durable Ecosystem Profiler handoff now
+  emits fail-closed Java Maven and .NET profiles, explicit blocker ownership,
+  trusted tmpfs preparation, and canary requirements without executing source.
+  A separate Material Resolver role owns dependency closure. Both policies deny
+  execution until digest-pinned builders and offline material locks exist.
 - WP3A is implemented locally: digest-bound policy approval selected three
   exact additive Bandit files, the Patch Agent created a deterministic
   single-parent secure commit by CAS, and the Publisher correctly refused an
@@ -68,9 +73,9 @@ As of the 2026-07-13 prototype pass:
   profile remains inactive, and the frozen v2 lane is unchanged.
 - WP8/WP9 are implemented locally: passive fork publication packets, optional
   fetch instructions, and custodian governance fields exist.
-- A local `self-test` command now exercises first-lane fixtures, Attested
-  candidate evidence verification, and the five-agent durable evidence lane
-  without network access or upstream-code execution.
+- A local `self-test` command now exercises first-lane fixtures, Java/.NET
+  profile denial, Attested candidate evidence verification, and the five-agent
+  durable evidence lane without network access or upstream-code execution.
 
 Current critical path:
 
@@ -80,7 +85,8 @@ Current critical path:
 2. WP7: implement code-anchored lineage, builder, tooling, and workflow-content
    verifiers. Signed workflow claims are not yet separate proof of ancestry or
    isolation.
-3. Add real Java and .NET build/evidence profiles using the v3 evidence contract.
+3. Implement Java/.NET material resolution and digest-pinned builders, then run
+   the already-defined profiles through the v3 evidence contract.
 4. Redesign remote authorization inside the single-account boundary, then test
    public secure-ref publication separately from build safety.
 5. Add organization replay, branch protection, and scheduled upstream detection.
@@ -105,6 +111,7 @@ Current critical path:
 | Governor/Safety Agent | Policy gates, approved tooling, suppression state, run index | A blocked release or mutation exits nonzero with clear reasons |
 | Control-Plane Agent | Candidate intake, default-branch fork/sync reconciliation, run management | Repeated sandbox runs are safe and auditable |
 | Patch/Release Agent | Structural recon, overlays, release profiles, workflow rendering | Go/Rust/Python/Java/.NET fixtures render pinned draft workflows safely |
+| Ecosystem/Material Agents | Build target decisions and sealed dependency closure | A blocked profile names every owner; a closed profile consumes only digest-locked offline materials |
 | Evidence/Repro Agent | Evidence manifests, verification, artifact comparison, trace normalization | A non-authoritative evidence candidate is emitted only after local consistency checks |
 | Publication/Stewardship Agent | Fork metadata, evidence links, optional fetch instructions, custodian packets | Each fork explains itself without outbound contact |
 
@@ -430,6 +437,9 @@ Acceptance:
 - Upstream code is never rendered as a host-run shell command. Execution
   requires a reviewed builder image digest, argv-only command, read-only source
   mount, dropped capabilities, and network-disabled container.
+- Java/.NET execution additionally requires an Ecosystem Profiler decision with
+  no blockers, an approved canary-only policy, a trusted inventory-verified
+  tmpfs copy, and a source-bound offline material bundle.
 - Review notes survive render and appear in summaries.
 
 Tests:
@@ -790,7 +800,8 @@ retain these ownership boundaries.
    and a separate collector trust boundary.
 2. Implement code-anchored lineage, builder, tooling-lock, and workflow-content
    verification before enabling production `Attested`.
-3. Build Java and .NET evidence profiles and run real cohort cases.
+3. Implement the quarantined Material Resolver and hostile-tested Java/.NET
+   builders, then run the checked-in profiles on JSON Sanitizer and DevSkim.
 4. Redesign publication approval inside the GitHub account boundary.
 5. Replay WP1 against the eventual organization and add downstream branch
    protection plus scheduled upstream-change ingestion.

@@ -216,6 +216,9 @@ Current prototype status:
 - Markdown verification guide generation exists for release evidence manifests
 - draft release profile planning exists for first-lane Go, Rust, Python, Java,
   and .NET checkouts
+- a durable Ecosystem Profiler now emits development-only Java Maven and .NET
+  decisions with explicit target, material, toolchain, canary, and artifact
+  blockers; policy still denies execution
 - pinned attested-release workflow rendering exists using `actions/attest` for
   SLSA provenance, SBOM, and a custom Assured Downstream in-toto predicate
 - rendered workflows capture local Sigstore bundle outputs for evidence upload

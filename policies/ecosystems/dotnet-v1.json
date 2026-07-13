@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "policy_id": "dotnet-v1",
+  "status": "development-profile-only",
+  "ecosystem": "dotnet",
+  "build_system": "dotnet-cli",
+  "canary_profile_approved": false,
+  "builder": {
+    "image": null,
+    "image_digest": null,
+    "dotnet_executable": "/opt/dotnet/dotnet",
+    "network": "none",
+    "read_only_root": true,
+    "source_read_only": true,
+    "materials_read_only": true,
+    "workspace": "tmpfs",
+    "capabilities": [],
+    "no_new_privileges": true
+  },
+  "material_lock_path": ".assured-downstream/materials/dotnet-v1.json",
+  "environment_allowlist": [
+    "DOTNET_CLI_HOME=/workspace/dotnet-home",
+    "DOTNET_NOLOGO=1",
+    "DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1",
+    "HOME=/nonexistent",
+    "LANG=C.UTF-8",
+    "LC_ALL=C.UTF-8",
+    "NUGET_PACKAGES=/workspace/.nuget/packages",
+    "PATH=/opt/dotnet:/usr/bin:/bin",
+    "TZ=UTC"
+  ],
+  "forbidden_commands": [
+    "dotnet nuget push",
+    "dotnet tool install",
+    "nuget push",
+    "sign",
+    "workload install"
+  ],
+  "evidence_required": [
+    "exact source inventory",
+    "builder image identity",
+    ".NET SDK and MSBuild identity",
+    "NuGet package and build-task material inventory",
+    "raw and parsed syscall trace",
+    "network-denial evidence",
+    "artifact inventory",
+    "SPDX SBOM",
+    "in-toto/SLSA provenance",
+    "Sigstore bundles"
+  ],
+  "claim_limit": "Development-only structural policy. It does not authorize dotnet execution."
+}

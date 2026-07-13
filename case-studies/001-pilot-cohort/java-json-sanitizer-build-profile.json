@@ -1,0 +1,464 @@
+{
+  "build_plan": {
+    "artifact_selection": {
+      "exclude": [],
+      "expected_count": 1,
+      "follow_symlinks": false,
+      "include": [
+        "json-sanitizer-1.2.4-SNAPSHOT.jar"
+      ],
+      "reject_unexpected_release_candidates": [
+        "*.jar",
+        "*.war",
+        "*.zip",
+        "*.asc"
+      ],
+      "root": "target"
+    },
+    "cwd": "/workspace/src",
+    "environment_allowlist": [
+      "HOME=/nonexistent",
+      "JAVA_HOME=/opt/java",
+      "LANG=C.UTF-8",
+      "LC_ALL=C.UTF-8",
+      "PATH=/opt/maven/bin:/opt/java/bin:/usr/bin:/bin",
+      "TZ=UTC"
+    ],
+    "evidence_required": [
+      "exact source inventory",
+      "builder image identity",
+      "JDK and Maven identity",
+      "dependency and plugin material inventory",
+      "raw and parsed syscall trace",
+      "network-denial evidence",
+      "artifact inventory",
+      "SPDX SBOM",
+      "in-toto/SLSA provenance",
+      "Sigstore bundles"
+    ],
+    "forbidden_goals": [
+      "deploy",
+      "release:perform",
+      "release:prepare",
+      "sign",
+      "site-deploy"
+    ],
+    "material_mount": "/materials:ro",
+    "network": "none",
+    "output": "/out:collector-only",
+    "shell": false,
+    "source_mount": "/src:ro",
+    "steps": [
+      {
+        "argv": [
+          "/opt/maven/bin/mvn",
+          "--batch-mode",
+          "--no-transfer-progress",
+          "--offline",
+          "--strict-checksums",
+          "--settings",
+          "/policy/maven-settings.xml",
+          "--global-settings",
+          "/policy/maven-global-settings.xml",
+          "--file",
+          "pom.xml",
+          "-Dmaven.repo.local=/workspace/m2",
+          "-DperformRelease=false",
+          "-DskipTests=false",
+          "-Dmaven.test.skip=false",
+          "-Dmaven.source.skip=true",
+          "-Dmaven.javadoc.skip=true",
+          "-Djacoco.skip=true",
+          "-Dfuzz.seed=0",
+          "package"
+        ],
+        "name": "test-and-package"
+      }
+    ],
+    "trusted_preparation": {
+      "collector_output_not_writable_by_build": true,
+      "materials": {
+        "from": "/materials/m2",
+        "mode": "digest-verified-copy",
+        "to": "/workspace/m2",
+        "verify_before_and_after": true
+      },
+      "performed_by": "trusted-builder-supervisor",
+      "source": {
+        "from": "/src",
+        "mode": "inventory-verified-copy",
+        "symlink_policy": "root-confined-relative-only",
+        "to": "/workspace/src",
+        "verify_before_and_after": true
+      },
+      "workspace_owner": "unprivileged-build-uid"
+    },
+    "workspace": "/workspace:tmpfs"
+  },
+  "build_system": "maven",
+  "canary_admission_candidate": false,
+  "claim_limit": "This is a non-executing structural profile decision. It does not prove dependency closure, build isolation, artifact correctness, reproducibility, or source safety. Execution remains forbidden until every blocker is closed and a separate Governor admission authorizes one exact canary request.",
+  "decision": {
+    "blockers": [
+      "BUILDER_IMAGE_NOT_DIGEST_PINNED",
+      "DEPENDENCY_MATERIAL_LOCK_MISSING",
+      "ECOSYSTEM_POLICY_NOT_CANARY_APPROVED",
+      "SOURCE_IDENTITY_HANDOFF_UNVERIFIED"
+    ],
+    "canary_admission_candidate": false,
+    "canary_handoffs": [
+      {
+        "agent_id": "build",
+        "required_closures": [
+          "LEGACY_JAVA_TARGET_REQUIRES_CANARY",
+          "MAVEN_BUILD_EXTENSION_REQUIRES_CANARY"
+        ]
+      }
+    ],
+    "canary_requirements": [
+      "LEGACY_JAVA_TARGET_REQUIRES_CANARY",
+      "MAVEN_BUILD_EXTENSION_REQUIRES_CANARY"
+    ],
+    "execution_permitted": false,
+    "execution_scope": "none",
+    "next_handoffs": [
+      {
+        "agent_id": "governor",
+        "required_closures": [
+          "ECOSYSTEM_POLICY_NOT_CANARY_APPROVED"
+        ]
+      },
+      {
+        "agent_id": "material-resolver",
+        "required_closures": [
+          "DEPENDENCY_MATERIAL_LOCK_MISSING"
+        ]
+      },
+      {
+        "agent_id": "source-reacquirer-v3",
+        "required_closures": [
+          "SOURCE_IDENTITY_HANDOFF_UNVERIFIED"
+        ]
+      },
+      {
+        "agent_id": "tooling-curator",
+        "required_closures": [
+          "BUILDER_IMAGE_NOT_DIGEST_PINNED"
+        ]
+      }
+    ],
+    "release_eligible": false,
+    "required_authority": "separate-governor-canary-admission",
+    "review_items": [
+      "MAVEN_OUTPUT_TIMESTAMP_UNPINNED",
+      "MAVEN_RELEASE_OR_EXTENSION_PLUGINS_PRESENT",
+      "MAVEN_SNAPSHOT_PROJECT_VERSION",
+      "MAVEN_WRAPPER_ABSENT",
+      "SOURCE_RELEASE_SCRIPTS_EXCLUDED",
+      "UPSTREAM_MAVEN_PUBLICATION_CONFIG_PRESENT"
+    ],
+    "status": "blocked"
+  },
+  "detected_profile_candidates": [
+    "java-maven"
+  ],
+  "ecosystem": "java",
+  "execution_permitted": false,
+  "findings": [
+    {
+      "code": "SOURCE_IDENTITY_HANDOFF_UNVERIFIED",
+      "evidence": [],
+      "owner": "source-reacquirer-v3",
+      "severity": "blocker",
+      "summary": "The repository and commit are caller declarations, not a verified source handoff."
+    },
+    {
+      "code": "ECOSYSTEM_POLICY_NOT_CANARY_APPROVED",
+      "evidence": [
+        "development-profile-only"
+      ],
+      "owner": "governor",
+      "severity": "blocker",
+      "summary": "The ecosystem policy is development-stage and cannot request admission."
+    },
+    {
+      "code": "BUILDER_IMAGE_NOT_DIGEST_PINNED",
+      "evidence": [],
+      "owner": "tooling-curator",
+      "severity": "blocker",
+      "summary": "No independently approved builder image digest is configured."
+    },
+    {
+      "code": "UPSTREAM_MAVEN_PUBLICATION_CONFIG_PRESENT",
+      "evidence": [
+        "https://oss.sonatype.org/content/repositories/snapshots",
+        "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+      ],
+      "owner": "governor",
+      "severity": "review",
+      "summary": "Distribution endpoints are source evidence only and must never receive credentials."
+    },
+    {
+      "code": "MAVEN_RELEASE_OR_EXTENSION_PLUGINS_PRESENT",
+      "evidence": [
+        "org.apache.maven.plugins:maven-gpg-plugin",
+        "org.sonatype.plugins:nexus-staging-maven-plugin"
+      ],
+      "owner": "ecosystem-profiler",
+      "severity": "review",
+      "summary": "Release, signing, staging, or extension plugins are present in the build model."
+    },
+    {
+      "code": "MAVEN_BUILD_EXTENSION_REQUIRES_CANARY",
+      "evidence": [
+        "org.sonatype.plugins:nexus-staging-maven-plugin"
+      ],
+      "owner": "build",
+      "severity": "canary",
+      "summary": "Maven build extensions execute inside Maven and require an isolation canary."
+    },
+    {
+      "code": "MAVEN_SNAPSHOT_PROJECT_VERSION",
+      "evidence": [
+        "1.2.4-SNAPSHOT"
+      ],
+      "owner": "release",
+      "severity": "review",
+      "summary": "The upstream project version is a snapshot and needs downstream version policy."
+    },
+    {
+      "code": "MAVEN_OUTPUT_TIMESTAMP_UNPINNED",
+      "evidence": [],
+      "owner": "repro",
+      "severity": "review",
+      "summary": "The POM does not pin project.build.outputTimestamp."
+    },
+    {
+      "code": "LEGACY_JAVA_TARGET_REQUIRES_CANARY",
+      "evidence": [
+        "1.6"
+      ],
+      "owner": "build",
+      "severity": "canary",
+      "summary": "The requested Java bytecode level needs a pinned-JDK compatibility canary."
+    },
+    {
+      "code": "MAVEN_WRAPPER_ABSENT",
+      "evidence": [],
+      "owner": "tooling-curator",
+      "severity": "review",
+      "summary": "Maven must come entirely from the digest-pinned builder image."
+    },
+    {
+      "code": "SOURCE_RELEASE_SCRIPTS_EXCLUDED",
+      "evidence": [
+        "RELEASE-checklist.sh"
+      ],
+      "owner": "ecosystem-profiler",
+      "severity": "review",
+      "summary": "Repository release scripts are evidence only and are excluded from execution."
+    },
+    {
+      "code": "DEPENDENCY_MATERIAL_LOCK_MISSING",
+      "evidence": [
+        ".assured-downstream/materials/java-maven-v1.json"
+      ],
+      "owner": "material-resolver",
+      "severity": "blocker",
+      "summary": "The source has no digest-bound dependency and build-plugin material lock."
+    }
+  ],
+  "generated_at": "2026-07-13T18:52:36Z",
+  "policy": {
+    "builder": {
+      "capabilities": [],
+      "image": null,
+      "image_digest": null,
+      "java_home": "/opt/java",
+      "materials_read_only": true,
+      "maven_executable": "/opt/maven/bin/mvn",
+      "network": "none",
+      "no_new_privileges": true,
+      "read_only_root": true,
+      "source_read_only": true,
+      "workspace": "tmpfs"
+    },
+    "canary_profile_approved": false,
+    "material_lock": null,
+    "material_lock_path": ".assured-downstream/materials/java-maven-v1.json",
+    "policy_id": "java-maven-v1",
+    "policy_sha256": "74f4638eeee8d8771a3554069606e3e2fda8cf0a8a51259f961f1fb3b1fedc76",
+    "status": "development-profile-only"
+  },
+  "profile_id": "java-maven-v1",
+  "profiler": {
+    "implementation_sha256": "76ce1124b1785cda200ed702c6fee4669c45afa3032f9e3d9effbd80f31583d5"
+  },
+  "schema_version": 1,
+  "signals": {
+    "build_directory": "target",
+    "compiler_level": "1.6",
+    "declared_primary_artifact": "json-sanitizer-1.2.4-SNAPSHOT.jar",
+    "dependencies": [
+      {
+        "artifact_id": "jsr305",
+        "coordinate": "com.google.code.findbugs:jsr305",
+        "group_id": "com.google.code.findbugs",
+        "version": "3.0.2"
+      },
+      {
+        "artifact_id": "junit",
+        "coordinate": "junit:junit",
+        "group_id": "junit",
+        "version": "4.13.1"
+      }
+    ],
+    "distribution_urls": [
+      "https://oss.sonatype.org/content/repositories/snapshots",
+      "https://oss.sonatype.org/service/local/staging/deploy/maven2/"
+    ],
+    "exact_primary_artifact": "json-sanitizer-1.2.4-SNAPSHOT.jar",
+    "final_name": null,
+    "manifest": "pom.xml",
+    "modules": [],
+    "packaging": "jar",
+    "parent": null,
+    "plugin_output_overrides": [],
+    "plugins": [
+      {
+        "artifact_id": "spotbugs-maven-plugin",
+        "coordinate": "com.github.spotbugs:spotbugs-maven-plugin",
+        "extension": false,
+        "group_id": "com.github.spotbugs",
+        "version": "3.1.12.2"
+      },
+      {
+        "artifact_id": "maven-gpg-plugin",
+        "coordinate": "org.apache.maven.plugins:maven-gpg-plugin",
+        "extension": false,
+        "group_id": "org.apache.maven.plugins",
+        "version": "1.6"
+      },
+      {
+        "artifact_id": "maven-javadoc-plugin",
+        "coordinate": "org.apache.maven.plugins:maven-javadoc-plugin",
+        "extension": false,
+        "group_id": "org.apache.maven.plugins",
+        "version": "3.1.1"
+      },
+      {
+        "artifact_id": "maven-project-info-reports-plugin",
+        "coordinate": "org.apache.maven.plugins:maven-project-info-reports-plugin",
+        "extension": false,
+        "group_id": "org.apache.maven.plugins",
+        "version": "3.0.0"
+      },
+      {
+        "artifact_id": "maven-site-plugin",
+        "coordinate": "org.apache.maven.plugins:maven-site-plugin",
+        "extension": false,
+        "group_id": "org.apache.maven.plugins",
+        "version": "3.8.2"
+      },
+      {
+        "artifact_id": "maven-source-plugin",
+        "coordinate": "org.apache.maven.plugins:maven-source-plugin",
+        "extension": false,
+        "group_id": "org.apache.maven.plugins",
+        "version": "3.2.1"
+      },
+      {
+        "artifact_id": "jacoco-maven-plugin",
+        "coordinate": "org.jacoco:jacoco-maven-plugin",
+        "extension": false,
+        "group_id": "org.jacoco",
+        "version": "0.8.5"
+      },
+      {
+        "artifact_id": "sonar-maven-plugin",
+        "coordinate": "org.sonarsource.scanner.maven:sonar-maven-plugin",
+        "extension": false,
+        "group_id": "org.sonarsource.scanner.maven",
+        "version": "3.7.0.1746"
+      },
+      {
+        "artifact_id": "nexus-staging-maven-plugin",
+        "coordinate": "org.sonatype.plugins:nexus-staging-maven-plugin",
+        "extension": true,
+        "group_id": "org.sonatype.plugins",
+        "version": "1.6.8"
+      }
+    ],
+    "profile_output_overrides": [],
+    "profiles": [
+      {
+        "active_by_default": null,
+        "id": "jdk12on",
+        "jdk_activation": "[12,)",
+        "property_activation": {}
+      },
+      {
+        "active_by_default": null,
+        "id": "release-sign-artifact",
+        "jdk_activation": null,
+        "property_activation": {
+          "name": "performRelease",
+          "value": "true"
+        }
+      }
+    ],
+    "project_config": [],
+    "project_version": "1.2.4-SNAPSHOT",
+    "release_scripts": [
+      {
+        "hazard_tokens": [
+          "deploy",
+          "git clone",
+          "git commit",
+          "git push",
+          "git tag",
+          "mvn",
+          "rm -rf"
+        ],
+        "path": "RELEASE-checklist.sh",
+        "sha256": "2c4697fceafe492a7f4a1c59cb4fcfe5c715c5be2c6096521b679e1548eb5a83",
+        "size": 2739
+      }
+    ],
+    "repositories": [],
+    "source_literals": {
+      "fuzz.seed": [
+        "src/test/java/com/google/json/FuzzyTest.java",
+        "src/test/java/com/google/json/JsonSanitizerTest.java"
+      ]
+    },
+    "wrapper": {
+      "distribution_sha256": null,
+      "distribution_url": null,
+      "properties_present": false,
+      "script_present": false
+    }
+  },
+  "source": {
+    "analysis_path": null,
+    "commit": "fc612ab374de73d03864d56fb87b6a103b234489",
+    "git_tree": "f20af64ed07fdc39c77e0596150251adc1c088fe",
+    "identity_binding": "caller-declared-unverified",
+    "inventory": {
+      "entry_count": 19,
+      "schema_version": 1,
+      "symlink_count": 0,
+      "total_file_bytes": 337726,
+      "tree_sha256": "270da0fbdeea076f5456bdede7375fed0f39fed5f805df95f063c53ee1ef1f24"
+    },
+    "repository": "OWASP/json-sanitizer"
+  },
+  "source_inputs": [
+    {
+      "path": "pom.xml",
+      "sha256": "836b57f55d215049529a312f859ce63e4c143e70d6f38a5cac781feb55eabc8e",
+      "size": 9131
+    }
+  ],
+  "status": "blocked"
+}

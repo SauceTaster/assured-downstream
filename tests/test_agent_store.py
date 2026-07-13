@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+import os
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 
-from assured_downstream.agent_contracts import AgentResult, ArtifactOutput
+from assured_downstream.agent_contracts import (
+    AgentResult,
+    ArtifactOutput,
+    EventOutput,
+)
 from assured_downstream.agent_store import AgentStore
+from assured_downstream.secure_path import (
+    directory_identity_record,
+    secure_directory_identity,
+)
 
 
 class AgentStoreTests(unittest.TestCase):
@@ -253,6 +263,198 @@ class AgentStoreTests(unittest.TestCase):
             verification = store.verify_artifacts("run")
             self.assertFalse(verification["ok"])
             self.assertEqual(verification["failures"][0]["reason"], "digest_mismatch")
+
+    def test_output_event_is_bound_to_its_successful_attempt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            store = AgentStore(Path(tmp) / "agents.sqlite3")
+            store.create_run("run", {"run_dir": tmp})
+            source = store.publish_event(
+                run_id="run",
+                event_type="Input",
+                payload={},
+                agent_ids=["producer"],
+            )
+            work = store.claim_work(worker_id="worker", run_id="run")
+            assert work is not None and work.current_attempt_id is not None
+            output = EventOutput(
+                event_type="Output",
+                payload={"value": 1},
+                dedupe_key="output",
+            )
+
+            completion = store.complete_work(
+                work=work,
+                worker_id="worker",
+                result=AgentResult(
+                    status="succeeded",
+                    summary="produced",
+                    events=[output],
+                ),
+                routed_events=[(output, [])],
+            )
+            event = store.get_event(completion["output_event_ids"][0])
+
+            self.assertEqual(event.producer_agent_id, "producer")
+            self.assertEqual(event.producer_attempt_id, work.current_attempt_id)
+            self.assertEqual(event.causation_id, source.event_id)
+
+    def test_v1_store_migration_backfills_producer_attempt_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            database = Path(tmp) / "agents.sqlite3"
+            store = AgentStore(database)
+            store.create_run("run", {"run_dir": tmp})
+            store.publish_event(
+                run_id="run",
+                event_type="Input",
+                payload={},
+                agent_ids=["producer"],
+            )
+            work = store.claim_work(worker_id="worker", run_id="run")
+            assert work is not None and work.current_attempt_id is not None
+            output = EventOutput(
+                event_type="Output",
+                payload={"value": 1},
+                dedupe_key="output",
+            )
+            completion = store.complete_work(
+                work=work,
+                worker_id="worker",
+                result=AgentResult(
+                    status="succeeded",
+                    summary="produced",
+                    events=[output],
+                ),
+                routed_events=[(output, [])],
+            )
+            event_id = completion["output_event_ids"][0]
+            with sqlite3.connect(database) as connection:
+                connection.execute(
+                    "UPDATE events SET producer_attempt_id = NULL WHERE event_id = ?",
+                    (event_id,),
+                )
+                connection.execute(
+                    "UPDATE schema_metadata SET value = '1' WHERE key = 'schema_version'"
+                )
+
+            migrated = AgentStore(database)
+
+            self.assertEqual(
+                migrated.get_event(event_id).producer_attempt_id,
+                work.current_attempt_id,
+            )
+
+    def test_attempt_scoped_persistence_rejects_symlinked_parent(self) -> None:
+        if not hasattr(os, "symlink"):
+            self.skipTest("symlinks are unavailable")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            run_dir = root / "run"
+            run_dir.mkdir()
+            store = AgentStore(root / "agents.sqlite3")
+            store.create_run(
+                "run",
+                {
+                    "run_dir": str(run_dir),
+                    "artifact_scope": "attempt-scoped-v1",
+                    "run_root_identity": directory_identity_record(
+                        secure_directory_identity(run_dir)
+                    ),
+                },
+            )
+            store.publish_event(
+                run_id="run",
+                event_type="Input",
+                payload={},
+                agent_ids=["producer"],
+            )
+            work = store.claim_work(worker_id="worker", run_id="run")
+            assert work is not None and work.current_attempt_id is not None
+            outside = root / "outside"
+            artifact_parent = outside / work.current_attempt_id / work.agent_id
+            artifact_parent.mkdir(parents=True)
+            (artifact_parent / "artifact.json").write_text(
+                '{"outside":true}\n',
+                encoding="utf-8",
+            )
+            (run_dir / "attempts").symlink_to(outside, target_is_directory=True)
+            lexical_artifact = (
+                run_dir
+                / "attempts"
+                / work.current_attempt_id
+                / work.agent_id
+                / "artifact.json"
+            )
+
+            with self.assertRaisesRegex(FileNotFoundError, "stable regular file"):
+                store.complete_work(
+                    work=work,
+                    worker_id="worker",
+                    result=AgentResult(
+                        status="succeeded",
+                        summary="hostile",
+                        artifacts=[
+                            ArtifactOutput(role="report", path=lexical_artifact)
+                        ],
+                    ),
+                    routed_events=[],
+                )
+
+    def test_attempt_scoped_verification_rejects_replaced_parent(self) -> None:
+        if not hasattr(os, "symlink"):
+            self.skipTest("symlinks are unavailable")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            run_dir = root / "run"
+            run_dir.mkdir()
+            store = AgentStore(root / "agents.sqlite3")
+            store.create_run(
+                "run",
+                {
+                    "run_dir": str(run_dir),
+                    "artifact_scope": "attempt-scoped-v1",
+                    "run_root_identity": directory_identity_record(
+                        secure_directory_identity(run_dir)
+                    ),
+                },
+            )
+            store.publish_event(
+                run_id="run",
+                event_type="Input",
+                payload={},
+                agent_ids=["producer"],
+            )
+            work = store.claim_work(worker_id="worker", run_id="run")
+            assert work is not None and work.current_attempt_id is not None
+            artifact = (
+                run_dir
+                / "attempts"
+                / work.current_attempt_id
+                / work.agent_id
+                / "artifact.json"
+            )
+            artifact.parent.mkdir(parents=True)
+            artifact.write_text('{"inside":true}\n', encoding="utf-8")
+            store.complete_work(
+                work=work,
+                worker_id="worker",
+                result=AgentResult(
+                    status="succeeded",
+                    summary="recorded",
+                    artifacts=[ArtifactOutput(role="report", path=artifact)],
+                ),
+                routed_events=[],
+            )
+            retained_attempts = root / "retained-attempts"
+            (run_dir / "attempts").rename(retained_attempts)
+            (run_dir / "attempts").symlink_to(
+                retained_attempts,
+                target_is_directory=True,
+            )
+
+            verification = store.verify_artifacts("run")
+
+            self.assertFalse(verification["ok"])
+            self.assertEqual(verification["failures"][0]["reason"], "missing")
 
 
 if __name__ == "__main__":

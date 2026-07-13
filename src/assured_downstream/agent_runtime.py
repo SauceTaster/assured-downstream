@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import re
 import traceback
 from pathlib import Path
 from typing import Any, Protocol
@@ -12,6 +14,10 @@ from assured_downstream.agent_contracts import (
     WorkItem,
 )
 from assured_downstream.agent_registry import load_agent_registry
+from assured_downstream.secure_path import (
+    directory_identity_record,
+    secure_directory_identity,
+)
 
 
 class AgentBackend(Protocol):
@@ -129,6 +135,10 @@ class AgentRuntime:
         run_dir.mkdir(parents=True, exist_ok=True)
         run_metadata = dict(metadata or {})
         run_metadata["run_dir"] = str(run_dir)
+        if run_metadata.get("artifact_scope") == "attempt-scoped-v1":
+            run_metadata["run_root_identity"] = directory_identity_record(
+                secure_directory_identity(run_dir)
+            )
         return self.backend.create_run(run_id, run_metadata)
 
     def publish_external(
@@ -172,8 +182,14 @@ class AgentRuntime:
                 worker_id=self.worker_id,
                 work=work,
                 event=event,
+                run_metadata=run["metadata"],
             )
             result = handler.handle(context)
+            validate_result_artifact_scope(
+                context,
+                result,
+                artifact_scope=run["metadata"].get("artifact_scope"),
+            )
             routed_events = [
                 (output, self.routes.get(output.event_type, []))
                 for output in result.events
@@ -215,7 +231,6 @@ class AgentRuntime:
                 "status": failure_status,
                 "error": str(exc),
             }
-
     def drain(self, *, run_id: str, max_items: int = 100) -> dict[str, Any]:
         processed = []
         for _ in range(max_items):
@@ -253,3 +268,40 @@ class AgentRuntime:
             "artifact_verification": artifact_verification,
             "summary": self.backend.run_summary(run_id),
         }
+
+
+def validate_result_artifact_scope(
+    context: AgentContext,
+    result: AgentResult,
+    *,
+    artifact_scope: Any,
+) -> None:
+    if artifact_scope is None:
+        return
+    if artifact_scope != "attempt-scoped-v1":
+        raise ValueError(f"Unsupported agent artifact scope: {artifact_scope!r}")
+    attempt_id = context.work.current_attempt_id
+    if (
+        not isinstance(attempt_id, str)
+        or re.fullmatch(r"[0-9a-f]{32}", attempt_id) is None
+    ):
+        raise ValueError("Attempt-scoped run has no valid current attempt id")
+    run_root = Path(os.path.abspath(context.run_dir))
+    expected_root = run_root / "attempts" / attempt_id / context.work.agent_id
+    for artifact in result.artifacts:
+        path = artifact.path
+        if not path.is_absolute():
+            raise ValueError(f"Agent artifact path must be absolute: {path}")
+        lexical_path = Path(os.path.abspath(path))
+        try:
+            lexical_path.relative_to(expected_root)
+        except ValueError as exc:
+            raise ValueError(
+                f"Agent artifact is outside its current attempt: {path}"
+            ) from exc
+        try:
+            resolved_path = lexical_path.resolve(strict=True)
+        except OSError as exc:
+            raise ValueError(f"Agent artifact is unavailable: {path}") from exc
+        if resolved_path != lexical_path or not resolved_path.is_file():
+            raise ValueError(f"Agent artifact traverses a symlink: {path}")
