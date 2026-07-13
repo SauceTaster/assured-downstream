@@ -91,8 +91,9 @@
     "docker/setup-buildx-action": "8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"
   },
   "reusable_workflow": {
-    "status": "awaiting-caller-pin",
+    "status": "active-bandit-canary",
     "path": ".github/workflows/reusable-python-build.yml",
+    "signer_commit": "bb27f6948679207c6dbd37f2ed540494cbe02a54",
     "handoff_verifier_commit": "2008d200b86ac20e745b52b293a125bf20fe45cc",
     "actions": {
       "actions/attest": "a1948c3f048ba23858d222213b7c278aabede763",

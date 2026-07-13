@@ -117,14 +117,11 @@ class ReusableBuilderWorkflowTests(unittest.TestCase):
 
     def test_bandit_caller_pins_the_reusable_signer_and_request(self) -> None:
         policy = json.loads(
-            (ROOT / "policies" / "builders" / "python-wheel-v1.json").read_text()
+            (ROOT / "policies" / "builders" / "python-wheel-v2.json").read_text()
         )
         workflow = parse_workflow_yaml(CASE_WORKFLOW.read_text(encoding="utf-8"))
         build = workflow["jobs"]["build"]
-        self.assertEqual(
-            build["if"],
-            "github.event_name == 'v2-migration-disabled'",
-        )
+        self.assertNotIn("if", build)
         inputs = build["with"]
         signer_commit = policy["reusable_workflow"]["signer_commit"]
 

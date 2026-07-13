@@ -9,9 +9,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from assured_downstream.builder_handoff import (
-    CUSTOM_PREDICATE_TYPE as BUILD_PREDICATE_TYPE,
-)
 from assured_downstream.command_runner import CommandRunner, display_command
 from assured_downstream.evidence import verify_evidence_manifest
 from assured_downstream.release_verification import (
@@ -47,6 +44,7 @@ from assured_downstream.release_verification import (
 
 BUILD_VERIFICATION_POLICY_SCHEMA_VERSION = 1
 BUILD_VERIFICATION_RECORD_SCHEMA_VERSION = 1
+BUILD_PREDICATE_TYPE = "https://assured-downstream.dev/attestation/build/v1"
 TRUSTED_BUILD_VERIFICATION_POLICY_SHA256 = (
     "e6e26dbb4df43fb8c4dc169b594d1d527842619d1199b9e2d8bcb76604440080"
 )
@@ -60,6 +58,29 @@ BUILD_CLAIM_LIMIT = (
     "approval, builder containment, and semantic safety require independent "
     "verification."
 )
+V2_EXPECTED_TRACE_ARGV = [
+    "/usr/bin/strace",
+    "-u",
+    "assured",
+    "-ff",
+    "-qq",
+    "-ttt",
+    "-T",
+    "-yy",
+    "-s",
+    "4096",
+    "-o",
+    "/out/traces/raw/strace",
+    "--",
+    "/usr/local/bin/python",
+    "-I",
+    "-m",
+    "build",
+    "--no-isolation",
+    "--outdir",
+    "/workspace/output/dist",
+    "/workspace/source",
+]
 RAW_SYSCALL_PATTERN = re.compile(
     r"^[0-9]+\.[0-9]+\s+[A-Za-z0-9_]+\(.*\)\s+=\s+"
     r".*?(?:\s+<[0-9.]+>)?$"
@@ -484,7 +505,10 @@ def validate_build_verification_policy(policy: dict[str, Any]) -> dict[str, Any]
         },
         label="build verification policy",
     )
-    if policy.get("schema_version") != BUILD_VERIFICATION_POLICY_SCHEMA_VERSION:
+    if (
+        type(policy.get("schema_version")) is not int
+        or policy["schema_version"] != BUILD_VERIFICATION_POLICY_SCHEMA_VERSION
+    ):
         raise BuildVerificationError("Unsupported build verification policy schema")
     if policy.get("status") != "active-dev-case-study":
         raise BuildVerificationError("Build verification policy is not active")
@@ -543,19 +567,26 @@ def validate_build_verification_policy(policy: dict[str, Any]) -> dict[str, Any]
     request = policy.get("approved_request")
     if not isinstance(request, dict):
         raise BuildVerificationError("Approved build request is invalid")
+    policy_builder = policy.get("builder")
+    policy_profile = (
+        policy_builder.get("profile") if isinstance(policy_builder, dict) else None
+    )
+    expected_request_fields = {
+        "case_id",
+        "source_repository",
+        "source_commit",
+        "source_tree",
+        "upstream_repository",
+        "upstream_commit",
+        "target_repository",
+        "project_version",
+        "release_tag",
+    }
+    if policy_profile == "python-wheel-v2":
+        expected_request_fields.add("source_date_epoch")
     require_exact_keys(
         request,
-        {
-            "case_id",
-            "source_repository",
-            "source_commit",
-            "source_tree",
-            "upstream_repository",
-            "upstream_commit",
-            "target_repository",
-            "project_version",
-            "release_tag",
-        },
+        expected_request_fields,
         label="approved build request",
     )
     for field in ("source_repository", "upstream_repository", "target_repository"):
@@ -565,6 +596,11 @@ def validate_build_verification_policy(policy: dict[str, Any]) -> dict[str, Any]
     for field in ("case_id", "project_version", "release_tag"):
         if not isinstance(request.get(field), str) or not request[field]:
             raise BuildVerificationError(f"Approved request {field} is invalid")
+    if policy_profile == "python-wheel-v2" and (
+        not isinstance(request.get("source_date_epoch"), str)
+        or not request["source_date_epoch"].isdigit()
+    ):
+        raise BuildVerificationError("Approved request source date is invalid")
     if not request["target_repository"].startswith("SauceTaster/assured-"):
         raise BuildVerificationError("Approved target repository is outside policy")
 
@@ -576,7 +612,7 @@ def validate_build_verification_policy(policy: dict[str, Any]) -> dict[str, Any]
         {"profile", "image", "image_digest", "handoff_verifier_commit"},
         label="build image policy",
     )
-    if builder.get("profile") != "python-wheel-v1":
+    if builder.get("profile") not in {"python-wheel-v1", "python-wheel-v2"}:
         raise BuildVerificationError("Build profile is not approved")
     image = builder.get("image")
     image_digest = builder.get("image_digest")
@@ -681,6 +717,8 @@ def validate_build_predicate(
     artifact_count: int,
     evidence_entries: dict[str, dict[str, Any]],
 ) -> None:
+    if type(artifact_count) is not int or artifact_count <= 0:
+        raise BuildVerificationError("Build artifact count is invalid")
     require_exact_keys(
         value,
         {
@@ -699,7 +737,8 @@ def validate_build_predicate(
     signer = policy["signer"]
     builder_policy = policy["builder"]
     if (
-        value.get("schemaVersion") != 1
+        type(value.get("schemaVersion")) is not int
+        or value["schemaVersion"] != 1
         or value.get("predicateType") != BUILD_PREDICATE_TYPE
     ):
         raise BuildVerificationError("Build predicate identity is invalid")
@@ -714,12 +753,21 @@ def validate_build_predicate(
         "upstreamRepository": request["upstream_repository"],
         "upstreamCommit": request["upstream_commit"],
     }
+    if set(source) != {*expected_source, "sourceDateEpoch"}:
+        raise BuildVerificationError("Build predicate source fields are invalid")
     if any(
         source.get(field) != expected for field, expected in expected_source.items()
     ):
         raise BuildVerificationError("Build predicate source does not match policy")
     source_date_epoch = source.get("sourceDateEpoch")
-    if not isinstance(source_date_epoch, str) or not source_date_epoch.isdigit():
+    if (
+        not isinstance(source_date_epoch, str)
+        or not source_date_epoch.isdigit()
+        or (
+            builder_policy["profile"] == "python-wheel-v2"
+            and source_date_epoch != request["source_date_epoch"]
+        )
+    ):
         raise BuildVerificationError("Build predicate source date is invalid")
     expected_downstream = {
         "caseId": request["case_id"],
@@ -739,14 +787,27 @@ def validate_build_predicate(
         "profile": builder_policy["profile"],
         "image": builder_policy["image"],
         "imageDigest": builder_policy["image_digest"],
-        "uid": 65532,
-        "gid": 65532,
         "network": "none",
-        "readOnlyRoot": True,
-        "capabilities": [],
-        "noNewPrivileges": True,
     }
-    if value.get("builder") != expected_builder:
+    builder_claim = value.get("builder")
+    if builder_policy["profile"] == "python-wheel-v1":
+        expected_builder.update(
+            {
+                "uid": 65532,
+                "gid": 65532,
+                "readOnlyRoot": True,
+                "capabilities": [],
+                "noNewPrivileges": True,
+            }
+        )
+        valid_builder = builder_claim == expected_builder
+    else:
+        expected_builder["traceArgv"] = V2_EXPECTED_TRACE_ARGV
+        valid_builder = validate_v2_predicate_builder(
+            builder_claim,
+            expected=expected_builder,
+        )
+    if not valid_builder:
         raise BuildVerificationError("Build predicate builder claim is invalid")
     expected_evidence = {
         "artifactCount": artifact_count,
@@ -759,10 +820,47 @@ def validate_build_predicate(
     evidence_claim = value.get("evidence")
     if not isinstance(evidence_claim, dict):
         raise BuildVerificationError("Build predicate evidence claim is invalid")
+    if type(evidence_claim.get("artifactCount")) is not int:
+        raise BuildVerificationError("Build predicate artifact count is invalid")
     if evidence_claim != expected_evidence:
         raise BuildVerificationError("Build predicate evidence digests are invalid")
     if value.get("claimLimit") != BUILD_CLAIM_LIMIT:
         raise BuildVerificationError("Build predicate claim boundary is invalid")
+
+
+def validate_v2_predicate_builder(value: Any, *, expected: dict[str, Any]) -> bool:
+    if not isinstance(value, dict) or set(value) != {*expected, "identityBoundary"}:
+        return False
+    if any(
+        value.get(field) != expected_value for field, expected_value in expected.items()
+    ):
+        return False
+    boundary = value.get("identityBoundary")
+    if not isinstance(boundary, dict):
+        return False
+    expected_boundary = {
+        "collectorUid": 0,
+        "collectorGid": 0,
+        "buildUid": 65532,
+        "buildGid": 65532,
+        "evidenceUid": 0,
+        "evidenceGid": 0,
+        "evidenceMode": "0700",
+        "separateCollectorIdentity": True,
+        "collectorOutputWritableByBuild": False,
+        "quiescenceBarrier": "private-pid-namespace-sigkill",
+        "remainingProcessCount": 0,
+    }
+    if set(boundary) != {*expected_boundary, "killedProcessCount"}:
+        return False
+    if any(
+        boundary.get(field) != expected_value
+        or type(boundary.get(field)) is not type(expected_value)
+        for field, expected_value in expected_boundary.items()
+    ):
+        return False
+    killed = boundary.get("killedProcessCount")
+    return type(killed) is int and killed >= 0
 
 
 def verify_raw_trace_records(
@@ -846,7 +944,10 @@ def validate_complete_trace(
         count = value.get(field)
         if not isinstance(count, int) or isinstance(count, bool) or count < 0:
             raise BuildVerificationError("Observed trace lifecycle counts are invalid")
-    if value.get("unparsed_line_count") != 0:
+    if (
+        type(value.get("unparsed_line_count")) is not int
+        or value["unparsed_line_count"] != 0
+    ):
         raise BuildVerificationError("Observed trace contains unparsed records")
     if value["raw_file_count"] != raw_trace_counts["raw"]:
         raise BuildVerificationError("Observed trace raw-file count is inconsistent")

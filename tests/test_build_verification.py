@@ -22,6 +22,7 @@ from assured_downstream.build_verification import (
 from assured_downstream.cli import build_parser
 from assured_downstream.release_verification import (
     GITHUB_WORKFLOW_BUILD_TYPE,
+    ReleaseVerificationError,
     github_attestation_verify_command,
 )
 
@@ -69,6 +70,23 @@ class BuildVerificationTests(unittest.TestCase):
         )
         self.assertNotEqual(signer["workflow_digest"], signer["caller_digest"])
 
+    def test_v2_policy_requires_a_pinned_source_date(self) -> None:
+        policy = load_policy()
+        policy["builder"] = {
+            "profile": "python-wheel-v2",
+            "image": "ghcr.io/saucetaster/assured-downstream-python-builder",
+            "image_digest": "sha256:" + "a" * 64,
+            "handoff_verifier_commit": "b" * 40,
+        }
+        policy["approved_request"]["source_date_epoch"] = "1783382521"
+        validate_build_verification_policy(policy)
+
+        del policy["approved_request"]["source_date_epoch"]
+        with self.assertRaisesRegex(
+            (BuildVerificationError, ReleaseVerificationError), "fields"
+        ):
+            validate_build_verification_policy(policy)
+
     def test_certificate_keeps_reusable_signer_and_caller_separate(self) -> None:
         policy = load_policy()
         validate_build_certificate(certificate(policy), policy=policy)
@@ -95,6 +113,11 @@ class BuildVerificationTests(unittest.TestCase):
         validate_complete_trace(trace, raw_trace_counts=complete_raw_counts())
 
         trace["unparsed_line_count"] = 1
+        with self.assertRaisesRegex(BuildVerificationError, "unparsed"):
+            validate_complete_trace(trace, raw_trace_counts=complete_raw_counts())
+
+        trace = complete_trace()
+        trace["unparsed_line_count"] = False
         with self.assertRaisesRegex(BuildVerificationError, "unparsed"):
             validate_complete_trace(trace, raw_trace_counts=complete_raw_counts())
 
@@ -143,6 +166,76 @@ class BuildVerificationTests(unittest.TestCase):
                 predicate,
                 policy=policy,
                 artifact_count=2,
+                evidence_entries=entries,
+            )
+
+    def test_v2_build_predicate_requires_exact_identity_boundary(self) -> None:
+        policy = load_policy()
+        policy["builder"] = {
+            "profile": "python-wheel-v2",
+            "image": "ghcr.io/saucetaster/assured-downstream-python-builder",
+            "image_digest": "sha256:" + "a" * 64,
+            "handoff_verifier_commit": "b" * 40,
+        }
+        policy["approved_request"]["source_date_epoch"] = "1783382521"
+        entries = evidence_entries()
+        predicate = build_predicate(policy, entries=entries, artifact_count=2)
+        validate_build_predicate(
+            predicate,
+            policy=policy,
+            artifact_count=2,
+            evidence_entries=entries,
+        )
+
+        predicate["builder"]["identityBoundary"]["killedProcessCount"] = True
+        with self.assertRaisesRegex(BuildVerificationError, "builder claim"):
+            validate_build_predicate(
+                predicate,
+                policy=policy,
+                artifact_count=2,
+                evidence_entries=entries,
+            )
+
+        predicate = build_predicate(policy, entries=entries, artifact_count=2)
+        predicate["source"]["unreviewedClaim"] = True
+        with self.assertRaisesRegex(BuildVerificationError, "source fields"):
+            validate_build_predicate(
+                predicate,
+                policy=policy,
+                artifact_count=2,
+                evidence_entries=entries,
+            )
+
+        predicate = build_predicate(policy, entries=entries, artifact_count=2)
+        predicate["source"]["sourceDateEpoch"] = "1"
+        with self.assertRaisesRegex(BuildVerificationError, "source date"):
+            validate_build_predicate(
+                predicate,
+                policy=policy,
+                artifact_count=2,
+                evidence_entries=entries,
+            )
+
+    def test_build_predicate_rejects_boolean_integer_fields(self) -> None:
+        policy = load_policy()
+        entries = evidence_entries()
+        predicate = build_predicate(policy, entries=entries, artifact_count=1)
+        predicate["schemaVersion"] = True
+        with self.assertRaisesRegex(BuildVerificationError, "identity"):
+            validate_build_predicate(
+                predicate,
+                policy=policy,
+                artifact_count=1,
+                evidence_entries=entries,
+            )
+
+        predicate = build_predicate(policy, entries=entries, artifact_count=1)
+        predicate["evidence"]["artifactCount"] = True
+        with self.assertRaisesRegex(BuildVerificationError, "artifact count"):
+            validate_build_predicate(
+                predicate,
+                policy=policy,
+                artifact_count=1,
                 evidence_entries=entries,
             )
 
@@ -271,6 +364,62 @@ def build_predicate(
     request = policy["approved_request"]
     signer = policy["signer"]
     builder = policy["builder"]
+    if builder["profile"] == "python-wheel-v1":
+        builder_claim = {
+            "profile": builder["profile"],
+            "image": builder["image"],
+            "imageDigest": builder["image_digest"],
+            "uid": 65532,
+            "gid": 65532,
+            "network": "none",
+            "readOnlyRoot": True,
+            "capabilities": [],
+            "noNewPrivileges": True,
+        }
+    else:
+        builder_claim = {
+            "profile": builder["profile"],
+            "image": builder["image"],
+            "imageDigest": builder["image_digest"],
+            "network": "none",
+            "traceArgv": [
+                "/usr/bin/strace",
+                "-u",
+                "assured",
+                "-ff",
+                "-qq",
+                "-ttt",
+                "-T",
+                "-yy",
+                "-s",
+                "4096",
+                "-o",
+                "/out/traces/raw/strace",
+                "--",
+                "/usr/local/bin/python",
+                "-I",
+                "-m",
+                "build",
+                "--no-isolation",
+                "--outdir",
+                "/workspace/output/dist",
+                "/workspace/source",
+            ],
+            "identityBoundary": {
+                "collectorUid": 0,
+                "collectorGid": 0,
+                "buildUid": 65532,
+                "buildGid": 65532,
+                "evidenceUid": 0,
+                "evidenceGid": 0,
+                "evidenceMode": "0700",
+                "separateCollectorIdentity": True,
+                "collectorOutputWritableByBuild": False,
+                "quiescenceBarrier": "private-pid-namespace-sigkill",
+                "killedProcessCount": 0,
+                "remainingProcessCount": 0,
+            },
+        }
     return {
         "schemaVersion": 1,
         "predicateType": policy["predicates"]["build"],
@@ -293,17 +442,7 @@ def build_predicate(
             "commit": signer["caller_digest"],
             "ref": signer["source_ref"],
         },
-        "builder": {
-            "profile": builder["profile"],
-            "image": builder["image"],
-            "imageDigest": builder["image_digest"],
-            "uid": 65532,
-            "gid": 65532,
-            "network": "none",
-            "readOnlyRoot": True,
-            "capabilities": [],
-            "noNewPrivileges": True,
-        },
+        "builder": builder_claim,
         "evidence": {
             "artifactCount": artifact_count,
             "artifactInventorySha256": entries["artifact_inventory"]["sha256"],

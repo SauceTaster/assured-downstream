@@ -9,13 +9,11 @@ permissions:
 jobs:
   build:
     name: Build exact Bandit source through the assured builder
-    # No GitHub event has this name; v1 stays quarantined until v2 is pinned.
-    if: github.event_name == 'v2-migration-disabled'
     permissions:
       attestations: write # Store attestations for this controlled caller.
       contents: read
       id-token: write # Request keyless certificates only in the called attest job.
-    uses: SauceTaster/assured-downstream/.github/workflows/reusable-python-build.yml@78299b62bbc930872b10b4f5e9f82779c279d9b9
+    uses: SauceTaster/assured-downstream/.github/workflows/reusable-python-build.yml@bb27f6948679207c6dbd37f2ed540494cbe02a54
     with:
       source_repository: PyCQA/bandit
       source_commit: c45446eaa30c4f28289c3b8ba9a955e1d78ba715
@@ -24,5 +22,5 @@ jobs:
       upstream_commit: c45446eaa30c4f28289c3b8ba9a955e1d78ba715
       target_repository: SauceTaster/assured-bandit
       project_version: 1.9.4
-      release_tag: case-001-bandit-source-canary
-      case_id: case-001-bandit-source-canary
+      release_tag: case-001-bandit-source-canary-v2
+      case_id: case-001-bandit-source-canary-v2
