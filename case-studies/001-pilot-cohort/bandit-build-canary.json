@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "status": "verified-evidence-candidate",
+  "case_id": "case-001-bandit-source-canary",
+  "verified_at": "2026-07-13T01:38:26+00:00",
+  "workflow_run": {
+    "id": 29217387785,
+    "url": "https://github.com/SauceTaster/assured-downstream/actions/runs/29217387785",
+    "event": "workflow_dispatch",
+    "conclusion": "success",
+    "caller_commit": "3920d4fce5a9d1c9e69d881f617b4ce0bc3be338",
+    "signer_commit": "78299b62bbc930872b10b4f5e9f82779c279d9b9",
+    "signer_certificate_identity": "https://github.com/SauceTaster/assured-downstream/.github/workflows/reusable-python-build.yml@78299b62bbc930872b10b4f5e9f82779c279d9b9"
+  },
+  "source": {
+    "repository": "PyCQA/bandit",
+    "commit": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+    "tree": "5313408ad294e5a95f214620ec3064f8e40bc608",
+    "target_repository": "SauceTaster/assured-bandit",
+    "version": "1.9.4"
+  },
+  "builder": {
+    "image": "ghcr.io/saucetaster/assured-downstream-python-builder",
+    "digest": "sha256:6214c96cdb53941e169b3a1a01e603a51a3347bb50f820e081ddda0dec46d472",
+    "handoff_verifier_commit": "5eb8417e519f918d7c58f9678e71279c72ddac91",
+    "network": "none"
+  },
+  "artifacts": [
+    {
+      "name": "bandit-1.9.4-py3-none-any.whl",
+      "sha256": "39e66c66ae9e67708ee2df1fbc8d862c88223856cd5ddef7dfdc3c7dbb157b5f"
+    },
+    {
+      "name": "bandit-1.9.4.tar.gz",
+      "sha256": "cc1857233375e11d72707f5104b0e87f2b1f57808bc11cf3b703f8c44dc47c0f"
+    }
+  ],
+  "bundles": {
+    "provenance": {
+      "predicate_type": "https://slsa.dev/provenance/v1",
+      "sha256": "6dd3968612a5903f3809a5034743c3b1584d3c1124c242ca48bf11d3f17db2fe"
+    },
+    "sbom": {
+      "predicate_type": "https://spdx.dev/Document/v2.3",
+      "sha256": "57967fe2f0442f092dc3afa3a00091cd17915f10eae7fd6d57712948f6760e89"
+    },
+    "build": {
+      "predicate_type": "https://assured-downstream.dev/attestation/build/v1",
+      "sha256": "05de2bc883f1612bed8bf489ed9a97a7909beccdb0943823d0c96e83ffb86528"
+    }
+  },
+  "trace": {
+    "collector": "strace 6.1",
+    "raw_file_count": 14,
+    "parsed_line_count": 36170,
+    "syscall_line_count": 36157,
+    "signal_line_count": 13,
+    "exit_line_count": 0,
+    "unparsed_line_count": 0,
+    "coverage": {
+      "process": true,
+      "file": true,
+      "network": true,
+      "syscall": true
+    }
+  },
+  "verification": {
+    "evidence_sha256": "48e32e3ab2fce1dafa3ac0a76a37318a1a4900684753f962e28280c0afc1c248",
+    "build_policy_sha256": "e6e26dbb4df43fb8c4dc169b594d1d527842619d1199b9e2d8bcb76604440080",
+    "trust_policy_sha256": "abca9090eebb736a72ce30102f812a5ed6f4ffb46dc3e9f3f041fad2d1fac344",
+    "verifier_sha256": "582a40676acf1394fcaf1c8c8bc5bad21806bd8c864b209d37b185c2df45dc92",
+    "sigstore_trusted_root_sha256": "05a094edfa2e8eb7d1b4b37244e28ffb6d86b8b86ce3eb122b644b4335ae4dc1"
+  },
+  "durable_agent_run": {
+    "run_id": "bandit-live-29217387785-v3",
+    "status": "succeeded",
+    "workflow": "retained-build-verification-v1",
+    "agent": "builder-verifier",
+    "input_event": "BuildVerificationRequested",
+    "output_event": "BuildAttestationsVerified",
+    "processed_work_count": 1,
+    "pending_work_count": 0,
+    "staged_evidence_sha256": "f40ddde063fd243d88d24bda415c0f28006f413dd4bd043012555a338bbaa981",
+    "verification_record_sha256": "1718773f76fc3cf3997c4e3adcab6c253c6dcbbaef64244a58dfa6620bded92e"
+  },
+  "independently_verified": {
+    "sigstore_bundles": true,
+    "artifact_subjects": true,
+    "sbom_artifact_binding": true,
+    "trace_parser_completeness": true,
+    "upstream_lineage": false,
+    "builder_isolation": false,
+    "collector_tamper_resistance": false,
+    "workflow_implementation": false,
+    "reproducibility": false,
+    "semantic_safety": false
+  },
+  "retention": {
+    "github_actions_artifact": "assured-python-retained-evidence",
+    "retention_days": 30,
+    "durable_release_asset": null
+  },
+  "claim_limit": "This verifies retained signatures, identities, subjects, SPDX binding, and trace parser completeness. It does not promote Bandit to Attested or prove hostile-build containment, source ancestry, reproducibility, or semantic safety."
+}

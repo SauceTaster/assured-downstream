@@ -227,9 +227,12 @@ Current prototype status:
   Sigstore bundles and SPDX artifact references, and validates
   tooling/workflow-risk input shape without granting assurance; upstream
   ancestry remains a signed workflow claim until independently checked
-- live isolated Bandit source builds run successfully through the digest-pinned
-  no-network builder; the first trace handoff failed closed on unclassified
-  strace records, and the retained attestation lane remains under validation
+- a live Bandit source canary completed the digest-pinned no-network build,
+  complete strace parser pass, permissionless SPDX generation, three keyless
+  Sigstore attestations, and portable evidence assembly
+- the code-anchored Builder Verifier Agent independently verified the retained
+  signer/caller identities, subjects, SPDX binding, predicates, and transparency
+  timestamps while correctly retaining `Evidence-candidate` status
 
 ## Phase 6: Reproducible Release
 

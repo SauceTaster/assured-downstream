@@ -1,8 +1,9 @@
 # Case Study 001: Pilot Cohort
 
 Status: five pilot forks created, lineage-verified, locally reconciled, and
-analyzed through durable agents. One policy-approved additive Bandit patch now
-exists locally on `secure/main`; it has not been pushed or built.
+analyzed through durable agents. The exact upstream Bandit source now has a
+verified build-evidence canary; the separate additive `secure/main` patch
+remains local and unpublished.
 
 ## Objective
 
@@ -70,11 +71,23 @@ fork-of-a-fork lineage, and copyleft obligation handling.
   reused and publication stayed off
 - recorded remote publication as not authorized and independently confirmed
   that GitHub has no `secure/main` ref
-- executed no upstream code or builds; GitHub mutations were limited to the
-  five reviewed fork creations and one case-only name alignment
+- built exact upstream Bandit commit `c45446e...` in a digest-pinned,
+  no-network Python builder and retained wheel and source-distribution subjects
+- captured 36,157 syscall records and 13 signal records across 14 raw trace
+  files with zero unparsed records
+- generated an SPDX 2.3 SBOM and SLSA provenance, SPDX, and custom build
+  Sigstore bundles through separate build, permissionless inspection, and
+  source-free attestation jobs
+- independently verified all retained bundles against distinct caller and
+  reusable-signer commits, exact certificate identity, hosted runner policy,
+  artifact subjects, SPDX binding, and pinned Sigstore trust root
+- retained the case as `verified-evidence-candidate`; no hardened-release or
+  production `Attested` claim was made
 
 The machine-readable patch evidence is in [`patch-canary.json`](./patch-canary.json).
 It deliberately makes no build, runtime, attestation, or hardened-release claim.
+The live build result is in
+[`bandit-build-canary.json`](./bandit-build-canary.json).
 
 The real checkouts exposed and drove fixes for GitHub Actions YAML parsing, Go
 semantic import version names, mixed-language release-profile priority, and
@@ -95,17 +108,14 @@ as a separate governed migration.
 
 ## Next Run
 
-1. Export the exact retained Bandit secure commit into a disposable Linux
-   builder without publishing a remote ref or exposing credentials.
-2. Produce artifacts, SBOM, Sigstore/in-toto bundles, a portable evidence
-   manifest, and a trace coverage report. Syscall evidence remains a measured
-   Linux-only collector capability, not a completeness claim.
-3. Ingest the bundle through the durable evidence agents as a non-authoritative
-   `EvidenceCandidateReady` event; caller-supplied verification and builder
-   declarations grant no assurance.
-4. Verify the retained Sigstore bundles, builder identity, source ancestry,
-   tooling, and workflow binding through code before allowing production
-   `Attested` to pass.
+1. Publish the retained development evidence as a durable prerelease asset
+   rather than relying on the 30-day Actions artifact.
+2. Separate collector-owned evidence from the hostile build UID and add a
+   source fixture that actively attempts trace tampering.
+3. Verify exact Git ancestry and signer workflow content through independent
+   code before allowing production `Attested` to pass.
+4. Rebuild the same source on a second independent host and compare artifact
+   hashes, SBOMs, and normalized behavior.
 5. Review the five unapproved Bandit changes separately; no workflow surgery or
    release logic should inherit the additive policy approval.
 6. Redesign publication authorization inside the single-account boundary before

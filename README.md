@@ -43,6 +43,8 @@ packages, and applications, the org provides a trusted downstream lane:
   Luna worker contract, commands, failure semantics, and Dapr migration gate.
 - [docs/BUILD_EVIDENCE_CONTRACT.md](./docs/BUILD_EVIDENCE_CONTRACT.md): external
   builder trust boundary, evidence inputs, durable agent flow, and non-claims.
+- [docs/BUILD_VERIFICATION_CONTRACT.md](./docs/BUILD_VERIFICATION_CONTRACT.md):
+  reusable-workflow signer/caller verification and promotion boundaries.
 - [ROADMAP.md](./ROADMAP.md): staged implementation plan from catalog and fork
   sync to behavior-reproducible releases.
 - [docs/WBS.md](./docs/WBS.md): work breakdown for what remains before and
@@ -149,6 +151,14 @@ assured-downstream create-attestation --predicate-type https://assured-downstrea
 assured-downstream verify-evidence --manifest evidence.json
 assured-downstream verify-release-attestations --evidence evidence.json \
   --policy policies/release-verification.json --output attestation-verification.json
+assured-downstream verify-build-attestations --evidence evidence.json \
+  --policy policies/build-verification.json \
+  --trust-policy policies/release-verification.json \
+  --output build-verification.json
+assured-downstream build-verification-run --evidence evidence.json \
+  --policy policies/build-verification.json \
+  --trust-policy policies/release-verification.json \
+  --run-dir ./runs/build-verification-001
 assured-downstream write-verification-guide --evidence evidence.json --output VERIFY.md
 assured-downstream evaluate-release --evidence evidence.json --target Attested \
   --attestation-verification attestation-verification.json \

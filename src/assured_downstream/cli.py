@@ -10,6 +10,13 @@ from assured_downstream.agent_store import AgentStore
 from assured_downstream.account_boundary import load_github_account_boundary
 from assured_downstream.attestations import create_intoto_statement
 from assured_downstream.behavior import compare_behavior_reports, normalize_trace
+from assured_downstream.build_verification import verify_build_attestations
+from assured_downstream.build_verification_agents import (
+    BUILD_VERIFICATION_WORKFLOW,
+    build_verification_handlers,
+    build_verification_routes,
+    run_build_verification_agent_system,
+)
 from assured_downstream.catalog import load_catalog, save_catalog, upsert_findings
 from assured_downstream.checkout_pipeline import run_checkout_analysis
 from assured_downstream.custody import create_custodian_review
@@ -384,6 +391,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evidence_run.set_defaults(func=command_evidence_run)
 
+    build_verification_run = subparsers.add_parser(
+        "build-verification-run",
+        help="Snapshot and verify retained build evidence through a durable agent.",
+    )
+    build_verification_run.add_argument("--evidence", required=True, type=Path)
+    build_verification_run.add_argument("--policy", required=True, type=Path)
+    build_verification_run.add_argument("--trust-policy", required=True, type=Path)
+    build_verification_run.add_argument("--run-dir", required=True, type=Path)
+    build_verification_run.add_argument("--database", type=Path)
+    build_verification_run.add_argument("--run-id")
+    build_verification_run.add_argument("--max-items", type=int, default=20)
+    build_verification_run.add_argument("--enqueue-only", action="store_true")
+    build_verification_run.set_defaults(func=command_build_verification_run)
+
     agent_worker = subparsers.add_parser(
         "agent-worker",
         help="Drain leased work for one durable agent run.",
@@ -403,6 +424,7 @@ def build_parser() -> argparse.ArgumentParser:
                     *patch_publication_handlers(),
                     *authorized_publication_handlers(),
                     *release_evidence_handlers(),
+                    *build_verification_handlers(),
                 ]
             }
         ),
@@ -675,6 +697,16 @@ def build_parser() -> argparse.ArgumentParser:
     verify_release.add_argument("--policy", required=True, type=Path)
     verify_release.add_argument("--output", required=True, type=Path)
     verify_release.set_defaults(func=command_verify_release_attestations)
+
+    verify_build = subparsers.add_parser(
+        "verify-build-attestations",
+        help="Verify retained reusable-builder bundles against pinned policy.",
+    )
+    verify_build.add_argument("--evidence", required=True, type=Path)
+    verify_build.add_argument("--policy", required=True, type=Path)
+    verify_build.add_argument("--trust-policy", required=True, type=Path)
+    verify_build.add_argument("--output", required=True, type=Path)
+    verify_build.set_defaults(func=command_verify_build_attestations)
 
     verification_guide = subparsers.add_parser(
         "write-verification-guide",
@@ -1024,6 +1056,26 @@ def command_evidence_run(args: argparse.Namespace) -> int:
     return 0 if result["status"] in {"running", "succeeded"} else 2
 
 
+def command_build_verification_run(args: argparse.Namespace) -> int:
+    result = run_build_verification_agent_system(
+        evidence_path=args.evidence,
+        policy_path=args.policy,
+        trust_policy_path=args.trust_policy,
+        run_dir=args.run_dir,
+        database_path=args.database,
+        run_id=args.run_id,
+        max_items=args.max_items,
+        enqueue_only=args.enqueue_only,
+    )
+    print(f"build verification run: {result['run_id']}")
+    print(f"status: {result['status']}")
+    print(f"processed work attempts: {result['processed_count']}")
+    print(f"pending work: {result['pending_count']}")
+    print(f"database: {result['database_path']}")
+    print(f"summary: {result['summary_path']}")
+    return 0 if result["status"] in {"running", "succeeded"} else 2
+
+
 def command_agent_worker(args: argparse.Namespace) -> int:
     store = AgentStore(args.database)
     run_id = args.run_id or store.latest_run_id()
@@ -1040,6 +1092,9 @@ def command_agent_worker(args: argparse.Namespace) -> int:
     elif workflow == RELEASE_EVIDENCE_WORKFLOW:
         available_handlers = release_evidence_handlers()
         routes = release_evidence_routes()
+    elif workflow == BUILD_VERIFICATION_WORKFLOW:
+        available_handlers = build_verification_handlers()
+        routes = build_verification_routes()
     elif workflow == "discovery-to-fork-plan":
         available_handlers = first_lane_handlers()
     else:
@@ -1372,6 +1427,20 @@ def command_verify_release_attestations(args: argparse.Namespace) -> int:
     write_json_atomic(args.output, result)
     print(f"verified release attestations: {args.evidence}")
     print(f"signer: {result['signer']}@{result['signer_digest']}")
+    print(f"output: {args.output.resolve()}")
+    return 0
+
+
+def command_verify_build_attestations(args: argparse.Namespace) -> int:
+    result = verify_build_attestations(
+        evidence_path=args.evidence,
+        policy_path=args.policy,
+        trust_policy_path=args.trust_policy,
+    )
+    write_json_atomic(args.output, result)
+    print(f"verified build attestations: {args.evidence}")
+    print(f"signer: {result['signer']}@{result['signer_digest']}")
+    print(f"status: {result['status']}")
     print(f"output: {args.output.resolve()}")
     return 0
 

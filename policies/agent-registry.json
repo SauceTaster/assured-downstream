@@ -32,6 +32,7 @@
     "build",
     "trace",
     "attestation",
+    "builder-verifier",
     "release-verifier",
     "repro",
     "release",
@@ -198,6 +199,16 @@
       "output_events": ["ReleaseAttestationsVerified", "ReleaseAttestationsRejected"],
       "tools": ["verify-release-attestations", "pinned gh verifier", "retained Sigstore bundles"],
       "human_gates": ["verifier policy rotation", "signer identity change", "predicate schema change"]
+    },
+    {
+      "id": "builder-verifier",
+      "name": "Builder Verifier Agent",
+      "purpose": "Verify retained reusable-workflow Sigstore bundles while keeping caller, signer, source, target, and builder identities distinct.",
+      "owns": ["build attestation verification record", "builder signer policy", "build evidence rejection reasons"],
+      "input_events": ["BuildVerificationRequested"],
+      "output_events": ["BuildAttestationsVerified", "BuildAttestationsRejected"],
+      "tools": ["verify-build-attestations", "pinned gh verifier", "retained Sigstore bundles", "SPDX binding verifier"],
+      "human_gates": ["builder policy rotation", "reusable signer change", "caller workflow change", "predicate schema change"]
     },
     {
       "id": "repro",

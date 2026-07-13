@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "status": "active-dev-case-study",
+  "control_repository": "SauceTaster/assured-downstream",
+  "signer": {
+    "workflow_path": ".github/workflows/reusable-python-build.yml",
+    "workflow_digest": "78299b62bbc930872b10b4f5e9f82779c279d9b9",
+    "certificate_identity": "https://github.com/SauceTaster/assured-downstream/.github/workflows/reusable-python-build.yml@78299b62bbc930872b10b4f5e9f82779c279d9b9",
+    "caller_workflow_path": ".github/workflows/case-study-bandit-build.yml",
+    "caller_digest": "3920d4fce5a9d1c9e69d881f617b4ce0bc3be338",
+    "source_ref": "refs/heads/main",
+    "trigger": "workflow_dispatch",
+    "oidc_issuer": "https://token.actions.githubusercontent.com",
+    "deny_self_hosted_runners": true
+  },
+  "approved_request": {
+    "case_id": "case-001-bandit-source-canary",
+    "source_repository": "PyCQA/bandit",
+    "source_commit": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+    "source_tree": "5313408ad294e5a95f214620ec3064f8e40bc608",
+    "upstream_repository": "PyCQA/bandit",
+    "upstream_commit": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+    "target_repository": "SauceTaster/assured-bandit",
+    "project_version": "1.9.4",
+    "release_tag": "case-001-bandit-source-canary"
+  },
+  "builder": {
+    "profile": "python-wheel-v1",
+    "image": "ghcr.io/saucetaster/assured-downstream-python-builder",
+    "image_digest": "sha256:6214c96cdb53941e169b3a1a01e603a51a3347bb50f820e081ddda0dec46d472",
+    "handoff_verifier_commit": "5eb8417e519f918d7c58f9678e71279c72ddac91"
+  },
+  "predicates": {
+    "provenance": "https://slsa.dev/provenance/v1",
+    "sbom": "https://spdx.dev/Document/v2.3",
+    "build": "https://assured-downstream.dev/attestation/build/v1"
+  },
+  "trust_policy_sha256": "abca9090eebb736a72ce30102f812a5ed6f4ffb46dc3e9f3f041fad2d1fac344",
+  "claim_limit": "This case policy verifies retained signatures, identities, subjects, and predicate consistency. It does not independently prove hostile-build containment, source ancestry, workflow approval, or reproducibility."
+}

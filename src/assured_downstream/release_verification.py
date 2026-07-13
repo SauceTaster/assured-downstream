@@ -526,6 +526,7 @@ def github_attestation_verify_command(
     predicate_type: str,
     target_repository: str,
     source_digest: str,
+    signer_digest: str | None = None,
     source_ref: str,
     certificate_identity: str,
     oidc_issuer: str,
@@ -545,7 +546,7 @@ def github_attestation_verify_command(
         "--predicate-type",
         predicate_type,
         "--signer-digest",
-        source_digest,
+        signer_digest or source_digest,
         "--source-digest",
         source_digest,
         "--source-ref",
@@ -828,9 +829,7 @@ def statement_subjects(statement: dict[str, Any]) -> set[tuple[str, str]]:
         )
         digest = subject.get("digest")
         sha256 = digest.get("sha256") if isinstance(digest, dict) else None
-        identities.add(
-            (name, require_sha256(sha256, label="verified subject digest"))
-        )
+        identities.add((name, require_sha256(sha256, label="verified subject digest")))
     if len(identities) != len(subjects):
         raise ReleaseVerificationError("Verified statement has duplicate subjects")
     return identities
