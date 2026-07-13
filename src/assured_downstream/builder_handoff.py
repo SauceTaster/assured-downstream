@@ -15,21 +15,48 @@ from assured_downstream.evidence import (
 )
 
 
-PROFILE_ID = "python-wheel-v1"
+PROFILE_ID = "python-wheel-v2"
 BUILDER_IMAGE = "ghcr.io/saucetaster/assured-downstream-python-builder"
 BUILDER_DIGEST = (
-    "sha256:6214c96cdb53941e169b3a1a01e603a51a3347bb50f820e081ddda0dec46d472"
+    "sha256:18916b853d240d87c653175368bd9a8f54edac8f77553d7c0e2b23abb87d5221"
 )
-CUSTOM_PREDICATE_TYPE = (
-    "https://assured-downstream.dev/attestation/build/v1"
-)
+CUSTOM_PREDICATE_TYPE = "https://assured-downstream.dev/attestation/build/v1"
 SAFE_PATH_PATTERN = re.compile(r"^[A-Za-z0-9._+/-]+$")
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 REPOSITORY_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 MAX_FILES = 10_000
 MAX_FILE_BYTES = 1024 * 1024 * 1024
 MAX_TOTAL_BYTES = 2 * 1024 * 1024 * 1024
 MAX_JSON_BYTES = 32 * 1024 * 1024
+BUILDER_CLAIM_LIMIT = (
+    "This report declares a root-owned collector and evidence boundary. "
+    "Container isolation, source lineage, and resistance to collector "
+    "exploitation still require independent verification."
+)
+EXPECTED_TRACE_ARGV = [
+    "/usr/bin/strace",
+    "-u",
+    "assured",
+    "-ff",
+    "-qq",
+    "-ttt",
+    "-T",
+    "-yy",
+    "-s",
+    "4096",
+    "-o",
+    "/out/traces/raw/strace",
+    "--",
+    "/usr/local/bin/python",
+    "-I",
+    "-m",
+    "build",
+    "--no-isolation",
+    "--outdir",
+    "/workspace/output/dist",
+    "/workspace/source",
+]
 
 
 class BuilderHandoffError(RuntimeError):
@@ -51,22 +78,58 @@ def validate_builder_output(
     validate_regular_tree(root)
 
     builder_report = read_json(root / "reports" / "builder.json")
+    if set(builder_report) != {
+        "builder",
+        "claim_limit",
+        "execution",
+        "profile",
+        "schema_version",
+        "source",
+        "status",
+        "trace",
+    }:
+        raise BuilderHandoffError("builder report fields are not exact")
     expected_report = {
+        "schema_version": 1,
         "status": "succeeded",
         "profile": PROFILE_ID,
     }
     for field, expected in expected_report.items():
-        if builder_report.get(field) != expected:
+        if builder_report.get(field) != expected or type(
+            builder_report.get(field)
+        ) is not type(expected):
             raise BuilderHandoffError(
                 f"builder report {field} does not match the fixed profile"
             )
+    if builder_report.get("claim_limit") != BUILDER_CLAIM_LIMIT:
+        raise BuilderHandoffError("builder report claim boundary is not exact")
     builder = require_mapping(builder_report.get("builder"), "builder identity")
+    expected_tools = {
+        "build": "1.5.1",
+        "packaging": "26.2",
+        "pbr": "7.0.3",
+        "setuptools": "83.0.0",
+        "wheel": "0.47.0",
+    }
     if (
-        builder.get("image") != BUILDER_IMAGE
+        set(builder) != {"architecture", "image", "image_digest", "python", "tools"}
+        or builder.get("image") != BUILDER_IMAGE
         or builder.get("image_digest") != BUILDER_DIGEST
+        or builder.get("architecture") != "x86_64"
+        or builder.get("python") != "3.12.11"
+        or builder.get("tools") != expected_tools
     ):
         raise BuilderHandoffError("builder report image identity is not approved")
     source = require_mapping(builder_report.get("source"), "builder source")
+    if set(source) != {
+        "commit",
+        "filesystem_sha256",
+        "git_tree",
+        "project_version",
+        "repository",
+        "source_date_epoch",
+    }:
+        raise BuilderHandoffError("builder source fields are not exact")
     expected_source = {
         "repository": source_repository,
         "commit": source_commit,
@@ -78,19 +141,45 @@ def validate_builder_output(
             raise BuilderHandoffError(
                 f"builder report source {field} does not match the request"
             )
+    if (
+        not isinstance(source.get("source_date_epoch"), str)
+        or not source["source_date_epoch"].isdigit()
+        or not isinstance(source.get("filesystem_sha256"), str)
+        or SHA256_PATTERN.fullmatch(source["filesystem_sha256"]) is None
+    ):
+        raise BuilderHandoffError("builder source snapshot identity is invalid")
     execution = require_mapping(builder_report.get("execution"), "builder execution")
     if (
-        execution.get("network_policy") != "deny"
-        or execution.get("returncode") != 0
+        set(execution)
+        != {
+            "argv",
+            "cwd",
+            "finished_at",
+            "identity_boundary",
+            "network_policy",
+            "returncode",
+            "started_at",
+            "validation_error",
+        }
+        or execution.get("network_policy") != "deny"
+        or type(execution.get("returncode")) is not int
+        or execution["returncode"] != 0
         or execution.get("validation_error") is not None
+        or not isinstance(execution.get("started_at"), str)
+        or not execution["started_at"]
+        or not isinstance(execution.get("finished_at"), str)
+        or not execution["finished_at"]
     ):
         raise BuilderHandoffError("builder execution did not fail closed")
+    validate_execution_boundary(execution)
 
     inventory = read_json(root / "reports" / "artifact-inventory.json")
     actual_artifacts = artifact_entries(root)
     recorded_artifacts = inventory.get("artifacts")
     if (
-        inventory.get("schema_version") != 1
+        set(inventory) != {"artifacts", "schema_version"}
+        or type(inventory.get("schema_version")) is not int
+        or inventory["schema_version"] != 1
         or not isinstance(recorded_artifacts, list)
         or recorded_artifacts != actual_artifacts
     ):
@@ -104,12 +193,37 @@ def validate_builder_output(
         builder_report.get("trace"),
         "builder trace summary",
     )
+    trace_count_fields = {
+        "exit_line_count",
+        "parsed_line_count",
+        "raw_file_count",
+        "signal_line_count",
+        "syscall_line_count",
+        "unparsed_line_count",
+    }
     if (
-        reported_trace.get("coverage") != trace["coverage"]
+        set(reported_trace)
+        != {
+            "collector",
+            "coverage",
+            "exit_line_count",
+            "parsed_line_count",
+            "raw_file_count",
+            "signal_line_count",
+            "syscall_line_count",
+            "unparsed_line_count",
+        }
+        or any(
+            type(reported_trace.get(field)) is not int for field in trace_count_fields
+        )
+        or reported_trace.get("collector") != trace["collector"]
+        or reported_trace.get("coverage") != trace["coverage"]
         or reported_trace.get("raw_file_count") != trace["raw_file_count"]
         or reported_trace.get("parsed_line_count") != trace["parsed_line_count"]
-        or reported_trace.get("unparsed_line_count")
-        != trace["unparsed_line_count"]
+        or reported_trace.get("syscall_line_count") != trace["syscall_line_count"]
+        or reported_trace.get("signal_line_count") != trace["signal_line_count"]
+        or reported_trace.get("exit_line_count") != trace["exit_line_count"]
+        or reported_trace.get("unparsed_line_count") != trace["unparsed_line_count"]
     ):
         raise BuilderHandoffError(
             "builder trace summary does not match the retained trace"
@@ -136,6 +250,66 @@ def validate_builder_output(
         "artifact_inventory": inventory,
         "trace": trace,
     }
+
+
+def validate_execution_boundary(execution: dict[str, Any]) -> None:
+    if (
+        execution.get("argv") != EXPECTED_TRACE_ARGV
+        or execution.get("cwd") != "/workspace/source"
+    ):
+        raise BuilderHandoffError("builder execution argv is not the fixed v2 profile")
+    boundary = require_mapping(
+        execution.get("identity_boundary"),
+        "builder identity boundary",
+    )
+    expected_fields = {
+        "build_gid",
+        "build_uid",
+        "collector_gid",
+        "collector_output_writable_by_build",
+        "collector_uid",
+        "evidence_gid",
+        "evidence_mode",
+        "evidence_uid",
+        "killed_process_count",
+        "quiescence_barrier",
+        "raw_trace_owner_gid",
+        "raw_trace_owner_uid",
+        "remaining_process_count",
+        "separate_collector_identity",
+    }
+    if set(boundary) != expected_fields:
+        raise BuilderHandoffError("builder identity boundary fields are not exact")
+    expected_values = {
+        "build_gid": 65532,
+        "build_uid": 65532,
+        "collector_gid": 0,
+        "collector_output_writable_by_build": False,
+        "collector_uid": 0,
+        "evidence_gid": 0,
+        "evidence_mode": "0700",
+        "evidence_uid": 0,
+        "quiescence_barrier": "private-pid-namespace-sigkill",
+        "raw_trace_owner_gid": 0,
+        "raw_trace_owner_uid": 0,
+        "remaining_process_count": 0,
+        "separate_collector_identity": True,
+    }
+    if any(
+        boundary.get(field) != expected
+        or type(boundary.get(field)) is not type(expected)
+        for field, expected in expected_values.items()
+    ):
+        raise BuilderHandoffError(
+            "builder identity boundary is not the fixed v2 profile"
+        )
+    killed_process_count = boundary.get("killed_process_count")
+    if (
+        not isinstance(killed_process_count, int)
+        or isinstance(killed_process_count, bool)
+        or killed_process_count < 0
+    ):
+        raise BuilderHandoffError("builder killed process count is invalid")
 
 
 def validate_regular_tree(root: Path) -> None:
@@ -186,29 +360,59 @@ def validate_trace(trace: dict[str, Any]) -> None:
     collector = require_mapping(trace.get("collector"), "trace collector")
     coverage = require_mapping(trace.get("coverage"), "trace coverage")
     if (
-        trace.get("schema_version") != 1
+        set(trace)
+        != {
+            "collector",
+            "coverage",
+            "coverage_basis",
+            "events",
+            "exit_line_count",
+            "parsed_line_count",
+            "raw_file_count",
+            "schema_version",
+            "signal_line_count",
+            "syscall_line_count",
+            "unparsed_line_count",
+        }
+        or type(trace.get("schema_version")) is not int
+        or trace["schema_version"] != 1
+        or set(collector) != {"mode", "name", "platform", "version"}
         or collector.get("name") != "strace"
+        or collector.get("version") != "6.1"
+        or collector.get("platform") != "linux"
         or collector.get("mode") != "follow-forks-full-syscall"
         or not isinstance(trace.get("events"), list)
         or not all(isinstance(event, dict) for event in trace["events"])
+        or set(coverage) != {"file", "network", "process", "syscall"}
     ):
-        raise BuilderHandoffError("trace document does not match the collector contract")
+        raise BuilderHandoffError(
+            "trace document does not match the collector contract"
+        )
     values = [coverage.get(name) for name in ("process", "file", "network", "syscall")]
     if not all(isinstance(value, bool) for value in values):
         raise BuilderHandoffError("trace coverage values must be boolean")
     if not all(values):
         raise BuilderHandoffError(
-            "python-wheel-v1 requires complete strace collector coverage"
+            "python-wheel-v2 requires complete strace collector coverage"
         )
+    positive_counts = ("parsed_line_count", "raw_file_count", "syscall_line_count")
+    nonnegative_counts = ("exit_line_count", "signal_line_count")
     if (
         trace.get("coverage_basis") != "complete-parser-pass"
-        or not isinstance(trace.get("parsed_line_count"), int)
-        or trace["parsed_line_count"] <= 0
-        or trace.get("unparsed_line_count") != 0
-        or not isinstance(trace.get("raw_file_count"), int)
-        or trace["raw_file_count"] <= 0
+        or any(
+            type(trace.get(field)) is not int or trace[field] <= 0
+            for field in positive_counts
+        )
+        or any(
+            type(trace.get(field)) is not int or trace[field] < 0
+            for field in nonnegative_counts
+        )
+        or type(trace.get("unparsed_line_count")) is not int
+        or trace["unparsed_line_count"] != 0
     ):
-        raise BuilderHandoffError("trace claims coverage without a complete parser pass")
+        raise BuilderHandoffError(
+            "trace claims coverage without a complete parser pass"
+        )
 
 
 def bind_spdx(root: Path) -> dict[str, Any]:
@@ -352,11 +556,10 @@ def create_build_predicate(
             "image": BUILDER_IMAGE,
             "imageDigest": BUILDER_DIGEST,
             "network": "none",
-            "readOnlyRoot": True,
-            "uid": 65532,
-            "gid": 65532,
-            "capabilities": [],
-            "noNewPrivileges": True,
+            "traceArgv": EXPECTED_TRACE_ARGV,
+            "identityBoundary": predicate_identity_boundary(
+                validated["builder_report"]["execution"]["identity_boundary"]
+            ),
         },
         "source": {
             "repository": source_repository,
@@ -399,6 +602,25 @@ def create_build_predicate(
     return predicate
 
 
+def predicate_identity_boundary(boundary: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "collectorUid": boundary["collector_uid"],
+        "collectorGid": boundary["collector_gid"],
+        "buildUid": boundary["build_uid"],
+        "buildGid": boundary["build_gid"],
+        "evidenceUid": boundary["evidence_uid"],
+        "evidenceGid": boundary["evidence_gid"],
+        "evidenceMode": boundary["evidence_mode"],
+        "separateCollectorIdentity": boundary["separate_collector_identity"],
+        "collectorOutputWritableByBuild": boundary[
+            "collector_output_writable_by_build"
+        ],
+        "quiescenceBarrier": boundary["quiescence_barrier"],
+        "killedProcessCount": boundary["killed_process_count"],
+        "remainingProcessCount": boundary["remaining_process_count"],
+    }
+
+
 def assemble_evidence(
     root: Path,
     *,
@@ -423,9 +645,9 @@ def assemble_evidence(
     )
     artifacts = [
         root / entry["path"]
-        for entry in read_json(
-            root / "reports" / "artifact-inventory.json"
-        )["artifacts"]
+        for entry in read_json(root / "reports" / "artifact-inventory.json")[
+            "artifacts"
+        ]
     ]
     sboms = [root / "sbom" / "sbom.spdx.json"]
     attestations = sorted((root / "attestations").glob("*.sigstore.json"))
@@ -500,7 +722,9 @@ def artifact_entries(root: Path) -> list[dict[str, Any]]:
             or path.is_symlink()
             or metadata.st_nlink != 1
         ):
-            raise BuilderHandoffError("release artifact is not a standalone regular file")
+            raise BuilderHandoffError(
+                "release artifact is not a standalone regular file"
+            )
         entries.append(
             {
                 "path": path.relative_to(root).as_posix(),

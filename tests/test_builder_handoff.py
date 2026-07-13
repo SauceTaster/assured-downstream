@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from assured_downstream.builder_handoff import (
+    BUILDER_CLAIM_LIMIT,
     BUILDER_DIGEST,
     BUILDER_IMAGE,
     BuilderHandoffError,
@@ -71,6 +72,17 @@ class BuilderHandoffTests(unittest.TestCase):
 
             manifest = result["manifest"]
             self.assertEqual(predicate["builder"]["imageDigest"], BUILDER_DIGEST)
+            self.assertEqual(
+                predicate["builder"]["identityBoundary"]["collectorUid"], 0
+            )
+            self.assertEqual(
+                predicate["builder"]["identityBoundary"]["buildUid"], 65532
+            )
+            self.assertFalse(
+                predicate["builder"]["identityBoundary"][
+                    "collectorOutputWritableByBuild"
+                ]
+            )
             self.assertTrue(verify_evidence_manifest(manifest, base_dir=root)["ok"])
             self.assertEqual(
                 result["build_result"]["builder"]["builder_id"],
@@ -143,6 +155,112 @@ class BuilderHandoffTests(unittest.TestCase):
                     source_tree=SOURCE_TREE,
                     project_version=PROJECT_VERSION,
                 )
+
+    def test_rejects_identity_boundary_drift(self) -> None:
+        mutations = {
+            "collector uid": ("collector_uid", 65532),
+            "evidence mode": ("evidence_mode", "0755"),
+            "trace ownership": ("raw_trace_owner_uid", 65532),
+            "writable evidence": ("collector_output_writable_by_build", True),
+            "surviving process": ("remaining_process_count", 1),
+            "missing separation": ("separate_collector_identity", False),
+            "wrong barrier": ("quiescence_barrier", "strace-follow-forks"),
+        }
+        for label, (field, value) in mutations.items():
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                create_builder_output(root)
+                builder_path = root / "reports" / "builder.json"
+                report = json.loads(builder_path.read_text())
+                report["execution"]["identity_boundary"][field] = value
+                builder_path.write_text(json.dumps(report), encoding="utf-8")
+
+                with self.assertRaisesRegex(
+                    BuilderHandoffError,
+                    "identity boundary",
+                ):
+                    validate_builder_output(
+                        root,
+                        source_repository=SOURCE_REPOSITORY,
+                        source_commit=SOURCE_COMMIT,
+                        source_tree=SOURCE_TREE,
+                        project_version=PROJECT_VERSION,
+                    )
+
+    def test_rejects_invalid_killed_process_count(self) -> None:
+        for value in (-1, True, "0"):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                create_builder_output(root)
+                builder_path = root / "reports" / "builder.json"
+                report = json.loads(builder_path.read_text())
+                report["execution"]["identity_boundary"]["killed_process_count"] = value
+                builder_path.write_text(json.dumps(report), encoding="utf-8")
+
+                with self.assertRaisesRegex(BuilderHandoffError, "process count"):
+                    validate_builder_output(
+                        root,
+                        source_repository=SOURCE_REPOSITORY,
+                        source_commit=SOURCE_COMMIT,
+                        source_tree=SOURCE_TREE,
+                        project_version=PROJECT_VERSION,
+                    )
+
+    def test_rejects_incomplete_reports_and_boolean_numbers(self) -> None:
+        mutations = (
+            (
+                "missing validation error",
+                "reports/builder.json",
+                lambda value: value["execution"].pop("validation_error"),
+            ),
+            (
+                "boolean return code",
+                "reports/builder.json",
+                lambda value: value["execution"].__setitem__("returncode", False),
+            ),
+            (
+                "boolean trace schema",
+                "traces/observed-trace.json",
+                lambda value: value.__setitem__("schema_version", True),
+            ),
+            (
+                "boolean parsed count",
+                "traces/observed-trace.json",
+                lambda value: value.__setitem__("parsed_line_count", True),
+            ),
+            (
+                "boolean unparsed count",
+                "traces/observed-trace.json",
+                lambda value: value.__setitem__("unparsed_line_count", False),
+            ),
+            (
+                "boolean inventory schema",
+                "reports/artifact-inventory.json",
+                lambda value: value.__setitem__("schema_version", True),
+            ),
+            (
+                "boolean report trace count",
+                "reports/builder.json",
+                lambda value: value["trace"].__setitem__("signal_line_count", False),
+            ),
+        )
+        for label, relative_path, mutate in mutations:
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                create_builder_output(root)
+                path = root / relative_path
+                value = json.loads(path.read_text())
+                mutate(value)
+                path.write_text(json.dumps(value), encoding="utf-8")
+
+                with self.assertRaises(BuilderHandoffError):
+                    validate_builder_output(
+                        root,
+                        source_repository=SOURCE_REPOSITORY,
+                        source_commit=SOURCE_COMMIT,
+                        source_tree=SOURCE_TREE,
+                        project_version=PROJECT_VERSION,
+                    )
 
     def test_rejects_missing_trace_coverage(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -227,23 +345,82 @@ def create_builder_output(root: Path) -> None:
         {
             "schema_version": 1,
             "status": "succeeded",
-            "profile": "python-wheel-v1",
+            "profile": "python-wheel-v2",
             "builder": {
+                "architecture": "x86_64",
                 "image": BUILDER_IMAGE,
                 "image_digest": BUILDER_DIGEST,
+                "python": "3.12.11",
+                "tools": {
+                    "build": "1.5.1",
+                    "packaging": "26.2",
+                    "pbr": "7.0.3",
+                    "setuptools": "83.0.0",
+                    "wheel": "0.47.0",
+                },
             },
             "source": {
                 "repository": SOURCE_REPOSITORY,
                 "commit": SOURCE_COMMIT,
                 "git_tree": SOURCE_TREE,
                 "project_version": PROJECT_VERSION,
+                "source_date_epoch": "1783382521",
+                "filesystem_sha256": "c" * 64,
             },
             "execution": {
+                "argv": [
+                    "/usr/bin/strace",
+                    "-u",
+                    "assured",
+                    "-ff",
+                    "-qq",
+                    "-ttt",
+                    "-T",
+                    "-yy",
+                    "-s",
+                    "4096",
+                    "-o",
+                    "/out/traces/raw/strace",
+                    "--",
+                    "/usr/local/bin/python",
+                    "-I",
+                    "-m",
+                    "build",
+                    "--no-isolation",
+                    "--outdir",
+                    "/workspace/output/dist",
+                    "/workspace/source",
+                ],
+                "cwd": "/workspace/source",
+                "finished_at": "2026-07-13T03:21:22Z",
+                "identity_boundary": {
+                    "build_gid": 65532,
+                    "build_uid": 65532,
+                    "collector_gid": 0,
+                    "collector_output_writable_by_build": False,
+                    "collector_uid": 0,
+                    "evidence_gid": 0,
+                    "evidence_mode": "0700",
+                    "evidence_uid": 0,
+                    "killed_process_count": 0,
+                    "quiescence_barrier": "private-pid-namespace-sigkill",
+                    "raw_trace_owner_gid": 0,
+                    "raw_trace_owner_uid": 0,
+                    "remaining_process_count": 0,
+                    "separate_collector_identity": True,
+                },
                 "network_policy": "deny",
                 "returncode": 0,
+                "started_at": "2026-07-13T03:21:21Z",
                 "validation_error": None,
             },
             "trace": {
+                "collector": {
+                    "name": "strace",
+                    "version": "6.1",
+                    "platform": "linux",
+                    "mode": "follow-forks-full-syscall",
+                },
                 "coverage": {
                     "process": True,
                     "file": True,
@@ -252,8 +429,12 @@ def create_builder_output(root: Path) -> None:
                 },
                 "raw_file_count": 1,
                 "parsed_line_count": 1,
+                "syscall_line_count": 1,
+                "signal_line_count": 0,
+                "exit_line_count": 0,
                 "unparsed_line_count": 0,
             },
+            "claim_limit": BUILDER_CLAIM_LIMIT,
         },
     )
     (root / "traces" / "raw" / "strace.1").write_text(
@@ -267,6 +448,7 @@ def create_builder_output(root: Path) -> None:
             "collector": {
                 "name": "strace",
                 "version": "6.1",
+                "platform": "linux",
                 "mode": "follow-forks-full-syscall",
             },
             "coverage": {
@@ -278,6 +460,9 @@ def create_builder_output(root: Path) -> None:
             "coverage_basis": "complete-parser-pass",
             "raw_file_count": 1,
             "parsed_line_count": 1,
+            "syscall_line_count": 1,
+            "signal_line_count": 0,
+            "exit_line_count": 0,
             "unparsed_line_count": 0,
             "events": [],
         },
@@ -292,7 +477,9 @@ def create_attestations(root: Path) -> None:
         "provenance.sigstore.json",
         "sbom.sigstore.json",
     ):
-        write_json(directory / name, {"mediaType": "application/vnd.dev.sigstore.bundle"})
+        write_json(
+            directory / name, {"mediaType": "application/vnd.dev.sigstore.bundle"}
+        )
 
 
 def create_base_sbom(root: Path) -> None:

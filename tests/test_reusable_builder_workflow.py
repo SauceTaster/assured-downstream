@@ -6,7 +6,6 @@ import re
 import unittest
 from pathlib import Path
 
-from assured_downstream.builder_handoff import BUILDER_DIGEST
 from assured_downstream.workflow_yaml import parse_workflow_yaml
 
 
@@ -14,6 +13,9 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "reusable-python-build.yml"
 CASE_WORKFLOW = ROOT / ".github" / "workflows" / "case-study-bandit-build.yml"
 FULL_SHA = re.compile(r"^[0-9a-f]{40}$")
+TRANSITIONAL_V1_HANDOFF_SHA256 = (
+    "e2c3ed4701a537a008c9ff742c2ebe93676c7b32acbc19c05e8cd2131b7ebe5f"
+)
 
 
 class ReusableBuilderWorkflowTests(unittest.TestCase):
@@ -46,8 +48,9 @@ class ReusableBuilderWorkflowTests(unittest.TestCase):
         )
         expected_actions = policy["reusable_workflow"]["actions"]
 
-        self.assertEqual(workflow["env"]["BUILDER_DIGEST"], BUILDER_DIGEST)
-        self.assertEqual(policy["published_image_digest"], BUILDER_DIGEST)
+        self.assertEqual(
+            workflow["env"]["BUILDER_DIGEST"], policy["published_image_digest"]
+        )
         self.assertTrue(FULL_SHA.fullmatch(workflow["env"]["HANDOFF_COMMIT"]))
         self.assertEqual(
             workflow["env"]["HANDOFF_COMMIT"],
@@ -64,7 +67,6 @@ class ReusableBuilderWorkflowTests(unittest.TestCase):
         text = WORKFLOW.read_text(encoding="utf-8")
         for name in (
             "__init__.py",
-            "builder_handoff.py",
             "catalog.py",
             "evidence.py",
             "seed.py",
@@ -75,6 +77,13 @@ class ReusableBuilderWorkflowTests(unittest.TestCase):
                 text.count(f"{digest} src/assured_downstream/{name}"),
                 3,
             )
+        self.assertEqual(
+            text.count(
+                f"{TRANSITIONAL_V1_HANDOFF_SHA256} "
+                "src/assured_downstream/builder_handoff.py"
+            ),
+            3,
+        )
 
     def test_container_is_fixed_and_has_no_network_or_secrets(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
