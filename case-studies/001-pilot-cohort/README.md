@@ -101,6 +101,9 @@ fork-of-a-fork lineage, and copyleft obligation handling.
 - retained the v2 result as `verified-evidence-candidate`; source ancestry,
   workflow approval, builder or collector resistance, reproducibility, and
   semantic safety remain explicitly unverified
+- published the original v2 evidence and durable verifier ledger as a
+  development prerelease asset with SHA-256
+  `e1522e0070b8ea7f0aa6bfd704f156c405e8fa63356ec527689ec867605a18b0`
 
 The machine-readable patch evidence is in [`patch-canary.json`](./patch-canary.json).
 It deliberately makes no build, runtime, attestation, or hardened-release claim.

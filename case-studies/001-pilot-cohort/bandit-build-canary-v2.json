@@ -132,7 +132,17 @@
       "size_bytes": 3239202,
       "expires_at": "2026-08-12T04:14:32Z"
     },
-    "durable_release_asset": null
+    "durable_release_asset": {
+      "release_url": "https://github.com/SauceTaster/assured-downstream/releases/tag/case-study-001-bandit-source-canary-v2",
+      "tag": "case-study-001-bandit-source-canary-v2",
+      "target_commit": "c3c16fa22f8897ac7aede4828ea80364b2905c9b",
+      "prerelease": true,
+      "asset_name": "assured-downstream-bandit-source-canary-v2-29223411225.tar.gz",
+      "asset_url": "https://github.com/SauceTaster/assured-downstream/releases/download/case-study-001-bandit-source-canary-v2/assured-downstream-bandit-source-canary-v2-29223411225.tar.gz",
+      "sha256": "e1522e0070b8ea7f0aa6bfd704f156c405e8fa63356ec527689ec867605a18b0",
+      "size_bytes": 6482038,
+      "published_at": "2026-07-13T04:28:35Z"
+    }
   },
   "claim_limit": "This verifies retained signatures, distinct caller and signer identities, artifact subjects, SPDX binding, exact v2 predicate content, and independent raw-trace parser completeness. It does not promote Bandit to Attested or independently prove source ancestry, workflow approval, builder or collector resistance, reproducibility, or semantic safety."
 }

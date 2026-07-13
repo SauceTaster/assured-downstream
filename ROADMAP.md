@@ -235,6 +235,8 @@ Current prototype status:
 - the code-anchored Builder Verifier Agent independently verified the retained
   signer/caller identities, subjects, SPDX binding, predicates, and transparency
   timestamps while correctly retaining `Evidence-candidate` status
+- the v2 Bandit evidence and durable verifier ledger are retained in a
+  digest-recorded development prerelease
 
 ## Phase 6: Reproducible Release
 

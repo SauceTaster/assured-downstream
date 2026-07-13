@@ -755,19 +755,17 @@ retain these ownership boundaries.
 
 ## Next Implementation Tasks
 
-1. Retain the independently verified Bandit v2 bundle as a durable development
-   case-study asset without promoting it to `Attested`.
-2. Implement code-anchored lineage, builder, tooling-lock, and workflow-content
+1. Implement code-anchored lineage, builder, tooling-lock, and workflow-content
    verification. Compose those results with the completed Sigstore verifier
    before enabling production `Attested`.
-3. Run the same immutable Bandit request on a second independent host and emit
+2. Run the same immutable Bandit request on a second independent host and emit
    an artifact, SBOM, and normalized-trace comparison record.
-4. Redesign publication approval inside the GitHub account boundary.
-5. Replay WP1 against the eventual organization and add downstream branch
+3. Redesign publication approval inside the GitHub account boundary.
+4. Replay WP1 against the eventual organization and add downstream branch
    protection plus scheduled upstream-change ingestion.
-6. Run WP10: full sandbox MVP over one first-lane seed and fixture-like real
+5. Run WP10: full sandbox MVP over one first-lane seed and fixture-like real
    candidates across the supported language set.
-7. Start WP11 only after WP10 produces a green Attested run.
+6. Start WP11 only after WP10 produces a green Attested run.
 
 WP12 should still wait until artifact reproducibility is stable.
 
