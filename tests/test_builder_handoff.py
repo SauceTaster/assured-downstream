@@ -355,6 +355,7 @@ def create_builder_output(root: Path) -> None:
                     "build": "1.5.1",
                     "packaging": "26.2",
                     "pbr": "7.0.3",
+                    "pyproject-hooks": "1.2.0",
                     "setuptools": "83.0.0",
                     "wheel": "0.47.0",
                 },
