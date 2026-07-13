@@ -372,11 +372,24 @@ custom `/build/v2` predicate and label GitHub run, attempt, caller workflow,
 and called workflow fields as signed workflow claims until a separate verifier
 cross-checks them.
 
-The bootstrap remains non-circular. Its policy contains no published digest and
-activation is disabled. The publication workflow must pass the exact-account
+The bootstrap remains non-circular. Run `29230841506` passed the exact-account
 gate, hostile identity canary, two same-image exact-artifact executions,
-registry pull/image-ID check, and Sigstore attestation. Only a later commit may
-pin that observed digest into the v3 handoff and reusable workflow.
+registry pull/image-ID check, and Sigstore attestation. The published manifest
+is `sha256:5f52c4bfe05c4947877d6d80f2124062b79a46764cc2161dc4caaa631d65833a`;
+online and downloaded-bundle verification bind it to source commit
+`e446fd3af7f0ae50acac1f950adcee595eb0edbd`, the expected workflow, GitHub OIDC,
+a GitHub-hosted runner, in-toto Statement v1, SLSA provenance v1, and Rekor.
+
+The two raw sdist digests differed while both canonical outputs matched at
+`464cd8cd782b552e2f2b6aed14afba625cf9c781c42609ffd8d1389f46b0ffc6`.
+The complete final artifact manifest matched at
+`598b1b541cc7e5de8a6c25b44cb500abb57a30b16a9f3bb4af7feeaae14ae653`.
+The durable 47-file evidence package was downloaded from its prerelease and
+replayed successfully; its SHA-256 is
+`b6e025db126210da7bffb694376e327bd2f0b1d861de065bca793d8fa087dbae`.
+Activation remains disabled. A later phase may reference this exact digest from
+a separate v3 handoff and reusable workflow only after deterministic SPDX,
+`/build/v2`, and their verifiers are reviewed.
 
 Sources:
 

@@ -59,9 +59,10 @@ As of the 2026-07-13 prototype pass:
   Pre-publication review moved extension-size checks ahead of tar body reads and
   tightened epoch, output namespace, and final-size bounds. An exact CPython
   3.12.11 pass caught and fixed a newer-stdlib private-method dependency; the
-  adversarial matrix and real Bandit sdist now pass on the pinned runtime. The
-  image is not published or active, and SPDX/predicate/verifier activation
-  remains phase 2.
+  adversarial matrix and real Bandit sdist now pass on the pinned runtime. Run
+  `29230841506` published and independently Sigstore-verified the exact digest;
+  its durable 47-file evidence package was replayed successfully. The image is
+  still inactive, and SPDX/predicate/verifier activation remains phase 2.
 - WP8/WP9 are implemented locally: passive fork publication packets, optional
   fetch instructions, and custodian governance fields exist.
 - A local `self-test` command now exercises first-lane fixtures, Attested
@@ -70,9 +71,9 @@ As of the 2026-07-13 prototype pass:
 
 Current critical path:
 
-1. Publish and independently verify the canary-tested Python v3 image, then pin
-   its real digest into a separate v3 handoff, deterministic SPDX normalizer,
-   `/build/v2` predicate, verifier policy, and reusable workflow.
+1. Build a separate v3 handoff, deterministic SPDX normalizer, `/build/v2`
+   predicate, verifier policy, and reusable workflow around the now-verified
+   bootstrap digest without changing the frozen v2 lane.
 2. Bind workflow run id and attempt into the signed build predicate, while
    keeping provider-independent rebuilds a separate future proof requirement.
 3. WP7: implement code-anchored lineage, builder, tooling, and workflow-content
@@ -781,10 +782,11 @@ retain these ownership boundaries.
 
 ## Next Implementation Tasks
 
-1. Run and retain the v3 bootstrap publication canaries; do not activate a
-   reusable builder until the observed image digest is independently verified.
-2. Add the v3 handoff, deterministic SPDX, signed workflow claims, predicate,
-   verifier, and policy around that exact digest.
+1. Add the v3 handoff, deterministic SPDX, signed workflow claims, predicate,
+   verifier, and policy around the verified bootstrap digest; keep activation
+   disabled until that complete phase passes review.
+2. Activate a separate v3 reusable workflow only after its exact source commit,
+   handoff digest, policy, and predicate verifier are pinned.
 3. Repeat two Bandit executions from one exact caller commit and require exact
    artifacts, exact SPDX bytes, and a passed durable Governor candidate gate.
 4. Schedule a genuinely

@@ -63,7 +63,7 @@ class PythonBuilderV3Tests(unittest.TestCase):
         self.assertIn("COPY builders/python-v3/entrypoint.py", dockerfile)
         self.assertNotIn("python-wheel-v3", reusable)
 
-    def test_bootstrap_policy_has_no_invented_activation_identity(self) -> None:
+    def test_published_bootstrap_policy_has_no_activation_identity(self) -> None:
         policy = json.loads(
             (
                 ROOT / "policies" / "builders" / "python-wheel-v3-bootstrap.json"
@@ -73,10 +73,26 @@ class PythonBuilderV3Tests(unittest.TestCase):
         workflow = WORKFLOW.read_text(encoding="utf-8")
 
         self.assertEqual(policy["profile_id"], "python-wheel-v3")
-        self.assertEqual(policy["status"], "bootstrap-review-ready-not-published")
-        self.assertIsNone(policy["published_image_digest"])
-        self.assertFalse(policy["publication"]["verified"])
+        self.assertEqual(
+            policy["status"],
+            "published-bootstrap-sigstore-verified-not-activated",
+        )
+        self.assertEqual(
+            policy["published_image_digest"],
+            "sha256:5f52c4bfe05c4947877d6d80f2124062b79a46764cc2161dc4caaa631d65833a",
+        )
+        self.assertTrue(policy["publication"]["verified"])
+        self.assertEqual(policy["publication"]["workflow_run_id"], 29230841506)
+        self.assertEqual(policy["publication"]["actor"], "SauceTaster")
+        self.assertEqual(policy["publication"]["triggering_actor"], "SauceTaster")
         self.assertTrue(policy["activation"]["status"].startswith("disabled-"))
+        for key in (
+            "reusable_workflow",
+            "handoff_verifier",
+            "build_predicate_type",
+            "build_verification_policy",
+        ):
+            self.assertIsNone(policy["activation"][key])
         self.assertEqual(
             policy["canonicalization"]["policy_id"],
             "python-sdist-pax-v1",
@@ -101,12 +117,57 @@ class PythonBuilderV3Tests(unittest.TestCase):
         )
         self.assertEqual(
             policy["bootstrap_canaries"]["python_3_12_11_archive_suite"],
-            "local-pass-before-publication",
+            "passed-before-publication",
         )
         self.assertEqual(
             policy["bootstrap_canaries"]["local_archive_adversarial_suite"],
             "passed-before-commit",
         )
+        source_digests = {
+            "dockerfile_sha256": policy["source"]["dockerfile"],
+            "entrypoint_sha256": policy["source"]["entrypoint"],
+            "python_lock_sha256": policy["source"]["python_lock"],
+            "publication_workflow_sha256": policy["source"]["publication_workflow"],
+        }
+        for field, relative in source_digests.items():
+            self.assertEqual(
+                policy["source"][field],
+                hashlib.sha256((ROOT / relative).read_bytes()).hexdigest(),
+            )
+        verified_run = policy["bootstrap_canaries"]["verified_run"]
+        self.assertEqual(
+            verified_run["source_commit"],
+            policy["publication"]["source_commit"],
+        )
+        self.assertEqual(
+            verified_run["final_artifact_manifest_sha256"],
+            "598b1b541cc7e5de8a6c25b44cb500abb57a30b16a9f3bb4af7feeaae14ae653",
+        )
+        self.assertNotEqual(*verified_run["raw_sdist_sha256"])
+        self.assertFalse(verified_run["provider_independent"])
+        self.assertTrue(verified_run["durable_release"]["portable_replay_verified"])
+
+        case = json.loads(
+            (
+                ROOT
+                / "case-studies"
+                / "001-pilot-cohort"
+                / "python-builder-v3-canary.json"
+            ).read_text()
+        )
+        self.assertEqual(
+            case["image"]["published_manifest_digest"],
+            policy["published_image_digest"],
+        )
+        self.assertEqual(
+            case["workflow_run"]["source_commit"],
+            policy["publication"]["source_commit"],
+        )
+        self.assertEqual(
+            case["retention"]["durable_release_asset"]["sha256"],
+            verified_run["durable_release"]["sha256"],
+        )
+        self.assertFalse(case["independently_verified"]["v3_consumer_activated"])
         self.assertIn(policy["base_image"]["index_digest"], dockerfile)
         for package in policy["system_packages"]:
             self.assertIn(package["url"], dockerfile)

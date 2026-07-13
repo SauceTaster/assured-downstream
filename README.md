@@ -12,9 +12,10 @@ production-ready.
 The parallel `python-wheel-v3` bootstrap now canonicalizes and self-verifies
 Python source distributions after traced-process quiescence and gates image
 publication on a SauceTaster-only dispatch, hostile isolation, and two-build
-artifact equality. It is not a live builder yet: no v3 image digest, SPDX
-normalizer, predicate, verifier, or reusable workflow is activated until the
-bootstrap run is retained and checked.
+artifact equality. Its bootstrap digest and durable canary are now published and
+Sigstore-verified. It is not a live builder yet: no v3 SPDX normalizer,
+predicate, verifier, handoff, or reusable workflow is activated until phase two
+is independently reviewed.
 
 The goal is to maintain an organization of hardened forks that continuously
 track upstream projects, rebuild and release them under stronger security

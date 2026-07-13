@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "status": "published-determinism-canary-sigstore-verified-not-activated",
+  "case_id": "python-wheel-v3-determinism-canary",
+  "verified_at": "2026-07-13T07:19:00Z",
+  "profile": "python-wheel-v3",
+  "workflow_run": {
+    "id": 29230841506,
+    "attempt": 1,
+    "url": "https://github.com/SauceTaster/assured-downstream/actions/runs/29230841506",
+    "event": "workflow_dispatch",
+    "conclusion": "success",
+    "source_commit": "e446fd3af7f0ae50acac1f950adcee595eb0edbd",
+    "actor": "SauceTaster",
+    "triggering_actor": "SauceTaster",
+    "runner_environment": "github-hosted"
+  },
+  "image": {
+    "name": "ghcr.io/saucetaster/assured-downstream-python-builder",
+    "published_manifest_digest": "sha256:5f52c4bfe05c4947877d6d80f2124062b79a46764cc2161dc4caaa631d65833a",
+    "tested_local_image_id": "sha256:1aafb7a11f70d9360e5efc8b52ec2df12e740d88ebae7facc201a8ba9ec9b480",
+    "registry_pull_matched_tested_image_id": true,
+    "pull_check_independently_reperformed": false
+  },
+  "isolation": {
+    "executions": 2,
+    "collector_uid": 0,
+    "collector_gid": 0,
+    "build_uid": 65532,
+    "build_gid": 65532,
+    "effective_capabilities": "0000000000000000",
+    "no_new_privileges": 1,
+    "seccomp": 2,
+    "evidence_uid": 0,
+    "evidence_gid": 0,
+    "evidence_mode": "0700",
+    "remaining_process_count": 0,
+    "attempts": {
+      "collector-signal": "denied",
+      "entrypoint-write": "denied",
+      "evidence-list": "denied",
+      "evidence-write": "denied",
+      "root-memory-read": "denied"
+    }
+  },
+  "determinism": {
+    "provider_independent": false,
+    "final_artifact_manifest_sha256": "598b1b541cc7e5de8a6c25b44cb500abb57a30b16a9f3bb4af7feeaae14ae653",
+    "raw_sdist_sha256": [
+      "fd61fe480d121573b3e6f27e800e7858ee34f2d8a336db8132020d8134865818",
+      "40b045c587a076d98c2d3f58ea4765e34b8d6ef2c45a7c8a68bbdc61a47c834d"
+    ],
+    "canonical_sdist_sha256": "464cd8cd782b552e2f2b6aed14afba625cf9c781c42609ffd8d1389f46b0ffc6",
+    "canonical_sdist_payload_sha256": "4b94e270bf6f99669c0cecc096395c956587e4fc6908f7b82c87b5d0e2866ae0",
+    "wheel_sha256": "14e0680bd58ea52505e135ab802aec2ddc5a056e2a71c0e10a8fc5b42cc3d236",
+    "probe_sha256": "9a22adffe0035af7f28cd1dd2948ddbee1419290ca810b33fae60f67f8f98d39"
+  },
+  "trace": {
+    "collector": "strace 6.1",
+    "parsed_line_count": [
+      9129,
+      9129
+    ],
+    "unparsed_line_count": [
+      0,
+      0
+    ],
+    "observed_trace_sha256": [
+      "3bd4b0568fbadc55f230db6c4fc3c097d51c2c3efea6af69e87ca18ecfa28257",
+      "91db5c3d689a11c2909f04444f3c1fc400c04c5236dbcb51cb6ce7bb2f9b7161"
+    ]
+  },
+  "evidence": {
+    "builder_report_sha256": [
+      "f2af817cd43553fec4f9347760d2d4d9a6fb6074a6b50bd03bdc0ebebf099f0a",
+      "e52155f9a59a496a381213f0c7ecf3e1c935a4e3271ae6a31f0aca203d9750bd"
+    ],
+    "artifact_transform_report_sha256": [
+      "51450346a11787e6f04a918d28da7ce35cd635a1801aa08a41c9ff16bcd5244a",
+      "dd0998fd0a1739568dad28bde6062076fd91f2081e58d21397fce34970835a84"
+    ],
+    "sigstore_bundle_sha256": "df3a2ab6ff605466a0961281a54cf2f6c622329d7fc767800cf0346f0ba41f92",
+    "independent_verification_record_sha256": "f3ba310780ee8e89b4234c8120ca9addc4e818dea593cb3f37a9ef4a3ed9314d"
+  },
+  "attestation": {
+    "statement_type": "https://in-toto.io/Statement/v1",
+    "predicate_type": "https://slsa.dev/provenance/v1",
+    "certificate_identity": "https://github.com/SauceTaster/assured-downstream/.github/workflows/publish-python-builder-v3.yml@refs/heads/main",
+    "oidc_issuer": "https://token.actions.githubusercontent.com",
+    "source_ref": "refs/heads/main",
+    "transparency_log": "https://rekor.sigstore.dev",
+    "transparency_log_timestamp": "2026-07-13T00:05:43-07:00",
+    "online_verified": true,
+    "offline_bundle_verified": true
+  },
+  "retention": {
+    "actions_artifacts": [
+      {
+        "id": 8271483154,
+        "name": "python-wheel-v3-hostile-determinism-canary",
+        "sha256": "5d0a3dcf5ba24e9a2a60c663117010ba42558217b282c9f9ec228935097eaf72",
+        "size_bytes": 1771435,
+        "expires_at": "2026-07-20T07:05:48Z"
+      },
+      {
+        "id": 8271482776,
+        "name": "python-wheel-v3-image-identity",
+        "sha256": "a79bd04263d9702d89b7051f4c6602d340ecb18f4b092e0ff7a36a5bfe3c7d05",
+        "size_bytes": 223,
+        "expires_at": "2026-07-20T07:05:47Z"
+      }
+    ],
+    "durable_release_asset": {
+      "release_url": "https://github.com/SauceTaster/assured-downstream/releases/tag/builder-python-wheel-v3-determinism-canary",
+      "tag": "builder-python-wheel-v3-determinism-canary",
+      "target_commit": "e446fd3af7f0ae50acac1f950adcee595eb0edbd",
+      "prerelease": true,
+      "asset_name": "assured-downstream-python-wheel-v3-bootstrap-29230841506.tar.gz",
+      "asset_url": "https://github.com/SauceTaster/assured-downstream/releases/download/builder-python-wheel-v3-determinism-canary/assured-downstream-python-wheel-v3-bootstrap-29230841506.tar.gz",
+      "sha256": "b6e025db126210da7bffb694376e327bd2f0b1d861de065bca793d8fa087dbae",
+      "size_bytes": 3557359,
+      "published_at": "2026-07-13T07:18:26Z",
+      "portable_replay_verified": true
+    }
+  },
+  "independently_verified": {
+    "published_manifest_subject": true,
+    "sigstore_certificate_identity": true,
+    "slsa_intoto_statement": true,
+    "hosted_runner": true,
+    "trace_parser_completeness": true,
+    "hostile_attempt_denials": true,
+    "exact_final_artifact_match": true,
+    "kernel_or_runtime_resistance": false,
+    "independent_observer": false,
+    "independent_host_reproduction": false,
+    "general_project_reproducibility": false,
+    "v3_consumer_activated": false
+  },
+  "claim_limit": "This verifies one published bootstrap image identity, SLSA/in-toto Sigstore attestation, enumerated hostile operations, and exact final artifacts across two same-image GitHub-hosted executions. It does not activate v3, prove resistance to kernel/runtime compromise, or establish provider-independent or general-project reproducibility."
+}

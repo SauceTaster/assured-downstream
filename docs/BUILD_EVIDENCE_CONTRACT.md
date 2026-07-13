@@ -89,11 +89,12 @@ SauceTaster as both actor and triggering actor and must compare final artifacts
 from two complete hostile-fixture executions before registry authentication and
 push.
 
-The v3 bootstrap policy intentionally contains no image digest, reusable
-workflow, handoff verifier, custom predicate, or build-verification policy.
-Those controls remain disabled until the canary-tested registry digest is
-published and independently verified. Deterministic SPDX and signed workflow
-run claims belong to that second activation phase, not to the bootstrap image.
+The v3 bootstrap policy records the canary-tested registry digest, source
+commit, workflow run, Sigstore identity, downloaded bundle, and durable replayed
+evidence release. It intentionally contains no reusable workflow, handoff
+verifier, custom predicate, or build-verification policy. Those activation
+controls remain disabled. Deterministic SPDX and signed workflow run claims
+belong to phase two, not to the bootstrap image.
 
 ## Build Result
 
