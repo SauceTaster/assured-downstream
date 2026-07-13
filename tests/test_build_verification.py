@@ -30,7 +30,7 @@ from assured_downstream.release_verification import (
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / "policies" / "build-verification.json"
 TRUST_POLICY_PATH = ROOT / "policies" / "release-verification.json"
-ACTIVE_CASE_PATH = (
+FIRST_V2_CASE_PATH = (
     ROOT / "case-studies" / "001-pilot-cohort" / "bandit-build-canary-v2.json"
 )
 
@@ -48,19 +48,18 @@ class BuildVerificationTests(unittest.TestCase):
             "case-001-bandit-source-canary-v2",
         )
 
-    def test_active_case_binds_policy_identities_and_staged_manifest(self) -> None:
-        policy_bytes = POLICY_PATH.read_bytes()
-        policy = json.loads(policy_bytes)
-        case = json.loads(ACTIVE_CASE_PATH.read_bytes())
+    def test_first_v2_case_preserves_its_policy_and_staged_manifest(self) -> None:
+        policy = load_policy()
+        case = json.loads(FIRST_V2_CASE_PATH.read_bytes())
 
         self.assertEqual(case["case_id"], policy["approved_request"]["case_id"])
         self.assertEqual(
             case["verification"]["build_policy_sha256"],
-            hashlib.sha256(policy_bytes).hexdigest(),
+            "dbd2f2dd11a3de58ee247d161e27c482817b09158709dd571d83a6d4338dc6c0",
         )
-        self.assertEqual(
+        self.assertIn(
             case["workflow_run"]["caller_commit"],
-            policy["signer"]["caller_digest"],
+            policy["signer"]["caller_digests"],
         )
         self.assertEqual(
             case["workflow_run"]["signer_commit"],
@@ -78,12 +77,13 @@ class BuildVerificationTests(unittest.TestCase):
     def test_command_pins_distinct_signer_and_caller_digests(self) -> None:
         policy = load_policy()
         signer = policy["signer"]
+        caller_digest = signer["caller_digests"][0]
         command = github_attestation_verify_command(
             artifact_path=Path("artifact.whl"),
             bundle_path=Path("bundle.json"),
             predicate_type=policy["predicates"]["build"],
             target_repository=policy["control_repository"],
-            source_digest=signer["caller_digest"],
+            source_digest=caller_digest,
             signer_digest=signer["workflow_digest"],
             source_ref=signer["source_ref"],
             certificate_identity=signer["certificate_identity"],
@@ -97,9 +97,69 @@ class BuildVerificationTests(unittest.TestCase):
             flag_value(command, "--signer-digest"), signer["workflow_digest"]
         )
         self.assertEqual(
-            flag_value(command, "--source-digest"), signer["caller_digest"]
+            flag_value(command, "--source-digest"), caller_digest
         )
-        self.assertNotEqual(signer["workflow_digest"], signer["caller_digest"])
+        self.assertNotEqual(signer["workflow_digest"], caller_digest)
+
+    def test_policy_requires_a_bounded_canonical_caller_allowlist(self) -> None:
+        policy = load_policy()
+        second_caller = "f" * 40
+        policy["signer"]["caller_digests"].append(second_caller)
+        validate_build_verification_policy(policy)
+
+        policy["signer"]["caller_digests"].append(second_caller)
+        with self.assertRaisesRegex(BuildVerificationError, "canonical"):
+            validate_build_verification_policy(policy)
+
+    def test_second_approved_caller_flows_through_every_identity_check(self) -> None:
+        policy = load_policy()
+        second_caller = "f" * 40
+        policy["signer"]["caller_digests"].append(second_caller)
+        entries = evidence_entries()
+        predicate = build_predicate(
+            policy,
+            entries=entries,
+            artifact_count=2,
+            caller_digest=second_caller,
+        )
+
+        selected = validate_build_predicate(
+            predicate,
+            policy=policy,
+            artifact_count=2,
+            evidence_entries=entries,
+        )
+        validate_build_certificate(
+            certificate(policy, caller_digest=second_caller),
+            policy=policy,
+            caller_digest=selected,
+        )
+        validate_build_provenance(
+            provenance_predicate(policy, caller_digest=second_caller),
+            policy=policy,
+            caller_digest=selected,
+        )
+        command = github_attestation_verify_command(
+            artifact_path=Path("artifact.whl"),
+            bundle_path=Path("bundle.json"),
+            predicate_type=policy["predicates"]["build"],
+            target_repository=policy["control_repository"],
+            source_digest=selected,
+            signer_digest=policy["signer"]["workflow_digest"],
+            source_ref=policy["signer"]["source_ref"],
+            certificate_identity=policy["signer"]["certificate_identity"],
+            oidc_issuer=policy["signer"]["oidc_issuer"],
+            deny_self_hosted_runners=True,
+            executable_path=Path("gh"),
+            trusted_root_path=Path("trusted-root.jsonl"),
+        )
+
+        self.assertEqual(selected, second_caller)
+        self.assertEqual(flag_value(command, "--source-digest"), second_caller)
+        self.assertEqual(
+            flag_value(command, "--signer-digest"),
+            policy["signer"]["workflow_digest"],
+        )
 
     def test_v2_policy_requires_a_pinned_source_date(self) -> None:
         policy = load_policy()
@@ -120,24 +180,42 @@ class BuildVerificationTests(unittest.TestCase):
 
     def test_certificate_keeps_reusable_signer_and_caller_separate(self) -> None:
         policy = load_policy()
-        validate_build_certificate(certificate(policy), policy=policy)
+        caller_digest = policy["signer"]["caller_digests"][0]
+        validate_build_certificate(
+            certificate(policy),
+            policy=policy,
+            caller_digest=caller_digest,
+        )
 
         confused = certificate(policy)
         confused["githubWorkflowSHA"] = policy["signer"]["workflow_digest"]
         with self.assertRaisesRegex(BuildVerificationError, "githubWorkflowSHA"):
-            validate_build_certificate(confused, policy=policy)
+            validate_build_certificate(
+                confused,
+                policy=policy,
+                caller_digest=caller_digest,
+            )
 
     def test_provenance_binds_the_caller_commit_and_reusable_builder(self) -> None:
         policy = load_policy()
-        provenance = provenance_predicate(policy)
-        validate_build_provenance(provenance, policy=policy)
+        caller_digest = policy["signer"]["caller_digests"][0]
+        provenance = provenance_predicate(policy, caller_digest=caller_digest)
+        validate_build_provenance(
+            provenance,
+            policy=policy,
+            caller_digest=caller_digest,
+        )
 
         confused = copy.deepcopy(provenance)
         confused["buildDefinition"]["resolvedDependencies"][0]["digest"][
             "gitCommit"
         ] = policy["signer"]["workflow_digest"]
         with self.assertRaisesRegex(BuildVerificationError, "caller commit"):
-            validate_build_provenance(confused, policy=policy)
+            validate_build_provenance(
+                confused,
+                policy=policy,
+                caller_digest=caller_digest,
+            )
 
     def test_trace_requires_complete_counts_and_retained_raw_files(self) -> None:
         trace = complete_trace()
@@ -228,6 +306,16 @@ class BuildVerificationTests(unittest.TestCase):
             )
 
         predicate = build_predicate(policy, entries=entries, artifact_count=2)
+        predicate["caller"]["commit"] = "f" * 40
+        with self.assertRaisesRegex(BuildVerificationError, "not approved"):
+            validate_build_predicate(
+                predicate,
+                policy=policy,
+                artifact_count=2,
+                evidence_entries=entries,
+            )
+
+        predicate = build_predicate(policy, entries=entries, artifact_count=2)
         predicate["source"]["unreviewedClaim"] = True
         with self.assertRaisesRegex(BuildVerificationError, "source fields"):
             validate_build_predicate(
@@ -309,8 +397,13 @@ def load_policy() -> dict:
     return json.loads(POLICY_PATH.read_text(encoding="utf-8"))
 
 
-def certificate(policy: dict) -> dict[str, str]:
+def certificate(
+    policy: dict,
+    *,
+    caller_digest: str | None = None,
+) -> dict[str, str]:
     signer = policy["signer"]
+    caller_digest = caller_digest or signer["caller_digests"][0]
     repository = policy["control_repository"]
     caller_identity = (
         f"https://github.com/{repository}/{signer['caller_workflow_path']}"
@@ -319,7 +412,7 @@ def certificate(policy: dict) -> dict[str, str]:
     return {
         "subjectAlternativeName": signer["certificate_identity"],
         "issuer": signer["oidc_issuer"],
-        "githubWorkflowSHA": signer["caller_digest"],
+        "githubWorkflowSHA": caller_digest,
         "githubWorkflowRepository": repository,
         "githubWorkflowRef": signer["source_ref"],
         "githubWorkflowTrigger": signer["trigger"],
@@ -327,16 +420,21 @@ def certificate(policy: dict) -> dict[str, str]:
         "buildSignerDigest": signer["workflow_digest"],
         "runnerEnvironment": "github-hosted",
         "sourceRepositoryURI": f"https://github.com/{repository}",
-        "sourceRepositoryDigest": signer["caller_digest"],
+        "sourceRepositoryDigest": caller_digest,
         "sourceRepositoryRef": signer["source_ref"],
         "buildConfigURI": caller_identity,
-        "buildConfigDigest": signer["caller_digest"],
+        "buildConfigDigest": caller_digest,
         "buildTrigger": signer["trigger"],
     }
 
 
-def provenance_predicate(policy: dict) -> dict:
+def provenance_predicate(
+    policy: dict,
+    *,
+    caller_digest: str | None = None,
+) -> dict:
     signer = policy["signer"]
+    caller_digest = caller_digest or signer["caller_digests"][0]
     repository = policy["control_repository"]
     return {
         "buildDefinition": {
@@ -351,7 +449,7 @@ def provenance_predicate(policy: dict) -> dict:
             "resolvedDependencies": [
                 {
                     "uri": f"git+https://github.com/{repository}@{signer['source_ref']}",
-                    "digest": {"gitCommit": signer["caller_digest"]},
+                    "digest": {"gitCommit": caller_digest},
                 }
             ],
         },
@@ -391,9 +489,11 @@ def build_predicate(
     *,
     entries: dict[str, dict[str, str]],
     artifact_count: int,
+    caller_digest: str | None = None,
 ) -> dict:
     request = policy["approved_request"]
     signer = policy["signer"]
+    caller_digest = caller_digest or signer["caller_digests"][0]
     builder = policy["builder"]
     if builder["profile"] == "python-wheel-v1":
         builder_claim = {
@@ -470,7 +570,7 @@ def build_predicate(
         },
         "caller": {
             "repository": policy["control_repository"],
-            "commit": signer["caller_digest"],
+            "commit": caller_digest,
             "ref": signer["source_ref"],
         },
         "builder": builder_claim,

@@ -42,11 +42,12 @@ from assured_downstream.release_verification import (
 )
 
 
-BUILD_VERIFICATION_POLICY_SCHEMA_VERSION = 1
+BUILD_VERIFICATION_POLICY_SCHEMA_VERSION = 2
 BUILD_VERIFICATION_RECORD_SCHEMA_VERSION = 1
 BUILD_PREDICATE_TYPE = "https://assured-downstream.dev/attestation/build/v1"
+MAX_APPROVED_CALLER_DIGESTS = 8
 TRUSTED_BUILD_VERIFICATION_POLICY_SHA256 = (
-    "dbd2f2dd11a3de58ee247d161e27c482817b09158709dd571d83a6d4338dc6c0"
+    "1b1ab416c33be709ba5078c964af7f30e01e511666adaf36c18503feea4578d7"
 )
 BUILD_BUNDLE_FILENAMES = {
     "provenance": "provenance.sigstore.json",
@@ -247,7 +248,7 @@ def _verify_build_attestations(
     ):
         raise BuildVerificationError("Build predicate changed before verification")
     build_predicate = decode_json_object(predicate_bytes, label="build predicate")
-    validate_build_predicate(
+    caller_digest = validate_build_predicate(
         build_predicate,
         policy=policy,
         artifact_count=len(expected_subjects),
@@ -371,7 +372,7 @@ def _verify_build_attestations(
                 bundle_path=staged_bundle,
                 predicate_type=policy["predicates"][role],
                 target_repository=policy["control_repository"],
-                source_digest=signer["caller_digest"],
+                source_digest=caller_digest,
                 signer_digest=signer["workflow_digest"],
                 source_ref=signer["source_ref"],
                 certificate_identity=signer["certificate_identity"],
@@ -403,6 +404,7 @@ def _verify_build_attestations(
                 expected_subjects=expected_subjects,
                 expected_predicate=expected_predicates[role],
                 policy=policy,
+                caller_digest=caller_digest,
             )
             bundle_results[role] = {
                 "predicate_type": policy["predicates"][role],
@@ -432,7 +434,7 @@ def _verify_build_attestations(
         "source_repository": request["source_repository"],
         "source_commit": request["source_commit"],
         "caller_repository": policy["control_repository"],
-        "caller_digest": signer["caller_digest"],
+        "caller_digest": caller_digest,
         "signer": (f"{policy['control_repository']}/{signer['workflow_path']}"),
         "signer_digest": signer["workflow_digest"],
         "certificate_identity": signer["certificate_identity"],
@@ -528,7 +530,7 @@ def validate_build_verification_policy(policy: dict[str, Any]) -> dict[str, Any]
             "workflow_digest",
             "certificate_identity",
             "caller_workflow_path",
-            "caller_digest",
+            "caller_digests",
             "source_ref",
             "trigger",
             "oidc_issuer",
@@ -548,7 +550,21 @@ def validate_build_verification_policy(policy: dict[str, Any]) -> dict[str, Any]
     workflow_digest = require_git_sha(
         signer.get("workflow_digest"), label="signer workflow digest"
     )
-    require_git_sha(signer.get("caller_digest"), label="caller workflow digest")
+    caller_digests = signer.get("caller_digests")
+    if (
+        not isinstance(caller_digests, list)
+        or not 1 <= len(caller_digests) <= MAX_APPROVED_CALLER_DIGESTS
+    ):
+        raise BuildVerificationError("Build signer caller allowlist is invalid")
+    validated_callers = [
+        require_git_sha(value, label="caller workflow digest")
+        for value in caller_digests
+    ]
+    if (
+        validated_callers != sorted(set(validated_callers))
+        or workflow_digest in validated_callers
+    ):
+        raise BuildVerificationError("Build signer caller allowlist is not canonical")
     expected_identity = (
         f"https://github.com/{control_repository}/{signer['workflow_path']}"
         f"@{workflow_digest}"
@@ -716,7 +732,7 @@ def validate_build_predicate(
     policy: dict[str, Any],
     artifact_count: int,
     evidence_entries: dict[str, dict[str, Any]],
-) -> None:
+) -> str:
     if type(artifact_count) is not int or artifact_count <= 0:
         raise BuildVerificationError("Build artifact count is invalid")
     require_exact_keys(
@@ -736,6 +752,7 @@ def validate_build_predicate(
     request = policy["approved_request"]
     signer = policy["signer"]
     builder_policy = policy["builder"]
+    caller_digest = approved_caller_digest(value, policy=policy)
     if (
         type(value.get("schemaVersion")) is not int
         or value["schemaVersion"] != 1
@@ -778,7 +795,7 @@ def validate_build_predicate(
         raise BuildVerificationError("Build predicate downstream claim is invalid")
     expected_caller = {
         "repository": policy["control_repository"],
-        "commit": signer["caller_digest"],
+        "commit": caller_digest,
         "ref": signer["source_ref"],
     }
     if value.get("caller") != expected_caller:
@@ -826,6 +843,20 @@ def validate_build_predicate(
         raise BuildVerificationError("Build predicate evidence digests are invalid")
     if value.get("claimLimit") != BUILD_CLAIM_LIMIT:
         raise BuildVerificationError("Build predicate claim boundary is invalid")
+    return caller_digest
+
+
+def approved_caller_digest(value: dict[str, Any], *, policy: dict[str, Any]) -> str:
+    caller = value.get("caller")
+    if not isinstance(caller, dict):
+        raise BuildVerificationError("Build predicate caller claim is invalid")
+    digest = require_git_sha(
+        caller.get("commit"),
+        label="build predicate caller commit",
+    )
+    if digest not in policy["signer"]["caller_digests"]:
+        raise BuildVerificationError("Build predicate caller commit is not approved")
+    return digest
 
 
 def validate_v2_predicate_builder(value: Any, *, expected: dict[str, Any]) -> bool:
@@ -971,6 +1002,7 @@ def validate_build_verification_output(
     expected_subjects: set[tuple[str, str]],
     expected_predicate: dict[str, Any] | None,
     policy: dict[str, Any],
+    caller_digest: str,
 ) -> int:
     if len(entries) != 1 or not isinstance(entries[0], dict):
         raise BuildVerificationError(
@@ -1011,10 +1043,18 @@ def validate_build_verification_output(
         raise BuildVerificationError(f"{role.capitalize()} predicate type is invalid")
     if statement_subjects(statement) != expected_subjects:
         raise BuildVerificationError(f"{role.capitalize()} subjects are invalid")
-    validate_build_certificate(signature.get("certificate"), policy=policy)
+    validate_build_certificate(
+        signature.get("certificate"),
+        policy=policy,
+        caller_digest=caller_digest,
+    )
     predicate = statement.get("predicate")
     if role == "provenance":
-        validate_build_provenance(predicate, policy=policy)
+        validate_build_provenance(
+            predicate,
+            policy=policy,
+            caller_digest=caller_digest,
+        )
     elif predicate != expected_predicate:
         raise BuildVerificationError(
             f"{role.capitalize()} predicate does not match retained evidence"
@@ -1022,10 +1062,17 @@ def validate_build_verification_output(
     return len(transparency)
 
 
-def validate_build_certificate(value: Any, *, policy: dict[str, Any]) -> None:
+def validate_build_certificate(
+    value: Any,
+    *,
+    policy: dict[str, Any],
+    caller_digest: str,
+) -> None:
     if not isinstance(value, dict):
         raise BuildVerificationError("Verified build attestation has no certificate")
     signer = policy["signer"]
+    if caller_digest not in signer["caller_digests"]:
+        raise BuildVerificationError("Verified build caller commit is not approved")
     control_repository = policy["control_repository"]
     caller_identity = (
         f"https://github.com/{control_repository}/{signer['caller_workflow_path']}"
@@ -1034,7 +1081,7 @@ def validate_build_certificate(value: Any, *, policy: dict[str, Any]) -> None:
     expected = {
         "subjectAlternativeName": signer["certificate_identity"],
         "issuer": signer["oidc_issuer"],
-        "githubWorkflowSHA": signer["caller_digest"],
+        "githubWorkflowSHA": caller_digest,
         "githubWorkflowRepository": control_repository,
         "githubWorkflowRef": signer["source_ref"],
         "githubWorkflowTrigger": signer["trigger"],
@@ -1042,10 +1089,10 @@ def validate_build_certificate(value: Any, *, policy: dict[str, Any]) -> None:
         "buildSignerDigest": signer["workflow_digest"],
         "runnerEnvironment": "github-hosted",
         "sourceRepositoryURI": f"https://github.com/{control_repository}",
-        "sourceRepositoryDigest": signer["caller_digest"],
+        "sourceRepositoryDigest": caller_digest,
         "sourceRepositoryRef": signer["source_ref"],
         "buildConfigURI": caller_identity,
-        "buildConfigDigest": signer["caller_digest"],
+        "buildConfigDigest": caller_digest,
         "buildTrigger": signer["trigger"],
     }
     for field, expected_value in expected.items():
@@ -1055,9 +1102,16 @@ def validate_build_certificate(value: Any, *, policy: dict[str, Any]) -> None:
             )
 
 
-def validate_build_provenance(value: Any, *, policy: dict[str, Any]) -> None:
+def validate_build_provenance(
+    value: Any,
+    *,
+    policy: dict[str, Any],
+    caller_digest: str,
+) -> None:
     if not isinstance(value, dict):
         raise BuildVerificationError("Build provenance predicate is invalid")
+    if caller_digest not in policy["signer"]["caller_digests"]:
+        raise BuildVerificationError("Build provenance caller commit is not approved")
     build_definition = value.get("buildDefinition")
     run_details = value.get("runDetails")
     if not isinstance(build_definition, dict) or not isinstance(run_details, dict):
@@ -1081,7 +1135,7 @@ def validate_build_provenance(value: Any, *, policy: dict[str, Any]) -> None:
         isinstance(dependency, dict)
         and dependency.get("uri") == expected_uri
         and isinstance(dependency.get("digest"), dict)
-        and dependency["digest"].get("gitCommit") == signer["caller_digest"]
+        and dependency["digest"].get("gitCommit") == caller_digest
         for dependency in dependencies
     ):
         raise BuildVerificationError("Build provenance caller commit is invalid")

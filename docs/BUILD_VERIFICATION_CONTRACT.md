@@ -7,7 +7,8 @@ Status: development-stage contract exercised by the Bandit source canary.
 Reusable GitHub Actions attestations have distinct caller and signer
 identities. The Builder Verifier Agent preserves all of them:
 
-- caller repository, workflow path, protected ref, and caller commit
+- caller repository, workflow path, protected ref, and a bounded allowlist of
+  exact caller commits
 - reusable signer workflow path, signer commit, and exact certificate SAN
 - exact upstream source repository, commit, and Git tree in the signed custom
   predicate
@@ -18,6 +19,13 @@ The GitHub certificate proves the caller and reusable signer identities. The
 custom predicate signs the upstream source and downstream target fields, but
 those fields remain workflow-authored claims until separate lineage and
 workflow-content verifiers compose their results.
+
+Policy schema v2 permits repeated executions by listing at most eight sorted,
+unique caller commits. The verifier selects the effective caller only from the
+retained custom predicate, requires it in that code-anchored allowlist, and uses
+the same digest for Sigstore verification, certificate validation, SLSA
+provenance validation, and the durable output record. The reusable signer
+workflow and certificate identity remain singular.
 
 ## Verification
 
