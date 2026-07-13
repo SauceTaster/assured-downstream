@@ -93,7 +93,7 @@
   "reusable_workflow": {
     "status": "active-bandit-canary",
     "path": ".github/workflows/reusable-python-build.yml",
-    "signer_commit": "bb27f6948679207c6dbd37f2ed540494cbe02a54",
+    "signer_commit": "90c37838bd227618f36bcc2ae25436e51d2d3a98",
     "handoff_verifier_commit": "0292fb91ff65c05d0d8717b3cf88883a6a3921e1",
     "actions": {
       "actions/attest": "a1948c3f048ba23858d222213b7c278aabede763",
