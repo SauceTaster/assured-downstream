@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "status": "published-hostile-canary-sigstore-verified",
+  "case_id": "python-wheel-v2-hostile-isolation-canary",
+  "verified_at": "2026-07-13T03:31:57Z",
+  "profile": "python-wheel-v2",
+  "workflow_run": {
+    "id": 29221499094,
+    "url": "https://github.com/SauceTaster/assured-downstream/actions/runs/29221499094",
+    "event": "workflow_dispatch",
+    "conclusion": "success",
+    "source_commit": "81ada239c2ea4cb0460e37100ee9dd0b0bc13959",
+    "runner_environment": "github-hosted"
+  },
+  "image": {
+    "name": "ghcr.io/saucetaster/assured-downstream-python-builder",
+    "published_manifest_digest": "sha256:18916b853d240d87c653175368bd9a8f54edac8f77553d7c0e2b23abb87d5221",
+    "tested_local_image_id": "sha256:be4dccbae4e919660031b9fddd43651f9e138f6c807390ca2da3d8678182299c",
+    "registry_pull_matched_tested_image_id": true
+  },
+  "isolation": {
+    "collector_uid": 0,
+    "collector_gid": 0,
+    "build_uid": 65532,
+    "build_gid": 65532,
+    "effective_capabilities": "0000000000000000",
+    "no_new_privileges": 1,
+    "seccomp": 2,
+    "evidence_uid": 0,
+    "evidence_gid": 0,
+    "evidence_mode": "0700",
+    "remaining_process_count": 0,
+    "attempts": {
+      "collector-signal": "denied",
+      "entrypoint-write": "denied",
+      "evidence-list": "denied",
+      "evidence-write": "denied",
+      "root-memory-read": "denied"
+    }
+  },
+  "trace": {
+    "collector": "strace 6.1",
+    "raw_file_count": 5,
+    "parsed_line_count": 9129,
+    "syscall_line_count": 9125,
+    "signal_line_count": 4,
+    "exit_line_count": 0,
+    "unparsed_line_count": 0,
+    "observed_trace_sha256": "2497829a0afcb41f7fc0af9ba453124b84d8592b376bff4484ad60b8b4060816"
+  },
+  "evidence": {
+    "hostile_probe_sha256": "9a22adffe0035af7f28cd1dd2948ddbee1419290ca810b33fae60f67f8f98d39",
+    "builder_report_sha256": "0f70fdadeaa83688eaf9caf005434a6864821d9ad900f95113be0d2e69d4d541",
+    "artifact_inventory_sha256": "17ed8aee18623f2a41a01b3fe1a85770e6d0134568f15b86b07b07e9e63ee44d",
+    "sigstore_bundle_sha256": "78f7e00e946ea546f2c505d178676d005ece7559f228f335c997e991a48ea865",
+    "trusted_root_sha256": "65ca537f6ed8a47fd0e560c421baa1f6c1efb8b25fc200d8c5c02c0e92eb2b9c",
+    "verification_result_sha256": "053786de70e55a3b3cb4f467fd50593ae4d8b2d89d188e7aaa6893462b0ed79d"
+  },
+  "attestation": {
+    "statement_type": "https://in-toto.io/Statement/v1",
+    "predicate_type": "https://slsa.dev/provenance/v1",
+    "certificate_identity": "https://github.com/SauceTaster/assured-downstream/.github/workflows/publish-python-builder.yml@refs/heads/main",
+    "oidc_issuer": "https://token.actions.githubusercontent.com",
+    "source_ref": "refs/heads/main",
+    "transparency_log": "https://rekor.sigstore.dev",
+    "transparency_log_timestamp": "2026-07-12T20:22:30-07:00",
+    "verified": true
+  },
+  "retention": {
+    "actions_artifact": {
+      "id": 8268338973,
+      "name": "python-wheel-v2-hostile-isolation-canary",
+      "sha256": "f5acc09a10e0781cee1aefcfc1f87ff2f98a6d884c6b54627c29ca05cafb41f1",
+      "expires_at": "2026-07-20T03:22:34Z"
+    },
+    "durable_release_asset": {
+      "release_url": "https://github.com/SauceTaster/assured-downstream/releases/tag/builder-python-wheel-v2-hostile-canary",
+      "tag": "builder-python-wheel-v2-hostile-canary",
+      "target_commit": "81ada239c2ea4cb0460e37100ee9dd0b0bc13959",
+      "prerelease": true,
+      "asset_name": "assured-downstream-python-wheel-v2-hostile-canary-29221499094.tar.gz",
+      "asset_url": "https://github.com/SauceTaster/assured-downstream/releases/download/builder-python-wheel-v2-hostile-canary/assured-downstream-python-wheel-v2-hostile-canary-29221499094.tar.gz",
+      "sha256": "d8ad50210bb741be040a3452a9067266be1fa87ed263b36678cf1221dc7c306a",
+      "size_bytes": 908338,
+      "published_at": "2026-07-13T03:31:21Z"
+    }
+  },
+  "independently_verified": {
+    "published_manifest_subject": true,
+    "sigstore_certificate_identity": true,
+    "slsa_intoto_statement": true,
+    "hosted_runner": true,
+    "trace_parser_completeness": true,
+    "hostile_attempt_denials": true,
+    "kernel_or_runtime_resistance": false,
+    "independent_observer": false,
+    "independent_host_reproduction": false,
+    "artifact_reproducibility": false
+  },
+  "claim_limit": "This verifies the published image identity, SLSA/in-toto Sigstore attestation, and the tested GitHub-hosted Docker boundary against the enumerated hostile operations. It does not prove resistance to kernel, runtime, or collector exploitation and does not establish second-host reproducibility."
+}

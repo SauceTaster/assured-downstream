@@ -46,22 +46,26 @@ uncompromised.
 
 The first `python-wheel-v1` canary ran its collector and build child under the
 same unprivileged UID. Exact inventory and parser checks caught corruption but
-could not establish tamper resistance against hostile source. The replacement
-`python-wheel-v2` profile is under test: a root supervisor owns mode-0700
-collector output and invokes only the tracee as UID/GID 65532. Build artifacts
-land in a separate disposable tree and are copied through bounded, no-follow,
-identity-checked snapshots after strace has reaped the traced process tree.
+could not establish tamper resistance against hostile source. The published
+`python-wheel-v2` profile replaces that boundary: a root supervisor owns
+mode-0700 collector output and invokes only the tracee as UID/GID 65532. Build
+artifacts land in a separate disposable tree and are copied through bounded,
+no-follow, identity-checked snapshots after strace has reaped the traced process
+tree.
 
 The supervisor receives only `CHOWN`, `KILL`, `SETGID`, `SETUID`, and `SYS_PTRACE`
 inside the container's private PID namespace. The tracee must report zero
 effective capabilities and `NoNewPrivs: 1`. A custom PEP 517 fixture attempts
 to signal PID 1, modify the immutable entrypoint, list and write `/out`, and
-read `/proc/1/mem`. The profile remains unapproved until those operations are
-denied against the quarantined local image. Registry authentication, push, and
-attestation happen only afterward, and the pulled registry digest must resolve
-to the same tested image ID. Passing this canary narrows the known same-UID
+read `/proc/1/mem`. Run `29221499094` denied every operation during both backend
+invocations, observed zero tracee capabilities, `NoNewPrivs: 1`, seccomp mode 2,
+and 9,129 parsed trace lines with no parser misses. Registry authentication,
+push, and attestation happened only afterward; the pulled registry digest
+resolved to the same tested image ID. Independent Sigstore verification bound
+the published manifest digest to the expected workflow, source commit, hosted
+runner, in-toto statement, and SLSA provenance. This narrows the known same-UID
 weakness; it still does not prove resistance to a kernel, runtime, or collector
-exploit. The v1 Bandit caller remains disabled during this migration.
+exploit. The v1 Bandit caller remains disabled during migration.
 
 Because a tracee can request `CLONE_UNTRACED`, `-f` is not treated as a
 quiescence guarantee. After strace returns, the PID 1 supervisor kills and

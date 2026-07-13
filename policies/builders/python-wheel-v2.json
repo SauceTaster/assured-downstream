@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "implementation-under-test",
+  "status": "published-and-sigstore-verified",
   "profile_id": "python-wheel-v2",
   "platform": "linux/amd64",
   "image": "ghcr.io/saucetaster/assured-downstream-python-builder",
@@ -55,7 +55,32 @@
       "root-memory-read"
     ],
     "required_build_capabilities": "0000000000000000",
-    "required_no_new_privileges": 1
+    "required_no_new_privileges": 1,
+    "required_seccomp": 2,
+    "status": "verified",
+    "workflow_run_id": 29221499094,
+    "workflow_run_url": "https://github.com/SauceTaster/assured-downstream/actions/runs/29221499094",
+    "tested_local_image_id": "sha256:be4dccbae4e919660031b9fddd43651f9e138f6c807390ca2da3d8678182299c",
+    "artifact": {
+      "id": 8268338973,
+      "name": "python-wheel-v2-hostile-isolation-canary",
+      "sha256": "f5acc09a10e0781cee1aefcfc1f87ff2f98a6d884c6b54627c29ca05cafb41f1",
+      "expires_at": "2026-07-20T03:22:34Z"
+    },
+    "evidence": {
+      "probe_sha256": "9a22adffe0035af7f28cd1dd2948ddbee1419290ca810b33fae60f67f8f98d39",
+      "builder_report_sha256": "0f70fdadeaa83688eaf9caf005434a6864821d9ad900f95113be0d2e69d4d541",
+      "observed_trace_sha256": "2497829a0afcb41f7fc0af9ba453124b84d8592b376bff4484ad60b8b4060816",
+      "parsed_trace_lines": 9129,
+      "unparsed_trace_lines": 0,
+      "all_required_denials_observed": true
+    },
+    "durable_release": {
+      "url": "https://github.com/SauceTaster/assured-downstream/releases/tag/builder-python-wheel-v2-hostile-canary",
+      "asset": "assured-downstream-python-wheel-v2-hostile-canary-29221499094.tar.gz",
+      "sha256": "d8ad50210bb741be040a3452a9067266be1fa87ed263b36678cf1221dc7c306a",
+      "size_bytes": 908338
+    }
   },
   "bootstrap_actions": {
     "actions/attest": "a1948c3f048ba23858d222213b7c278aabede763",
@@ -65,15 +90,18 @@
     "docker/login-action": "5e57cd118135c172c3672efd75eb46360885c0ef",
     "docker/setup-buildx-action": "8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"
   },
-  "published_image_digest": null,
+  "published_image_digest": "sha256:18916b853d240d87c653175368bd9a8f54edac8f77553d7c0e2b23abb87d5221",
   "publication": {
-    "source_commit": null,
+    "source_commit": "81ada239c2ea4cb0460e37100ee9dd0b0bc13959",
     "workflow": ".github/workflows/publish-python-builder.yml",
-    "workflow_run_id": null,
-    "certificate_identity": null,
-    "runner_environment": null,
+    "workflow_run_id": 29221499094,
+    "certificate_identity": "https://github.com/SauceTaster/assured-downstream/.github/workflows/publish-python-builder.yml@refs/heads/main",
+    "runner_environment": "github-hosted",
     "transparency_log": "https://rekor.sigstore.dev",
-    "verified": false
+    "transparency_log_timestamp": "2026-07-12T20:22:30-07:00",
+    "predicate_type": "https://slsa.dev/provenance/v1",
+    "statement_type": "https://in-toto.io/Statement/v1",
+    "verified": true
   },
-  "claim_limit": "The v2 design separates collector and tracee identities and protects collector output from the build UID. The workflow cannot publish until the local hostile fixture passes; approval remains blocked until the resulting registry digest and image attestation are independently verified."
+  "claim_limit": "The hostile canary and raw trace verify the build UID could not signal the root collector, modify its entrypoint, list or write collector evidence, or read root process memory under this GitHub-hosted Docker execution. This closes the known same-UID collector weakness but does not prove resistance to kernel, runtime, or collector exploitation, independent-host equivalence, or reproducible output."
 }

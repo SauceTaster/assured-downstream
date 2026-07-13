@@ -2,8 +2,9 @@
 
 Status: five pilot forks created, lineage-verified, locally reconciled, and
 analyzed through durable agents. The exact upstream Bandit source now has a
-verified build-evidence canary; the separate additive `secure/main` patch
-remains local and unpublished.
+verified build-evidence canary, and the replacement Python builder has a
+retained hostile-source isolation canary; the separate additive `secure/main`
+patch remains local and unpublished.
 
 ## Objective
 
@@ -86,11 +87,20 @@ fork-of-a-fork lineage, and copyleft obligation handling.
 - published the original evidence and durable verifier ledger as a development
   prerelease asset with SHA-256
   `b66d6c9712bf7e6d0e9adbf030e60a6b2d3bfc4f1288089a9bc9a517050a7524`
+- published `python-wheel-v2` only after an unprivileged hostile PEP 517 build
+  failed to signal the collector, modify its entrypoint, inspect or write its
+  evidence, or read its memory
+- independently verified the exact v2 manifest's SLSA/in-toto Sigstore
+  attestation and retained the canary, raw trace, and verification material as
+  a prerelease asset with SHA-256
+  `d8ad50210bb741be040a3452a9067266be1fa87ed263b36678cf1221dc7c306a`
 
 The machine-readable patch evidence is in [`patch-canary.json`](./patch-canary.json).
 It deliberately makes no build, runtime, attestation, or hardened-release claim.
 The live build result is in
 [`bandit-build-canary.json`](./bandit-build-canary.json).
+The builder containment result is in
+[`python-builder-v2-canary.json`](./python-builder-v2-canary.json).
 
 The real checkouts exposed and drove fixes for GitHub Actions YAML parsing, Go
 semantic import version names, mixed-language release-profile priority, and
@@ -111,8 +121,8 @@ as a separate governed migration.
 
 ## Next Run
 
-1. Separate collector-owned evidence from the hostile build UID and add a
-   source fixture that actively attempts trace tampering.
+1. Migrate the exact Bandit source canary onto the verified v2 builder and
+   re-run the retained Builder Verifier lane.
 2. Verify exact Git ancestry and signer workflow content through independent
    code before allowing production `Attested` to pass.
 3. Rebuild the same source on a second independent host and compare artifact

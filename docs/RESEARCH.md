@@ -274,8 +274,17 @@ entrypoint modification, evidence directory listing and writing, and root
 process memory access. Its own `/proc/self/status` must show UID/GID 65532, zero
 effective capabilities, seccomp filtering, and `NoNewPrivs: 1`. The workflow
 does not authenticate to GHCR until the local image passes; after push, it pulls
-the registry digest and requires the same image ID before attesting. Independent
-Sigstore verification of the exact digest is still required before approval.
+the registry digest and requires the same image ID before attesting.
+
+Run `29221499094` passed that gate and published manifest
+`sha256:18916b853d240d87c653175368bd9a8f54edac8f77553d7c0e2b23abb87d5221`.
+Independent verification required its exact workflow certificate identity,
+source commit `81ada239c2ea4cb0460e37100ee9dd0b0bc13959`, protected main ref,
+GitHub-hosted runner, SLSA v1 predicate, in-toto v1 statement, subject digest,
+and Rekor timestamp. The canary, raw traces, Sigstore bundle, trusted-root
+snapshot, verification result, and internal checksums are retained in a
+development prerelease with archive SHA-256
+`d8ad50210bb741be040a3452a9067266be1fa87ed263b36678cf1221dc7c306a`.
 
 This is an MVP containment improvement, not the final observer model. A second
 host-level or sidecar collector remains desirable because an in-container root
