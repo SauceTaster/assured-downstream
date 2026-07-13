@@ -124,7 +124,10 @@ fork-of-a-fork lineage, and copyleft obligation handling.
   finding was reported
 - published the original v2 evidence and durable verifier ledger as a
   development prerelease asset with SHA-256
-  `e1522e0070b8ea7f0aa6bfd704f156c405e8fa63356ec527689ec867605a18b0`
+  `dffa8dd08e6c3084e567c2cd2b33912ebf07941595217b5f58e023a0bbe2bde7`
+- extracted that prerelease into a separate directory, reverified both signed
+  evidence sets, and reproduced the two-agent `needs_human_review` outcome with
+  all stored artifact integrity checks green
 
 The machine-readable patch evidence is in [`patch-canary.json`](./patch-canary.json).
 It deliberately makes no build, runtime, attestation, or hardened-release claim.
@@ -134,6 +137,9 @@ The replacement v2 build result is in
 [`bandit-build-canary-v2.json`](./bandit-build-canary-v2.json).
 The two-run mismatch and durable Governor decision are in
 [`bandit-reproducibility-v2.json`](./bandit-reproducibility-v2.json).
+The portable evidence is retained in the
+[`case-study-001-bandit-reproducibility-v2`](https://github.com/SauceTaster/assured-downstream/releases/tag/case-study-001-bandit-reproducibility-v2)
+development prerelease.
 The builder containment result is in
 [`python-builder-v2-canary.json`](./python-builder-v2-canary.json).
 

@@ -122,6 +122,29 @@
     "mismatch_review_sha256": "983ad251c8cb1913c8ddbcd3a04f9b21d6865678bf789ea647f5c028754eec18",
     "gate_sha256": "f57ee5409dae4d21a2096ea7094bc2ef301ce1efda9dc76280f9a4fc9eacb5d2"
   },
+  "publication": {
+    "status": "development-prerelease",
+    "published_at": "2026-07-13T05:38:30Z",
+    "repository_commit": "16ab9b2f05b2ef26752b4df7d0738b0af1584487",
+    "release_tag": "case-study-001-bandit-reproducibility-v2",
+    "release_url": "https://github.com/SauceTaster/assured-downstream/releases/tag/case-study-001-bandit-reproducibility-v2",
+    "asset": {
+      "name": "assured-bandit-reproducibility-v2.tar.gz",
+      "url": "https://github.com/SauceTaster/assured-downstream/releases/download/case-study-001-bandit-reproducibility-v2/assured-bandit-reproducibility-v2.tar.gz",
+      "sha256": "dffa8dd08e6c3084e567c2cd2b33912ebf07941595217b5f58e023a0bbe2bde7",
+      "size_bytes": 6506531,
+      "checksum_entry_count": 67
+    },
+    "portable_replay": {
+      "checked_at": "2026-07-13T05:39:12Z",
+      "run_id": "bandit-v2-portable-replay",
+      "status": "needs_human_review",
+      "processed_work_count": 2,
+      "pending_work_count": 0,
+      "stored_artifact_integrity": true,
+      "semantic_outcome_matches_recorded_case": true
+    }
+  },
   "gate": {
     "name": "artifact-reproducibility-candidate",
     "passed": false,

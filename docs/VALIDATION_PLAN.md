@@ -185,6 +185,11 @@ sdist payload matched but gzip/tar mtimes changed, and SPDX bytes also changed.
 The durable run remained `needs_human_review`. This is a successful validation
 of mismatch handling, not a `Reproducible` release.
 
+The retained prerelease was then extracted to a separate path and replayed from
+its relative manifests. Both Sigstore evidence sets reverified, all durable
+artifact references passed integrity checks, and the same non-authorizing
+Governor result was reproduced.
+
 ### T2 - Sandbox Owner Attested Case Study
 
 Purpose: prove an end-to-end downstream fork can produce evidence.

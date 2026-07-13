@@ -48,7 +48,8 @@ As of the 2026-07-13 prototype pass:
   sets: the Repro Agent freshly reverifies both manifests, performs defensive
   archive/SBOM/material/builder comparison, and routes mismatches to a durable
   Governor gate. The first case correctly failed exact reproducibility because
-  sdist and SPDX bytes differ.
+  sdist and SPDX bytes differ. A portable prerelease containing both evidence
+  sets and the durable ledger was extracted and replayed successfully.
 - WP12 diagnostics have advanced without becoming a gate: trace normal form v2
   preserves counts, outcomes, and signals while normalizing enumerated Python
   temp paths. Both Bandit observations produced the same normalized digest.
@@ -665,8 +666,9 @@ Do not scope creep:
 
 Owner: Evidence/Repro Agent.
 
-Status: comparator, durable Repro/Governor handoff, mismatch packet, and blocked
-real Bandit case implemented. A `Reproducible` candidate has not passed.
+Status: comparator, durable Repro/Governor handoff, mismatch packet, portable
+replay, and blocked real Bandit case implemented. A `Reproducible` candidate
+has not passed.
 
 WBS refs: 4.1.4, 4.1.5, 4.1.6, 6.2.2.
 
