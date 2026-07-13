@@ -47,6 +47,35 @@
     "docker/login-action": "5e57cd118135c172c3672efd75eb46360885c0ef",
     "docker/setup-buildx-action": "8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"
   },
+  "reusable_workflow": {
+    "path": ".github/workflows/reusable-python-build.yml",
+    "handoff_verifier_commit": "6db8f2b834f0318e615bfd849e17e9839aaad078",
+    "actions": {
+      "actions/attest": "a1948c3f048ba23858d222213b7c278aabede763",
+      "actions/checkout": "34e114876b0b11c390a56381ad16ebd13914f8d5",
+      "actions/download-artifact": "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+      "actions/upload-artifact": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "anchore/sbom-action": "e22c389904149dbc22b58101806040fa8d37a610"
+    },
+    "permission_domains": [
+      "read-only isolated build",
+      "token-permissionless inspection",
+      "source-free keyless attestation"
+    ],
+    "approved_request": {
+      "caller_repository": "SauceTaster/assured-downstream",
+      "caller_workflow_ref": "SauceTaster/assured-downstream/.github/workflows/case-study-bandit-build.yml@refs/heads/main",
+      "source_repository": "PyCQA/bandit",
+      "source_commit": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+      "source_tree": "5313408ad294e5a95f214620ec3064f8e40bc608",
+      "upstream_repository": "PyCQA/bandit",
+      "upstream_commit": "c45446eaa30c4f28289c3b8ba9a955e1d78ba715",
+      "target_repository": "SauceTaster/assured-bandit",
+      "project_version": "1.9.4",
+      "release_tag": "case-001-bandit-source-canary",
+      "case_id": "case-001-bandit-source-canary"
+    }
+  },
   "published_image_digest": "sha256:fabfecbd48689108af585a49c6c9ee5522bb02aad716fcdc84a8799560ab791b",
   "publication": {
     "source_commit": "883aaf4b180ebb677e0b2c284242ee3c314d46b1",

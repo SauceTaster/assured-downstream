@@ -18,6 +18,30 @@ Generated workflows also fail closed until their release profile confirms a
 digest-pinned builder image and argv-only command. They never interpolate the
 repository's suggested shell build commands into the host runner.
 
+The central Python build service is a reusable workflow with three permission
+domains. Its build job accepts only repository, commit, tree, version, and case
+metadata; executes a fixed image entrypoint under a no-network container; and
+has no OIDC or attestation permission. A token-permissionless inspection job
+generates and binds the SPDX document. A final job receives keyless attestation
+permission but never checks out or executes source. Each handoff is revalidated
+by code fetched from an immutable control-plane commit and checked against
+hardcoded file digests.
+
+The caller workflow identity, exact built source identity, upstream lineage
+claim, reusable workflow signer identity, handoff-verifier commit, and builder
+image digest are distinct fields. A successful workflow does not collapse
+these into one authority. The first Bandit source canary deliberately builds
+the exact upstream commit because the governed downstream overlay remains
+unpublished.
+
+The development reusable workflow is allowlisted to that exact caller workflow
+and Bandit request. General agent dispatch remains disabled until a signed,
+replay-resistant build-request verifier replaces the static allowlist. The
+pinned image entrypoint invokes strace; the handoff verifier requires retained
+raw trace files and a complete parser pass before evidence can reach
+attestation. This demonstrates observed collection, not independent proof that
+the collector or container boundary was uncompromised.
+
 ## Build Result
 
 ```json
