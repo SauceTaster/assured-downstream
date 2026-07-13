@@ -147,6 +147,10 @@ fork-of-a-fork lineage, and copyleft obligation handling.
 - reran three Luna review rounds to closure; the final focused review reported
   no actionable findings, and the hardened real replay passed all ten Governor
   checks while retaining the installed-control-plane trust assumption
+- published a deterministic 163-entry v3 replay archive, verified all 162
+  internal checksums after extraction, replayed it from the extracted package,
+  and confirmed a fresh GitHub download matched SHA-256
+  `dd58793059bded8c8074eb11da14b8fb6a87d0cc7df4fdf5ed6237561c84b356`
 - recorded the parser limit explicitly: the retained trace does not independently
   prove the complete build invocation, process lifecycle, or collector resistance
 
@@ -160,6 +164,10 @@ The two-run mismatch and durable Governor decision are in
 [`bandit-reproducibility-v2.json`](./bandit-reproducibility-v2.json).
 The corrected two-run development candidate is in
 [`bandit-reproducibility-v3.json`](./bandit-reproducibility-v3.json).
+Its complete evidence, policies, verifier sources, ledger, checksums, and replay
+instructions are retained in the
+[`case-study-001-bandit-reproducibility-v3`](https://github.com/SauceTaster/assured-downstream/releases/tag/case-study-001-bandit-reproducibility-v3)
+development prerelease.
 The portable evidence is retained in the
 [`case-study-001-bandit-reproducibility-v2`](https://github.com/SauceTaster/assured-downstream/releases/tag/case-study-001-bandit-reproducibility-v2)
 development prerelease.
@@ -185,14 +193,12 @@ as a separate governed migration.
 
 ## Next Run
 
-1. Retain and replay the complete v3 case package outside GitHub Actions artifact
-   expiry.
-2. Repeat the request on a genuinely independent executor with independent
+1. Repeat the request on a genuinely independent executor with independent
    source acquisition before making any host-independence claim.
-3. Verify exact Git ancestry and signer workflow content through separate code
+2. Verify exact Git ancestry and signer workflow content through separate code
    before allowing production `Attested` to pass.
-4. Build real Java and .NET evidence profiles from the bounded v3 contract.
-5. Review the five unapproved Bandit changes separately; no workflow surgery or
+3. Build real Java and .NET evidence profiles from the bounded v3 contract.
+4. Review the five unapproved Bandit changes separately; no workflow surgery or
    release logic should inherit the additive policy approval.
-6. Redesign publication authorization inside the single-account boundary before
+5. Redesign publication authorization inside the single-account boundary before
    any public `secure/main` mutation.

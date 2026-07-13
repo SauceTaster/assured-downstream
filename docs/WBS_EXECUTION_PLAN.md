@@ -51,6 +51,9 @@ As of the 2026-07-13 prototype pass:
   normalized SPDX matches through a durable Repro/Governor candidate gate. It
   does not authorize promotion or claim provider independence. Three hostile
   review rounds closed the candidate-gate and verifier-anchor findings.
+  The deterministic package is now retained outside Actions artifact expiry;
+  an extracted copy and a fresh GitHub download both passed integrity checks,
+  and the extracted copy reproduced the bounded candidate decision.
 - WP12 diagnostics have advanced without becoming a production gate: both v3
   Bandit runs retained 36,170 parseable trace records and produced the same
   normalized behavior digest. Full invocation, lifecycle, and collector
@@ -68,17 +71,15 @@ As of the 2026-07-13 prototype pass:
 
 Current critical path:
 
-1. Retain and replay the successful v3 Bandit evidence outside Actions artifact
-   expiry, with its verifier policy and durable agent decisions.
-2. Add an independent executor and independently reacquire the exact source
+1. Add an independent executor and independently reacquire the exact source
    before granting any host- or provider-independence claim.
-3. WP7: implement code-anchored lineage, builder, tooling, and workflow-content
+2. WP7: implement code-anchored lineage, builder, tooling, and workflow-content
    verifiers. Signed workflow claims are not yet separate proof of ancestry or
    isolation.
-4. Add real Java and .NET build/evidence profiles using the v3 evidence contract.
-5. Redesign remote authorization inside the single-account boundary, then test
+3. Add real Java and .NET build/evidence profiles using the v3 evidence contract.
+4. Redesign remote authorization inside the single-account boundary, then test
    public secure-ref publication separately from build safety.
-6. Add organization replay, branch protection, and scheduled upstream detection.
+5. Add organization replay, branch protection, and scheduled upstream detection.
 
 ## Operating Rules
 
@@ -674,7 +675,8 @@ Owner: Evidence/Repro Agent.
 Status: comparator, durable Repro/Governor handoff, mismatch packet, and portable
 replay are implemented. The v2 real Bandit case blocked; the corrected v3 case
 passed as a same-provider artifact reproducibility candidate. No production
-`Reproducible` or promotion claim has passed.
+`Reproducible` or promotion claim has passed. Its complete durable package was
+downloaded, checksum-verified, extracted, and replayed successfully.
 
 WBS refs: 4.1.4, 4.1.5, 4.1.6, 6.2.2.
 
@@ -780,16 +782,15 @@ retain these ownership boundaries.
 
 ## Next Implementation Tasks
 
-1. Publish and independently replay the durable v3 Bandit case package.
-2. Schedule a genuinely provider-independent rebuild with independent source
+1. Schedule a genuinely provider-independent rebuild with independent source
    acquisition and a separate collector trust boundary.
-3. Implement code-anchored lineage, builder, tooling-lock, and workflow-content
+2. Implement code-anchored lineage, builder, tooling-lock, and workflow-content
    verification before enabling production `Attested`.
-4. Build Java and .NET evidence profiles and run real cohort cases.
-5. Redesign publication approval inside the GitHub account boundary.
-6. Replay WP1 against the eventual organization and add downstream branch
+3. Build Java and .NET evidence profiles and run real cohort cases.
+4. Redesign publication approval inside the GitHub account boundary.
+5. Replay WP1 against the eventual organization and add downstream branch
    protection plus scheduled upstream-change ingestion.
-7. Run WP10: full sandbox MVP over one first-lane seed and fixture-like real
+6. Run WP10: full sandbox MVP over one first-lane seed and fixture-like real
    candidates across the supported language set.
 
 WP12 remains diagnostic until independent execution and collector trust are

@@ -184,6 +184,8 @@ binding, raw trace parseability, and full-byte verifier sources against a
 separate code trust root. Production `Attested` remains blocked until
 separate code also verifies upstream ancestry, workflow content, tooling, source
 reacquisition, and builder or collector isolation.
+The complete v3 case is retained as a checksummed development prerelease and
+was successfully replayed after fresh extraction.
 
 - 3.4.1 Create evidence manifests
 - 3.4.2 Verify local evidence manifests
@@ -204,6 +206,8 @@ freshly reverified GitHub-hosted runs. This is a same-provider reproducibility
 candidate with no promotion authority. Provider-independent runners remain.
 The hardened comparison and Governor bindings passed a final focused Luna
 review with no actionable findings.
+The complete two-run package was deterministically archived, downloaded back
+from GitHub, checksum-verified, and replayed successfully.
 
 - 4.1.1 Compare evidence manifests
 - 4.1.2 Compare artifact hashes across hosts

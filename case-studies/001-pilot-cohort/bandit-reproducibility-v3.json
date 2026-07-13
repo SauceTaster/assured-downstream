@@ -163,6 +163,30 @@
     "comparison_sha256": "923b28faa23b33805200517b8d2adb4fece10b124d3883580be8eca1fd29daf6",
     "gate_sha256": "12b5a1c616c8d267667191cf95cc1995af3c9fece495ca8f4ada23d9fec3294b"
   },
+  "durable_release": {
+    "tag": "case-study-001-bandit-reproducibility-v3",
+    "url": "https://github.com/SauceTaster/assured-downstream/releases/tag/case-study-001-bandit-reproducibility-v3",
+    "target_commit": "99e4213f7636d46929167cde092b96ee42aea540",
+    "published_at": "2026-07-13T16:26:28Z",
+    "prerelease": true,
+    "asset": {
+      "github_asset_id": 475669073,
+      "name": "case-study-001-bandit-reproducibility-v3.tar.gz",
+      "size_bytes": 13740178,
+      "sha256": "dd58793059bded8c8074eb11da14b8fb6a87d0cc7df4fdf5ed6237561c84b356"
+    },
+    "internal_checksum_count": 162,
+    "archive_entry_count": 163,
+    "deterministic_archive_generation": true,
+    "downloaded_asset_exact_match": true,
+    "extracted_replay": {
+      "status": "succeeded",
+      "event": "ReproducibilityV3CandidateReady",
+      "governor_check_count": 10,
+      "provider_independent": false,
+      "promotion_authorized": false
+    }
+  },
   "gate": {
     "name": "v3-reproducibility-candidate",
     "passed": true,

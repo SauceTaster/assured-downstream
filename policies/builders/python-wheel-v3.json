@@ -70,6 +70,11 @@
     },
     "normalized_spdx_sha256": "9811609dba45f03eef83586aaaf7b3d3bd6eea31d6f96e25057501c5ca0eeab1",
     "normalized_behavior_sha256": "8fc6b744e2e074cc7d7ac959182f39e7b0e33d04c1d48e04e26e9cb8e7fc370b",
+    "durable_release": {
+      "tag": "case-study-001-bandit-reproducibility-v3",
+      "target_commit": "99e4213f7636d46929167cde092b96ee42aea540",
+      "asset_sha256": "dd58793059bded8c8074eb11da14b8fb6a87d0cc7df4fdf5ed6237561c84b356"
+    },
     "artifact_reproducibility_candidate": true,
     "behavior_reproducibility_candidate": true,
     "provider_independent": false,
