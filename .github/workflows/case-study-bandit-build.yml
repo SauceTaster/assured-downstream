@@ -9,6 +9,8 @@ permissions:
 jobs:
   build:
     name: Build exact Bandit source through the assured builder
+    # No GitHub event has this name; v1 stays quarantined until v2 is pinned.
+    if: github.event_name == 'v2-migration-disabled'
     permissions:
       attestations: write # Store attestations for this controlled caller.
       contents: read

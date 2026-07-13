@@ -112,6 +112,10 @@ class ReusableBuilderWorkflowTests(unittest.TestCase):
         )
         workflow = parse_workflow_yaml(CASE_WORKFLOW.read_text(encoding="utf-8"))
         build = workflow["jobs"]["build"]
+        self.assertEqual(
+            build["if"],
+            "github.event_name == 'v2-migration-disabled'",
+        )
         inputs = build["with"]
         signer_commit = policy["reusable_workflow"]["signer_commit"]
 
@@ -139,6 +143,7 @@ class ReusableBuilderWorkflowTests(unittest.TestCase):
         self.assertEqual(inputs["source_commit"], inputs["upstream_commit"])
         self.assertIn("source-canary", inputs["release_tag"])
         self.assertNotIn("secure", inputs["release_tag"])
+
 
 if __name__ == "__main__":
     unittest.main()

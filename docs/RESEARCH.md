@@ -247,3 +247,49 @@ Sources:
   https://github.com/actions/attest
 - SPDX 2.3 file checksums and relationships:
   https://spdx.github.io/spdx-spec/v2.3/
+
+## 2026-07-13: Collector And Hostile Build Identity Separation
+
+Question: how can the MVP prevent untrusted build code from editing or killing
+its own syscall collector without introducing a privileged sidecar platform?
+
+Decision: version the Python profile instead of silently changing the v1 trust
+model. `python-wheel-v2` runs a trusted root supervisor in the container's
+private PID namespace and uses strace's `-u` option to launch only the build
+tracee as UID/GID 65532. The container drops every capability and restores only
+`CHOWN`, `KILL`, `SETGID`, `SETUID`, and `SYS_PTRACE` for the supervisor. The root
+filesystem is read-only, `no-new-privileges` remains enabled, source is
+read-only, and `/out` is a root-owned mode-0700 bind mount. Untrusted artifacts
+are first written to a separate tmpfs and then copied into `/out` through
+bounded, no-follow snapshots after the traced process tree exits.
+
+Because Linux permits a tracee to request `CLONE_UNTRACED`, `-f` alone is not a
+quiescence guarantee. The root supervisor is PID 1 in a private PID namespace;
+after strace returns it kills and reaps every other remaining process before
+opening the artifact tree. Artifact snapshots include ctime in their identity
+check and require two matching content hashes around the copy.
+
+The profile includes a PEP 517 source fixture that attempts collector signaling,
+entrypoint modification, evidence directory listing and writing, and root
+process memory access. Its own `/proc/self/status` must show UID/GID 65532, zero
+effective capabilities, seccomp filtering, and `NoNewPrivs: 1`. The workflow
+does not authenticate to GHCR until the local image passes; after push, it pulls
+the registry digest and requires the same image ID before attesting. Independent
+Sigstore verification of the exact digest is still required before approval.
+
+This is an MVP containment improvement, not the final observer model. A second
+host-level or sidecar collector remains desirable because an in-container root
+collector still shares the kernel and container runtime with hostile source.
+
+Sources:
+
+- Docker runtime capabilities and `--cap-add`/`--cap-drop`:
+  https://docs.docker.com/engine/containers/run/
+- Docker `no-new-privileges` and runtime security options:
+  https://docs.docker.com/reference/cli/docker/container/run
+- Docker default seccomp profile:
+  https://docs.docker.com/engine/security/seccomp/
+- Linux Yama ptrace policy and parent/child restrictions:
+  https://docs.kernel.org/admin-guide/LSM/Yama.html
+- strace `-u` tracee identity option:
+  https://man7.org/linux/man-pages/man1/strace.1.html

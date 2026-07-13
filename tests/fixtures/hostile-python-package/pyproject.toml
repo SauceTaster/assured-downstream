@@ -1,0 +1,10 @@
+[build-system]
+requires = []
+build-backend = "hostile_backend"
+backend-path = ["."]
+
+[project]
+name = "assured-hostile-fixture"
+version = "0.0.1"
+description = "Adversarial build fixture for the Assured Downstream collector boundary"
+requires-python = ">=3.11"

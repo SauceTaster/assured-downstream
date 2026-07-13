@@ -7,7 +7,7 @@ LABEL org.opencontainers.image.title="Assured Downstream Python Builder" \
       org.opencontainers.image.description="No-network, traced pure-Python package builder" \
       org.opencontainers.image.source="https://github.com/SauceTaster/assured-downstream" \
       org.opencontainers.image.revision="${VCS_REF}" \
-      org.assured-downstream.builder.profile="python-wheel-v1"
+      org.assured-downstream.builder.profile="python-wheel-v2"
 
 COPY builders/python/requirements.lock /opt/assured-downstream/requirements.lock
 COPY builders/python/entrypoint.py /opt/assured-downstream/entrypoint.py
@@ -34,6 +34,6 @@ ENV HOME=/tmp/home \
     PYTHONHASHSEED=0 \
     TZ=UTC
 
-USER 65532:65532
+USER 0:0
 WORKDIR /workspace
 ENTRYPOINT ["python", "-I", "/opt/assured-downstream/entrypoint.py"]

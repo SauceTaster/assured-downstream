@@ -9,16 +9,23 @@ import os
 import platform
 import re
 import shutil
+import signal
 import stat
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
 
-PROFILE_ID = "python-wheel-v1"
+PROFILE_ID = "python-wheel-v2"
+BUILD_UID = 65532
+BUILD_GID = 65532
+BUILD_USER = "assured"
 INPUT_ROOT = Path("/input")
 WORK_ROOT = Path("/workspace/source")
+BUILD_OUTPUT_ROOT = Path("/workspace/output")
+BUILD_DIST_ROOT = BUILD_OUTPUT_ROOT / "dist"
 OUTPUT_ROOT = Path("/out")
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 REPOSITORY_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
@@ -55,10 +62,20 @@ FILE_OPERATIONS = {
     "unlink": "delete",
     "unlinkat": "delete",
 }
-NETWORK_OPERATIONS = {"accept", "accept4", "bind", "connect", "listen", "recvfrom", "sendto"}
+NETWORK_OPERATIONS = {
+    "accept",
+    "accept4",
+    "bind",
+    "connect",
+    "listen",
+    "recvfrom",
+    "sendto",
+}
 WRITE_FLAGS = ("O_WRONLY", "O_RDWR", "O_CREAT", "O_TRUNC", "O_APPEND")
 MAX_ARTIFACTS = 128
 MAX_ARTIFACT_BYTES = 512 * 1024 * 1024
+MAX_TOTAL_ARTIFACT_BYTES = 1024 * 1024 * 1024
+COPY_CHUNK_SIZE = 1024 * 1024
 
 
 class BuilderError(RuntimeError):
@@ -67,42 +84,26 @@ class BuilderError(RuntimeError):
 
 def main() -> int:
     if len(sys.argv) != 1:
-        raise BuilderError("python-wheel-v1 does not accept command arguments")
+        raise BuilderError(f"{PROFILE_ID} does not accept command arguments")
+    if os.geteuid() != 0 or os.getegid() != 0:
+        raise BuilderError(f"{PROFILE_ID} requires the trusted root supervisor")
 
     metadata = load_metadata(os.environ)
     prepare_directories()
     copy_source()
+    grant_build_ownership(WORK_ROOT)
     source_inventory = inventory_tree(WORK_ROOT)
     write_json(OUTPUT_ROOT / "reports" / "source-inventory.json", source_inventory)
 
     started_at = utc_now()
-    command = [
-        "/usr/bin/strace",
-        "-ff",
-        "-qq",
-        "-ttt",
-        "-T",
-        "-yy",
-        "-s",
-        "4096",
-        "-o",
-        str(OUTPUT_ROOT / "traces" / "raw" / "strace"),
-        "--",
-        sys.executable,
-        "-I",
-        "-m",
-        "build",
-        "--no-isolation",
-        "--outdir",
-        str(OUTPUT_ROOT / "dist"),
-        str(WORK_ROOT),
-    ]
+    command = collector_command()
     completed = subprocess.run(
         command,
         cwd=WORK_ROOT,
         env=build_environment(metadata),
         check=False,
     )
+    quiescence = enforce_process_quiescence()
 
     trace = parse_strace_directory(OUTPUT_ROOT / "traces" / "raw")
     write_json(OUTPUT_ROOT / "traces" / "observed-trace.json", trace)
@@ -110,8 +111,29 @@ def main() -> int:
     artifact_inventory: dict[str, Any]
     validation_error: str | None = None
     try:
+        identity_boundary = verify_identity_boundary(
+            OUTPUT_ROOT,
+            build_output_root=BUILD_OUTPUT_ROOT,
+        )
+        identity_boundary.update(quiescence)
+        snapshot_artifacts(
+            BUILD_DIST_ROOT,
+            OUTPUT_ROOT / "dist",
+            expected_source_uid=BUILD_UID,
+            expected_source_gid=0,
+            expected_target_uid=0,
+            expected_target_gid=0,
+        )
         artifact_inventory = inventory_artifacts(OUTPUT_ROOT / "dist")
-    except BuilderError as exc:
+    except (BuilderError, OSError) as exc:
+        identity_boundary = {
+            "collector_uid": 0,
+            "build_uid": BUILD_UID,
+            "build_gid": BUILD_GID,
+            "separate_collector_identity": True,
+            "collector_output_writable_by_build": False,
+            "validation_error": str(exc),
+        }
         artifact_inventory = {"schema_version": 1, "artifacts": []}
         validation_error = str(exc)
     write_json(
@@ -147,6 +169,7 @@ def main() -> int:
             "started_at": started_at,
             "finished_at": utc_now(),
             "validation_error": validation_error,
+            "identity_boundary": identity_boundary,
         },
         "trace": {
             "collector": trace["collector"],
@@ -159,12 +182,39 @@ def main() -> int:
             "unparsed_line_count": trace["unparsed_line_count"],
         },
         "claim_limit": (
-            "This report is a builder declaration. Container isolation, source "
-            "lineage, and builder identity require independent verification."
+            "This report declares a root-owned collector and evidence boundary. "
+            "Container isolation, source lineage, and resistance to collector "
+            "exploitation still require independent verification."
         ),
     }
     write_json(OUTPUT_ROOT / "reports" / "builder.json", report)
     return 0 if succeeded else (completed.returncode or 2)
+
+
+def collector_command() -> list[str]:
+    return [
+        "/usr/bin/strace",
+        "-u",
+        BUILD_USER,
+        "-ff",
+        "-qq",
+        "-ttt",
+        "-T",
+        "-yy",
+        "-s",
+        "4096",
+        "-o",
+        str(OUTPUT_ROOT / "traces" / "raw" / "strace"),
+        "--",
+        sys.executable,
+        "-I",
+        "-m",
+        "build",
+        "--no-isolation",
+        "--outdir",
+        str(BUILD_DIST_ROOT),
+        str(WORK_ROOT),
+    ]
 
 
 def load_metadata(environment: dict[str, str]) -> dict[str, str]:
@@ -202,18 +252,39 @@ def required(environment: dict[str, str], name: str) -> str:
 
 
 def prepare_directories() -> None:
-    if not INPUT_ROOT.is_dir():
+    if not INPUT_ROOT.is_dir() or INPUT_ROOT.is_symlink():
         raise BuilderError("/input must be a source directory")
+    output_metadata = OUTPUT_ROOT.lstat()
+    if (
+        not stat.S_ISDIR(output_metadata.st_mode)
+        or OUTPUT_ROOT.is_symlink()
+        or output_metadata.st_uid != 0
+        or output_metadata.st_gid != 0
+        or stat.S_IMODE(output_metadata.st_mode) != 0o700
+    ):
+        raise BuilderError("/out must be a root-owned mode-0700 evidence mount")
     if any(OUTPUT_ROOT.iterdir()):
         raise BuilderError("/out must be empty at builder start")
     for path in (
         WORK_ROOT.parent,
+        BUILD_DIST_ROOT,
         OUTPUT_ROOT / "dist",
         OUTPUT_ROOT / "reports",
         OUTPUT_ROOT / "traces" / "raw",
         Path("/tmp/home"),
     ):
-        path.mkdir(parents=True, exist_ok=True)
+        path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    for path in (
+        OUTPUT_ROOT,
+        OUTPUT_ROOT / "dist",
+        OUTPUT_ROOT / "reports",
+        OUTPUT_ROOT / "traces",
+        OUTPUT_ROOT / "traces" / "raw",
+    ):
+        path.chmod(0o700)
+    for path in (BUILD_OUTPUT_ROOT, BUILD_DIST_ROOT, Path("/tmp/home")):
+        os.chown(path, BUILD_UID, 0)
+        path.chmod(0o2750)
 
 
 def copy_source() -> None:
@@ -223,6 +294,32 @@ def copy_source() -> None:
         symlinks=True,
         ignore=shutil.ignore_patterns(".git"),
     )
+
+
+def grant_build_ownership(root: Path) -> None:
+    for path in [root, *sorted(root.rglob("*"))]:
+        metadata = path.lstat()
+        os.lchown(path, BUILD_UID, 0)
+        if stat.S_ISLNK(metadata.st_mode):
+            continue
+        mode = stat.S_IMODE(metadata.st_mode)
+        if stat.S_ISDIR(metadata.st_mode):
+            path.chmod(
+                mode
+                | stat.S_IRUSR
+                | stat.S_IWUSR
+                | stat.S_IXUSR
+                | stat.S_IRGRP
+                | stat.S_IXGRP
+                | stat.S_ISGID
+            )
+        elif stat.S_ISREG(metadata.st_mode):
+            group_mode = stat.S_IRGRP
+            if mode & stat.S_IXUSR:
+                group_mode |= stat.S_IXGRP
+            path.chmod(mode | stat.S_IRUSR | stat.S_IWUSR | group_mode)
+        else:
+            raise BuilderError(f"source contains unsupported file type: {path}")
 
 
 def build_environment(metadata: dict[str, str]) -> dict[str, str]:
@@ -276,6 +373,270 @@ def inventory_tree(root: Path) -> dict[str, Any]:
     }
 
 
+def verify_identity_boundary(
+    evidence_root: Path,
+    *,
+    build_output_root: Path,
+) -> dict[str, Any]:
+    evidence_metadata = evidence_root.lstat()
+    if (
+        not stat.S_ISDIR(evidence_metadata.st_mode)
+        or evidence_metadata.st_uid != 0
+        or evidence_metadata.st_gid != 0
+        or stat.S_IMODE(evidence_metadata.st_mode) != 0o700
+    ):
+        raise BuilderError("collector evidence root lost its root-only ownership")
+    build_metadata = build_output_root.lstat()
+    if (
+        not stat.S_ISDIR(build_metadata.st_mode)
+        or build_output_root.is_symlink()
+        or build_metadata.st_uid != BUILD_UID
+        or build_metadata.st_gid != 0
+        or stat.S_IMODE(build_metadata.st_mode) != 0o2750
+    ):
+        raise BuilderError("build output root lost its unprivileged ownership")
+
+    raw_traces = sorted((evidence_root / "traces" / "raw").glob("strace.*"))
+    if not raw_traces:
+        raise BuilderError("collector produced no root-owned raw traces")
+    for path in raw_traces:
+        metadata = path.lstat()
+        if (
+            not stat.S_ISREG(metadata.st_mode)
+            or path.is_symlink()
+            or metadata.st_nlink != 1
+            or metadata.st_uid != 0
+            or metadata.st_gid != 0
+            or stat.S_IMODE(metadata.st_mode) & 0o022
+        ):
+            raise BuilderError("collector raw trace ownership is not protected")
+    return {
+        "collector_uid": 0,
+        "collector_gid": 0,
+        "build_uid": BUILD_UID,
+        "build_gid": BUILD_GID,
+        "evidence_uid": evidence_metadata.st_uid,
+        "evidence_gid": evidence_metadata.st_gid,
+        "evidence_mode": f"{stat.S_IMODE(evidence_metadata.st_mode):04o}",
+        "raw_trace_owner_uid": 0,
+        "raw_trace_owner_gid": 0,
+        "separate_collector_identity": True,
+        "collector_output_writable_by_build": False,
+    }
+
+
+def enforce_process_quiescence(
+    *,
+    max_rounds: int = 200,
+    delay_seconds: float = 0.01,
+) -> dict[str, Any]:
+    killed_processes: set[int] = set()
+    for _ in range(max_rounds):
+        reap_children()
+        remaining = remaining_process_ids()
+        if not remaining:
+            return {
+                "quiescence_barrier": "private-pid-namespace-sigkill",
+                "killed_process_count": len(killed_processes),
+                "remaining_process_count": 0,
+            }
+        for process_id in remaining:
+            try:
+                os.kill(process_id, signal.SIGKILL)
+            except ProcessLookupError:
+                continue
+            except PermissionError as exc:
+                raise BuilderError(
+                    f"collector could not terminate escaped process {process_id}"
+                ) from exc
+            killed_processes.add(process_id)
+        time.sleep(delay_seconds)
+    remaining = remaining_process_ids()
+    raise BuilderError(
+        "build process tree did not quiesce: "
+        + ",".join(str(process_id) for process_id in remaining)
+    )
+
+
+def remaining_process_ids() -> list[int]:
+    own_process_id = os.getpid()
+    process_ids = []
+    for path in Path("/proc").iterdir():
+        if not path.name.isdigit():
+            continue
+        process_id = int(path.name)
+        if process_id == own_process_id:
+            continue
+        try:
+            path.lstat()
+        except FileNotFoundError:
+            continue
+        process_ids.append(process_id)
+    return sorted(process_ids)
+
+
+def reap_children() -> None:
+    while True:
+        try:
+            process_id, _ = os.waitpid(-1, os.WNOHANG)
+        except ChildProcessError:
+            return
+        if process_id == 0:
+            return
+
+
+def snapshot_artifacts(
+    source_root: Path,
+    target_root: Path,
+    *,
+    expected_source_uid: int | None = None,
+    expected_source_gid: int | None = None,
+    expected_target_uid: int | None = None,
+    expected_target_gid: int | None = None,
+) -> None:
+    validate_artifact_directory(
+        source_root,
+        label="build artifact root",
+        expected_uid=expected_source_uid,
+        expected_gid=expected_source_gid,
+    )
+    validate_artifact_directory(
+        target_root,
+        label="collector artifact root",
+        expected_uid=expected_target_uid,
+        expected_gid=expected_target_gid,
+    )
+    if any(target_root.iterdir()):
+        raise BuilderError("collector artifact destination must start empty")
+    total_bytes = 0
+    file_count = 0
+    for directory, directory_names, file_names in os.walk(
+        source_root,
+        topdown=True,
+        followlinks=False,
+    ):
+        directory_path = Path(directory)
+        directory_names.sort()
+        file_names.sort()
+        for name in directory_names:
+            source = directory_path / name
+            relative = source.relative_to(source_root)
+            metadata = source.lstat()
+            if not stat.S_ISDIR(metadata.st_mode) or source.is_symlink():
+                raise BuilderError(
+                    f"artifact directory is not a standalone directory: {relative}"
+                )
+            (target_root / relative).mkdir(mode=0o700, parents=True, exist_ok=False)
+        for name in file_names:
+            source = directory_path / name
+            relative = source.relative_to(source_root)
+            target = target_root / relative
+            metadata = source.lstat()
+            file_count += 1
+            if file_count > MAX_ARTIFACTS:
+                raise BuilderError("builder produced too many release artifacts")
+            if (
+                not stat.S_ISREG(metadata.st_mode)
+                or source.is_symlink()
+                or metadata.st_nlink != 1
+            ):
+                raise BuilderError(
+                    f"artifact is not a standalone regular file: {relative}"
+                )
+            if metadata.st_size > MAX_ARTIFACT_BYTES:
+                raise BuilderError(f"artifact exceeds size limit: {relative}")
+            total_bytes += metadata.st_size
+            if total_bytes > MAX_TOTAL_ARTIFACT_BYTES:
+                raise BuilderError("builder artifacts exceed the total size limit")
+            snapshot_regular_artifact(source, target, expected=metadata)
+    if file_count == 0:
+        raise BuilderError("builder produced no release artifacts")
+
+
+def validate_artifact_directory(
+    path: Path,
+    *,
+    label: str,
+    expected_uid: int | None,
+    expected_gid: int | None,
+) -> None:
+    try:
+        metadata = path.lstat()
+    except OSError as exc:
+        raise BuilderError(f"{label} is missing") from exc
+    if not stat.S_ISDIR(metadata.st_mode) or path.is_symlink():
+        raise BuilderError(f"{label} is not a standalone directory")
+    if expected_uid is not None and metadata.st_uid != expected_uid:
+        raise BuilderError(f"{label} has the wrong owner")
+    if expected_gid is not None and metadata.st_gid != expected_gid:
+        raise BuilderError(f"{label} has the wrong group")
+
+
+def snapshot_regular_artifact(
+    source: Path,
+    target: Path,
+    *,
+    expected: os.stat_result,
+) -> None:
+    source_flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        source_flags |= os.O_NOFOLLOW
+    source_fd = os.open(source, source_flags)
+    target_fd: int | None = None
+    try:
+        opened = os.fstat(source_fd)
+        if file_identity(opened) != file_identity(expected):
+            raise BuilderError(f"artifact changed before snapshot: {source.name}")
+        target_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+        if hasattr(os, "O_NOFOLLOW"):
+            target_flags |= os.O_NOFOLLOW
+        target_fd = os.open(target, target_flags, 0o400)
+        copied = 0
+        copied_digest = hashlib.sha256()
+        while chunk := os.read(source_fd, COPY_CHUNK_SIZE):
+            copied += len(chunk)
+            if copied > MAX_ARTIFACT_BYTES:
+                raise BuilderError(
+                    f"artifact changed size while snapshotting: {source.name}"
+                )
+            copied_digest.update(chunk)
+            view = memoryview(chunk)
+            while view:
+                written = os.write(target_fd, view)
+                if written <= 0:
+                    raise BuilderError(f"artifact snapshot stalled: {source.name}")
+                view = view[written:]
+        final = os.fstat(source_fd)
+        if file_identity(final) != file_identity(opened) or copied != opened.st_size:
+            raise BuilderError(f"artifact changed while snapshotting: {source.name}")
+        os.lseek(source_fd, 0, os.SEEK_SET)
+        verification_digest = hashlib.sha256()
+        while chunk := os.read(source_fd, COPY_CHUNK_SIZE):
+            verification_digest.update(chunk)
+        verified = os.fstat(source_fd)
+        if (
+            file_identity(verified) != file_identity(opened)
+            or verification_digest.digest() != copied_digest.digest()
+        ):
+            raise BuilderError(f"artifact content was unstable: {source.name}")
+        os.fsync(target_fd)
+    finally:
+        if target_fd is not None:
+            os.close(target_fd)
+        os.close(source_fd)
+
+
+def file_identity(metadata: os.stat_result) -> tuple[int, int, int, int, int, int]:
+    return (
+        metadata.st_dev,
+        metadata.st_ino,
+        metadata.st_size,
+        metadata.st_mtime_ns,
+        metadata.st_ctime_ns,
+        metadata.st_nlink,
+    )
+
+
 def inventory_artifacts(root: Path) -> dict[str, Any]:
     artifacts: list[dict[str, Any]] = []
     for path in sorted(root.rglob("*")):
@@ -283,7 +644,7 @@ def inventory_artifacts(root: Path) -> dict[str, Any]:
         mode = path.lstat().st_mode
         if stat.S_ISDIR(mode):
             continue
-        if not stat.S_ISREG(mode) or stat.S_ISLNK(mode):
+        if not stat.S_ISREG(mode) or stat.S_ISLNK(mode) or path.stat().st_nlink != 1:
             raise BuilderError(f"artifact is not a regular file: {relative}")
         size = path.stat().st_size
         if size > MAX_ARTIFACT_BYTES:
@@ -381,7 +742,9 @@ def process_event(name: str, arguments: str, outcome: str) -> tuple[str, ...] | 
     return ("process", executable, outcome)
 
 
-def observed_file_event(name: str, arguments: str, outcome: str) -> tuple[str, ...] | None:
+def observed_file_event(
+    name: str, arguments: str, outcome: str
+) -> tuple[str, ...] | None:
     operation = FILE_OPERATIONS.get(name)
     if operation is None:
         return None
@@ -389,7 +752,9 @@ def observed_file_event(name: str, arguments: str, outcome: str) -> tuple[str, .
     if not values:
         return None
     path = values[0]
-    if name in {"open", "openat", "openat2"} and any(flag in arguments for flag in WRITE_FLAGS):
+    if name in {"open", "openat", "openat2"} and any(
+        flag in arguments for flag in WRITE_FLAGS
+    ):
         operation = "write"
     return ("file", operation, path, outcome)
 
@@ -490,7 +855,12 @@ def write_json(path: Path, value: dict[str, Any]) -> None:
 
 
 def utc_now() -> str:
-    return dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        dt.datetime.now(dt.UTC)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 if __name__ == "__main__":

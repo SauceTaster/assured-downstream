@@ -44,14 +44,30 @@ before evidence can reach attestation. This demonstrates observed collection,
 not independent proof that the collector or container boundary was
 uncompromised.
 
-The development image currently runs its collector supervisor and build child
-under the same unprivileged UID. The child can therefore discover and attempt
-to modify collector-owned paths on the shared writable output mount. Exact
-inventory and parser checks catch accidental corruption but do not establish
-tamper resistance against hostile source. Production builder verification must
-separate the collector and build identities, make raw evidence inaccessible to
-the build identity, and exercise an adversarial tamper canary before promoting
-this collector beyond a builder declaration.
+The first `python-wheel-v1` canary ran its collector and build child under the
+same unprivileged UID. Exact inventory and parser checks caught corruption but
+could not establish tamper resistance against hostile source. The replacement
+`python-wheel-v2` profile is under test: a root supervisor owns mode-0700
+collector output and invokes only the tracee as UID/GID 65532. Build artifacts
+land in a separate disposable tree and are copied through bounded, no-follow,
+identity-checked snapshots after strace has reaped the traced process tree.
+
+The supervisor receives only `CHOWN`, `KILL`, `SETGID`, `SETUID`, and `SYS_PTRACE`
+inside the container's private PID namespace. The tracee must report zero
+effective capabilities and `NoNewPrivs: 1`. A custom PEP 517 fixture attempts
+to signal PID 1, modify the immutable entrypoint, list and write `/out`, and
+read `/proc/1/mem`. The profile remains unapproved until those operations are
+denied against the quarantined local image. Registry authentication, push, and
+attestation happen only afterward, and the pulled registry digest must resolve
+to the same tested image ID. Passing this canary narrows the known same-UID
+weakness; it still does not prove resistance to a kernel, runtime, or collector
+exploit. The v1 Bandit caller remains disabled during this migration.
+
+Because a tracee can request `CLONE_UNTRACED`, `-f` is not treated as a
+quiescence guarantee. After strace returns, the PID 1 supervisor kills and
+reaps every remaining process in the private namespace before reading the
+build-owned artifact tree. Each artifact then requires two identical content
+passes plus stable inode, size, mtime, ctime, and link-count metadata.
 
 ## Build Result
 
