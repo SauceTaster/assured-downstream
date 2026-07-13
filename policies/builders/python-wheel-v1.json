@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "bootstrap-reviewed-not-yet-published",
+  "status": "published-and-sigstore-verified",
   "profile_id": "python-wheel-v1",
   "platform": "linux/amd64",
   "image": "ghcr.io/saucetaster/assured-downstream-python-builder",
@@ -47,6 +47,15 @@
     "docker/login-action": "5e57cd118135c172c3672efd75eb46360885c0ef",
     "docker/setup-buildx-action": "8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"
   },
-  "published_image_digest": null,
+  "published_image_digest": "sha256:fabfecbd48689108af585a49c6c9ee5522bb02aad716fcdc84a8799560ab791b",
+  "publication": {
+    "source_commit": "883aaf4b180ebb677e0b2c284242ee3c314d46b1",
+    "workflow": ".github/workflows/publish-python-builder.yml",
+    "workflow_run_id": 29215681975,
+    "certificate_identity": "https://github.com/SauceTaster/assured-downstream/.github/workflows/publish-python-builder.yml@refs/heads/main",
+    "runner_environment": "github-hosted",
+    "transparency_log": "https://rekor.sigstore.dev",
+    "verified": true
+  },
   "claim_limit": "This policy pins bootstrap inputs. It does not establish hermetic image construction, independent rebuild equivalence, or runtime containment until the published image and execution evidence are independently verified."
 }

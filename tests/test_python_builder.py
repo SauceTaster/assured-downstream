@@ -33,7 +33,13 @@ class PythonBuilderTests(unittest.TestCase):
         ).read_text()
         workflow = parse_workflow_yaml(workflow_text)
 
-        self.assertEqual(policy["status"], "bootstrap-reviewed-not-yet-published")
+        self.assertEqual(policy["status"], "published-and-sigstore-verified")
+        self.assertRegex(policy["published_image_digest"], r"^sha256:[0-9a-f]{64}$")
+        self.assertTrue(policy["publication"]["verified"])
+        self.assertEqual(
+            policy["publication"]["runner_environment"],
+            "github-hosted",
+        )
         self.assertIn(policy["base_image"]["index_digest"], dockerfile)
         for package in policy["system_packages"]:
             self.assertIn(package["url"], dockerfile)
