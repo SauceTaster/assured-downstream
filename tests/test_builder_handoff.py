@@ -144,6 +144,41 @@ class BuilderHandoffTests(unittest.TestCase):
                     project_version=PROJECT_VERSION,
                 )
 
+    def test_rejects_missing_trace_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            create_builder_output(root)
+            trace_path = root / "traces" / "observed-trace.json"
+            trace = json.loads(trace_path.read_text())
+            trace["coverage"] = {
+                "process": False,
+                "file": False,
+                "network": False,
+                "syscall": False,
+            }
+            trace["coverage_basis"] = "insufficient-parser-pass"
+            trace["parsed_line_count"] = 0
+            trace["raw_file_count"] = 0
+            trace_path.write_text(json.dumps(trace), encoding="utf-8")
+            builder_path = root / "reports" / "builder.json"
+            report = json.loads(builder_path.read_text())
+            report["trace"] = {
+                "coverage": trace["coverage"],
+                "raw_file_count": 0,
+                "parsed_line_count": 0,
+                "unparsed_line_count": 0,
+            }
+            builder_path.write_text(json.dumps(report), encoding="utf-8")
+
+            with self.assertRaisesRegex(BuilderHandoffError, "requires complete"):
+                validate_builder_output(
+                    root,
+                    source_repository=SOURCE_REPOSITORY,
+                    source_commit=SOURCE_COMMIT,
+                    source_tree=SOURCE_TREE,
+                    project_version=PROJECT_VERSION,
+                )
+
     def test_rejects_sbom_without_document_describes_binding(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -207,6 +242,17 @@ def create_builder_output(root: Path) -> None:
                 "network_policy": "deny",
                 "returncode": 0,
                 "validation_error": None,
+            },
+            "trace": {
+                "coverage": {
+                    "process": True,
+                    "file": True,
+                    "network": True,
+                    "syscall": True,
+                },
+                "raw_file_count": 1,
+                "parsed_line_count": 1,
+                "unparsed_line_count": 0,
             },
         },
     )

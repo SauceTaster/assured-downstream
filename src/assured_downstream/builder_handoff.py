@@ -100,6 +100,20 @@ def validate_builder_output(
 
     trace = read_json(root / "traces" / "observed-trace.json")
     validate_trace(trace)
+    reported_trace = require_mapping(
+        builder_report.get("trace"),
+        "builder trace summary",
+    )
+    if (
+        reported_trace.get("coverage") != trace["coverage"]
+        or reported_trace.get("raw_file_count") != trace["raw_file_count"]
+        or reported_trace.get("parsed_line_count") != trace["parsed_line_count"]
+        or reported_trace.get("unparsed_line_count")
+        != trace["unparsed_line_count"]
+    ):
+        raise BuilderHandoffError(
+            "builder trace summary does not match the retained trace"
+        )
     if require_sbom:
         validate_spdx_binding(
             root / "sbom" / "sbom.spdx.json",
@@ -182,9 +196,12 @@ def validate_trace(trace: dict[str, Any]) -> None:
     values = [coverage.get(name) for name in ("process", "file", "network", "syscall")]
     if not all(isinstance(value, bool) for value in values):
         raise BuilderHandoffError("trace coverage values must be boolean")
-    if any(values) and (
-        not all(values)
-        or trace.get("coverage_basis") != "complete-parser-pass"
+    if not all(values):
+        raise BuilderHandoffError(
+            "python-wheel-v1 requires complete strace collector coverage"
+        )
+    if (
+        trace.get("coverage_basis") != "complete-parser-pass"
         or not isinstance(trace.get("parsed_line_count"), int)
         or trace["parsed_line_count"] <= 0
         or trace.get("unparsed_line_count") != 0
