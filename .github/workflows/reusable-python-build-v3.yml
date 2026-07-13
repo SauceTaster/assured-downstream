@@ -37,7 +37,7 @@ permissions:
 env:
   BUILDER_IMAGE: ghcr.io/saucetaster/assured-downstream-python-builder
   BUILDER_DIGEST: sha256:5f52c4bfe05c4947877d6d80f2124062b79a46764cc2161dc4caaa631d65833a
-  HANDOFF_COMMIT: e74334673588c20422ad759c827fdde48d75f050
+  HANDOFF_COMMIT: 469ad1ca91f803e05616ec4f289add51a3ad0fa6
 
 jobs:
   build:
@@ -107,7 +107,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: SauceTaster/assured-downstream
-          ref: e74334673588c20422ad759c827fdde48d75f050
+          ref: 469ad1ca91f803e05616ec4f289add51a3ad0fa6
           path: assured-control
           persist-credentials: false
           fetch-depth: 1
@@ -126,7 +126,7 @@ jobs:
           cd "$RUNNER_TEMP/assured-tool"
           printf '%s  %s\n' face06d049a8925de14fabc068bcaf691f92d208e2f9b097fcf43e4697babeb2 src/assured_downstream/__init__.py | sha256sum -c -
           printf '%s  %s\n' 8e739a88191e01268455f524c6c455036090d3306e2e6ae19415e74d779a14b4 src/assured_downstream/archive_validation_v3.py | sha256sum -c -
-          printf '%s  %s\n' 020be0bcf599c5d57ca5f078c684e27aa7861f3e54586e9c36a9ca92778e2491 src/assured_downstream/builder_handoff_v3.py | sha256sum -c -
+          printf '%s  %s\n' fa6beace9189e145bcf9e0a743537e200438234653d5d34b1a2868646c6716b1 src/assured_downstream/builder_handoff_v3.py | sha256sum -c -
           printf '%s  %s\n' 778465cc730f68f0c44e12755dc95adcf78168a1ecedbd5d6fa7aa6c89a5c00a src/assured_downstream/catalog.py | sha256sum -c -
           printf '%s  %s\n' 215c02153b405232a570c3957364dfd84f333b37de56b77e1497a769b953de65 src/assured_downstream/evidence.py | sha256sum -c -
           printf '%s  %s\n' 0fd74a45333689775fa925fdaa44444d465ffd77c710e852eb95e2558bd261a6 src/assured_downstream/seed.py | sha256sum -c -
@@ -311,7 +311,7 @@ jobs:
           cd assured-tool
           printf '%s  %s\n' face06d049a8925de14fabc068bcaf691f92d208e2f9b097fcf43e4697babeb2 src/assured_downstream/__init__.py | sha256sum -c -
           printf '%s  %s\n' 8e739a88191e01268455f524c6c455036090d3306e2e6ae19415e74d779a14b4 src/assured_downstream/archive_validation_v3.py | sha256sum -c -
-          printf '%s  %s\n' 020be0bcf599c5d57ca5f078c684e27aa7861f3e54586e9c36a9ca92778e2491 src/assured_downstream/builder_handoff_v3.py | sha256sum -c -
+          printf '%s  %s\n' fa6beace9189e145bcf9e0a743537e200438234653d5d34b1a2868646c6716b1 src/assured_downstream/builder_handoff_v3.py | sha256sum -c -
           printf '%s  %s\n' 778465cc730f68f0c44e12755dc95adcf78168a1ecedbd5d6fa7aa6c89a5c00a src/assured_downstream/catalog.py | sha256sum -c -
           printf '%s  %s\n' 215c02153b405232a570c3957364dfd84f333b37de56b77e1497a769b953de65 src/assured_downstream/evidence.py | sha256sum -c -
           printf '%s  %s\n' 0fd74a45333689775fa925fdaa44444d465ffd77c710e852eb95e2558bd261a6 src/assured_downstream/seed.py | sha256sum -c -
@@ -455,7 +455,7 @@ jobs:
           cd assured-tool
           printf '%s  %s\n' face06d049a8925de14fabc068bcaf691f92d208e2f9b097fcf43e4697babeb2 src/assured_downstream/__init__.py | sha256sum -c -
           printf '%s  %s\n' 8e739a88191e01268455f524c6c455036090d3306e2e6ae19415e74d779a14b4 src/assured_downstream/archive_validation_v3.py | sha256sum -c -
-          printf '%s  %s\n' 020be0bcf599c5d57ca5f078c684e27aa7861f3e54586e9c36a9ca92778e2491 src/assured_downstream/builder_handoff_v3.py | sha256sum -c -
+          printf '%s  %s\n' fa6beace9189e145bcf9e0a743537e200438234653d5d34b1a2868646c6716b1 src/assured_downstream/builder_handoff_v3.py | sha256sum -c -
           printf '%s  %s\n' 778465cc730f68f0c44e12755dc95adcf78168a1ecedbd5d6fa7aa6c89a5c00a src/assured_downstream/catalog.py | sha256sum -c -
           printf '%s  %s\n' 215c02153b405232a570c3957364dfd84f333b37de56b77e1497a769b953de65 src/assured_downstream/evidence.py | sha256sum -c -
           printf '%s  %s\n' 0fd74a45333689775fa925fdaa44444d465ffd77c710e852eb95e2558bd261a6 src/assured_downstream/seed.py | sha256sum -c -
